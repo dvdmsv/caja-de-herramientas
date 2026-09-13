@@ -2,6 +2,44 @@
   backdrop-filter: blur(6px);
 }
 
+/* La marca: un punto por categoría, con sus colores. */
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.marca__puntos {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.marca__punto {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+}
+
+.marca__punto--pdf { background-color: var(--c-pdf); }
+.marca__punto--imagenes { background-color: var(--c-imagenes); }
+.marca__punto--documentos { background-color: var(--c-documentos); }
+
+.boton-tema {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  color: var(--bs-body-color);
+  font-size: 1.15rem;
+}
+
+.boton-tema:hover {
+  color: var(--acento-texto);
+}
+
 /*
  * Despliegue del menú en pantallas estrechas, sin el JavaScript de Bootstrap.
  *

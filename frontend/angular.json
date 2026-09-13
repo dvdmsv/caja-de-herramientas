@@ -23,6 +23,7 @@
             "tsConfig": "tsconfig.app.json",
             "assets": [
               "src/favicon.ico",
+              "src/favicon.svg",
               "src/assets",
               {
                 "glob": "pdf.worker.min.mjs",
@@ -32,7 +33,9 @@
             ],
             "styles": [
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/@fontsource-variable/plus-jakarta-sans/index.css",
               "src/estilos/iconos/iconos.css",
+              "src/estilos/tema.css",
               "src/styles.css"
             ],
             "scripts": []

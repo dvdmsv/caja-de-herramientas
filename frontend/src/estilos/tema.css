@@ -1,0 +1,317 @@
+/*
+ * Tema de la aplicación: tipografía, formas, colores por categoría y modo oscuro.
+ *
+ * Cómo funciona el color:
+ *
+ *   - Cada categoría tiene su paleta (`--c-pdf`, `--c-imagenes`, `--c-documentos`)
+ *     y hay una de marca (`--c-marca`) para lo que no es de ninguna, como el inicio.
+ *   - `--acento*` es la paleta *activa*. Vale la de marca y la cambia
+ *     `<html data-categoria="…">`, que pone la página de cada herramienta.
+ *   - Las clases `*-primary` de Bootstrap están reencaminadas a `--acento`. Por
+ *     eso las 22 herramientas se tiñen de su color sin tocar sus plantillas, y
+ *     por eso el atributo va en `<html>`: lo heredan también el menú y los
+ *     diálogos de SweetAlert, que se pintan fuera de la página.
+ *
+ * Los valores están medidos (WCAG): el blanco sobre cada `--c-*` pasa de 4,5:1,
+ * y cada `--c-*-texto` pasa de 4,5:1 sobre los fondos claros u oscuros de
+ * Bootstrap, incluida su pastilla. Si cambias un color, vuelve a medirlo.
+ *
+ * La fuente, Plus Jakarta Sans, se carga en `angular.json` desde Fontsource: se
+ * sirve desde este mismo servidor, sin llamar a terceros, y por su
+ * `unicode-range` el navegador sólo baja el subconjunto latino.
+ */
+
+/* ─── Paleta ────────────────────────────────────────────────────────────── */
+
+:root {
+  --c-marca: #4f46e5;
+  --c-marca-rgb: 79, 70, 229;
+  --c-marca-suave: #eef0fe;
+  --c-marca-texto: #4338ca;
+  --c-marca-texto-rgb: 67, 56, 202;
+
+  --c-pdf: #d0341f;
+  --c-pdf-rgb: 208, 52, 31;
+  --c-pdf-suave: #fdecea;
+  --c-pdf-texto: #b42a18;
+  --c-pdf-texto-rgb: 180, 42, 24;
+
+  --c-imagenes: #7c3aed;
+  --c-imagenes-rgb: 124, 58, 237;
+  --c-imagenes-suave: #f3edfe;
+  --c-imagenes-texto: #6d28d9;
+  --c-imagenes-texto-rgb: 109, 40, 217;
+
+  --c-documentos: #0f7a6b;
+  --c-documentos-rgb: 15, 122, 107;
+  --c-documentos-suave: #e3f4f1;
+  --c-documentos-texto: #0b6b5d;
+  --c-documentos-texto-rgb: 11, 107, 93;
+
+  --sombra-tarjeta: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.07);
+  --sombra-elevada: 0 12px 28px -8px rgba(16, 24, 40, 0.18);
+}
+
+/* En oscuro, el fondo de la pastilla se apaga y el texto se aclara. El color de
+   botón no cambia: el blanco encima sigue pasando. */
+[data-bs-theme='dark'] {
+  --c-marca-suave: #272a4d;
+  --c-marca-texto: #a5b4fc;
+  --c-marca-texto-rgb: 165, 180, 252;
+
+  --c-pdf-suave: #3d2220;
+  --c-pdf-texto: #ff9b8a;
+  --c-pdf-texto-rgb: 255, 155, 138;
+
+  --c-imagenes-suave: #302449;
+  --c-imagenes-texto: #c4a8ff;
+  --c-imagenes-texto-rgb: 196, 168, 255;
+
+  --c-documentos-suave: #1b3531;
+  --c-documentos-texto: #5fd4c0;
+  --c-documentos-texto-rgb: 95, 212, 192;
+
+  --sombra-tarjeta: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sombra-elevada: 0 12px 28px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* ─── Acento activo ─────────────────────────────────────────────────────── */
+
+/* `html:root` y no `:root` a secas: Bootstrap redefine los colores de enlace en
+   `[data-bs-theme=dark]`, que tiene la misma especificidad, y ganaría él. */
+html:root {
+  --acento: var(--c-marca);
+  --acento-rgb: var(--c-marca-rgb);
+  --acento-suave: var(--c-marca-suave);
+  --acento-texto: var(--c-marca-texto);
+  --acento-texto-rgb: var(--c-marca-texto-rgb);
+}
+
+html:root[data-categoria='pdf'] {
+  --acento: var(--c-pdf);
+  --acento-rgb: var(--c-pdf-rgb);
+  --acento-suave: var(--c-pdf-suave);
+  --acento-texto: var(--c-pdf-texto);
+  --acento-texto-rgb: var(--c-pdf-texto-rgb);
+}
+
+html:root[data-categoria='imagenes'] {
+  --acento: var(--c-imagenes);
+  --acento-rgb: var(--c-imagenes-rgb);
+  --acento-suave: var(--c-imagenes-suave);
+  --acento-texto: var(--c-imagenes-texto);
+  --acento-texto-rgb: var(--c-imagenes-texto-rgb);
+}
+
+html:root[data-categoria='documentos'] {
+  --acento: var(--c-documentos);
+  --acento-rgb: var(--c-documentos-rgb);
+  --acento-suave: var(--c-documentos-suave);
+  --acento-texto: var(--c-documentos-texto);
+  --acento-texto-rgb: var(--c-documentos-texto-rgb);
+}
+
+/* Lo que Bootstrap llama "primary" pasa a ser el acento. */
+html:root {
+  --acento-hover: color-mix(in srgb, var(--acento) 85%, #000);
+
+  --bs-primary: var(--acento);
+  --bs-primary-rgb: var(--acento-rgb);
+  --bs-primary-text-emphasis: var(--acento-texto);
+  --bs-primary-bg-subtle: var(--acento-suave);
+  --bs-primary-border-subtle: rgba(var(--acento-rgb), 0.35);
+  --bs-link-color: var(--acento-texto);
+  --bs-link-color-rgb: var(--acento-texto-rgb);
+  --bs-link-hover-color: var(--acento-texto);
+  --bs-link-hover-color-rgb: var(--acento-texto-rgb);
+  --bs-focus-ring-color: rgba(var(--acento-rgb), 0.35);
+
+  --bs-body-font-family: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --bs-border-radius: 0.625rem;
+  --bs-border-radius-sm: 0.5rem;
+  --bs-border-radius-lg: 0.875rem;
+  --bs-border-radius-xl: 1.25rem;
+}
+
+/* ─── Tipografía ────────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ─── Bootstrap reencaminado al acento ──────────────────────────────────── */
+
+.btn {
+  font-weight: 600;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--acento);
+  --bs-btn-border-color: var(--acento);
+  --bs-btn-hover-bg: var(--acento-hover);
+  --bs-btn-hover-border-color: var(--acento-hover);
+  --bs-btn-active-bg: var(--acento-hover);
+  --bs-btn-active-border-color: var(--acento-hover);
+  --bs-btn-disabled-bg: var(--acento);
+  --bs-btn-disabled-border-color: var(--acento);
+  --bs-btn-focus-shadow-rgb: var(--acento-rgb);
+}
+
+/* El contorno usa el color de texto y no el del botón: en oscuro el del botón
+   no llega a 3:1 contra el fondo, y el de texto sí. */
+.btn-outline-primary {
+  --bs-btn-color: var(--acento-texto);
+  --bs-btn-border-color: var(--acento-texto);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--acento);
+  --bs-btn-hover-border-color: var(--acento);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--acento);
+  --bs-btn-active-border-color: var(--acento);
+  --bs-btn-disabled-color: var(--acento-texto);
+  --bs-btn-disabled-border-color: var(--acento-texto);
+  --bs-btn-focus-shadow-rgb: var(--acento-rgb);
+}
+
+/* Como icono sobre fondo oscuro, el color de botón se queda corto: el de texto. */
+.text-primary {
+  color: var(--acento-texto) !important;
+}
+
+.progress {
+  --bs-progress-bar-bg: var(--acento);
+}
+
+.nav-pills {
+  --bs-nav-pills-link-active-bg: var(--acento);
+}
+
+.form-check-input:checked {
+  background-color: var(--acento);
+  border-color: var(--acento);
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: rgba(var(--acento-rgb), 0.6);
+  box-shadow: 0 0 0 0.25rem rgba(var(--acento-rgb), 0.25);
+}
+
+.btn:focus-visible,
+.btn-check:focus-visible + .btn {
+  box-shadow: 0 0 0 0.25rem rgba(var(--acento-rgb), 0.35);
+}
+
+.form-range {
+  accent-color: var(--acento);
+}
+
+.form-range::-webkit-slider-thumb {
+  background-color: var(--acento);
+}
+
+.form-range::-moz-range-thumb {
+  background-color: var(--acento);
+}
+
+.form-range:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px var(--bs-body-bg), 0 0 0 0.25rem rgba(var(--acento-rgb), 0.25);
+}
+
+/* ─── Formas ────────────────────────────────────────────────────────────── */
+
+.card {
+  --bs-card-border-radius: var(--bs-border-radius-lg);
+  --bs-card-inner-border-radius: calc(var(--bs-border-radius-lg) - 1px);
+  --bs-card-border-color: var(--bs-border-color-translucent);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+/* ─── Pastilla de icono ─────────────────────────────────────────────────── */
+
+/* El icono de una herramienta, dentro de un cuadro redondeado del color de su
+   categoría. Sin modificador toma el acento activo. */
+.pastilla {
+  --pastilla-fondo: var(--acento-suave);
+  --pastilla-tinta: var(--acento-texto);
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.8rem;
+  background-color: var(--pastilla-fondo);
+  color: var(--pastilla-tinta);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.pastilla--sm {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.6rem;
+  font-size: 1rem;
+}
+
+.pastilla--lg {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  font-size: 1.6rem;
+}
+
+.pastilla--pdf {
+  --pastilla-fondo: var(--c-pdf-suave);
+  --pastilla-tinta: var(--c-pdf-texto);
+}
+
+.pastilla--imagenes {
+  --pastilla-fondo: var(--c-imagenes-suave);
+  --pastilla-tinta: var(--c-imagenes-texto);
+}
+
+.pastilla--documentos {
+  --pastilla-fondo: var(--c-documentos-suave);
+  --pastilla-tinta: var(--c-documentos-texto);
+}
+
+/* ─── SweetAlert ────────────────────────────────────────────────────────── */
+
+/* SweetAlert inyecta su CSS al cargarse, después de éste: de ahí `html body`,
+   para ganarle por especificidad y no a base de `!important`. */
+html body .swal2-popup {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-family: var(--bs-body-font-family);
+  border-radius: var(--bs-border-radius-xl);
+}
+
+html body .swal2-title,
+html body .swal2-html-container {
+  color: var(--bs-body-color);
+}
+
+html body .swal2-styled.swal2-confirm {
+  background-color: var(--acento);
+  border-radius: var(--bs-border-radius);
+  font-weight: 600;
+}
+
+html body .swal2-styled.swal2-cancel {
+  background-color: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+  border-radius: var(--bs-border-radius);
+  font-weight: 600;
+}
+
+html body .swal2-styled:focus-visible {
+  box-shadow: 0 0 0 3px rgba(var(--acento-rgb), 0.45);
+}
+
+html body .swal2-timer-progress-bar {
+  background: rgba(var(--acento-rgb), 0.55);
+}

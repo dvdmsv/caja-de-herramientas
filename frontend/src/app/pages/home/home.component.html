@@ -4,7 +4,7 @@
 
 @for (grupo of grupos; track grupo) {
   <section class="mb-5">
-    <h2 class="h6 text-uppercase text-body-secondary mb-3">{{ grupo.categoria }}</h2>
+    <h2 class="categoria categoria--{{ clave(grupo) }}">{{ grupo.categoria }}</h2>
     <div class="row g-3">
       @for (herramienta of grupo.herramientas; track herramienta) {
         <div class="col-12 col-sm-6 col-lg-4">
@@ -13,23 +13,29 @@
             <a
               class="tarjeta card h-100 text-decoration-none"
               [routerLink]="rutaDe(herramienta)">
-              <div class="card-body">
-                <i class="bi {{ herramienta.icono }} fs-3 text-primary"></i>
-                <h3 class="h6 mt-2 mb-1">{{ herramienta.nombre }}</h3>
-                <p class="small text-body-secondary mb-0">{{ herramienta.descripcion }}</p>
+              <div class="card-body tarjeta__cuerpo">
+                <span class="pastilla pastilla--{{ clave(grupo) }}" aria-hidden="true">
+                  <i class="bi {{ herramienta.icono }}"></i>
+                </span>
+                <div>
+                  <h3 class="h6 mb-1">{{ herramienta.nombre }}</h3>
+                  <p class="small text-body-secondary mb-0">{{ herramienta.descripcion }}</p>
+                </div>
               </div>
             </a>
           }
           <!-- Aún no disponible: misma tarjeta, atenuada y sin enlace -->
           @if (!herramienta.disponible) {
             <div class="tarjeta card h-100 tarjeta--pendiente">
-              <div class="card-body">
-                <i class="bi {{ herramienta.icono }} fs-3 text-body-secondary"></i>
-                <h3 class="h6 mt-2 mb-1">
+              <div class="card-body tarjeta__cuerpo">
+                <span class="pastilla" aria-hidden="true"><i class="bi {{ herramienta.icono }}"></i></span>
+                <div>
+                <h3 class="h6 mb-1">
                   {{ herramienta.nombre }}
                   <span class="badge text-bg-light fw-normal align-middle ms-1">Próximamente</span>
                 </h3>
                 <p class="small text-body-secondary mb-0">{{ herramienta.descripcion }}</p>
+                </div>
               </div>
             </div>
           }

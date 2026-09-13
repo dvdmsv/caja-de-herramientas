@@ -2,7 +2,7 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { Grupo, Herramienta, agruparPorCategoria, rutaDe } from '../../core/tools';
+import { ClaveCategoria, Grupo, Herramienta, agruparPorCategoria, claveDeCategoria, rutaDe } from '../../core/tools';
 
 @Component({
   selector: 'app-home',
@@ -17,5 +17,9 @@ export class HomeComponent {
 
   rutaDe(herramienta: Herramienta): string {
     return rutaDe(herramienta);
+  }
+
+  clave(grupo: Grupo): ClaveCategoria {
+    return claveDeCategoria(grupo.categoria);
   }
 }

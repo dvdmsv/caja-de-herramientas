@@ -38,6 +38,10 @@ def iconos_usados() -> set[str]:
     """
     encontrados = set()
     for f in (AQUI / 'src').rglob('*'):
+        # Sin saltarse su propia salida, un icono que se deja de usar seguiría
+        # "usándose" en el CSS generado y no se quitaría nunca.
+        if DESTINO in f.parents:
+            continue
         if f.suffix in {'.html', '.ts', '.css'} and f.is_file():
             encontrados |= set(re.findall(r'\bbi-([a-z0-9-]+)', f.read_text()))
     return encontrados

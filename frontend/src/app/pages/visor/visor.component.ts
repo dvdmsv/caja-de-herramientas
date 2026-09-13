@@ -152,6 +152,8 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
+    // El visor es de la familia de los PDF: sus botones, en ese color (estilos/tema.css).
+    document.documentElement.dataset['categoria'] = 'pdf';
     // El desplazamiento no pasa por Angular: se dispara decenas de veces por
     // segundo y sólo interesa cuando cambia lo que hay que enseñar.
     this.zone.runOutsideAngular(() => {
@@ -185,6 +187,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   };
 
   ngOnDestroy(): void {
+    if (document.documentElement.dataset['categoria'] === 'pdf') {
+      delete document.documentElement.dataset['categoria'];
+    }
     this.lecturaRef?.nativeElement.removeEventListener('scroll', this.alDesplazar);
     this.observadorTamano?.disconnect();
     clearInterval(this.temporizadorKeepalive);

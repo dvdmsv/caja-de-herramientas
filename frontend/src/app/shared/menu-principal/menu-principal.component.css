@@ -21,13 +21,13 @@
 
 .seccion__boton:hover,
 .seccion__boton[aria-expanded='true'] {
-  color: var(--bs-primary);
+  color: var(--acento-texto);
   background-color: var(--bs-tertiary-bg);
 }
 
 .seccion__boton--activa {
-  color: var(--bs-primary);
-  font-weight: 500;
+  color: var(--acento-texto);
+  font-weight: 600;
 }
 
 .seccion__flecha {
@@ -53,15 +53,9 @@
   background-color: var(--bs-tertiary-bg);
 }
 
-.herramienta__icono {
-  color: var(--bs-primary);
-  font-size: 1.1rem;
-  line-height: 1.4;
-}
-
 .herramienta__nombre {
   display: block;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .herramienta__descripcion {
@@ -98,7 +92,7 @@
     background-color: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
     border-radius: var(--bs-border-radius-lg);
-    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
+    box-shadow: var(--sombra-elevada);
     /* La sección de PDF ya tiene ocho herramientas: en una pantalla baja el
        panel se saldría por abajo, así que se desplaza por dentro. */
     max-height: calc(100vh - 5rem);

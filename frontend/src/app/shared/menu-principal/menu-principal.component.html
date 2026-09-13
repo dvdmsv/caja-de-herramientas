@@ -17,7 +17,9 @@
             <a class="nav-link herramienta"
               [routerLink]="rutaDe(herramienta)" routerLinkActive="herramienta--activa"
               (click)="alNavegar()">
-              <i class="bi {{ herramienta.icono }} herramienta__icono" aria-hidden="true"></i>
+              <span class="pastilla pastilla--sm pastilla--{{ clave(grupo) }}" aria-hidden="true">
+                <i class="bi {{ herramienta.icono }}"></i>
+              </span>
               <span>
                 <span class="herramienta__nombre">{{ herramienta.nombre }}</span>
                 <span class="herramienta__descripcion">{{ herramienta.descripcion }}</span>

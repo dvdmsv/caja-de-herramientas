@@ -6,7 +6,24 @@
   <meta name="description" content="Une, convierte y comprime PDF e imágenes desde el navegador, sin registro.">
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta name="color-scheme" content="light dark">
+  <!--
+    El tema se aplica aquí, antes de que arranque Angular: si esperase a
+    TemaService, quien use el modo oscuro vería la página en blanco un instante.
+    Es la misma lógica que core/tema.ts, en miniatura; si cambias una, cambia
+    la otra.
+  -->
+  <script>
+    (function () {
+      var preferencia = 'sistema';
+      try { preferencia = localStorage.getItem('tema') || 'sistema'; } catch (e) {}
+      var oscuro = preferencia === 'oscuro' ||
+        (preferencia !== 'claro' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-bs-theme', oscuro ? 'dark' : 'light');
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>

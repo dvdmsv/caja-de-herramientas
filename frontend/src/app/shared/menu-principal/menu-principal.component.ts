@@ -2,7 +2,7 @@
 import { Component, ElementRef, EventEmitter, HostListener, Output, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 
-import { Categoria, Grupo, Herramienta, agruparPorCategoria, rutaDe } from '../../core/tools';
+import { Categoria, ClaveCategoria, Grupo, Herramienta, agruparPorCategoria, claveDeCategoria, rutaDe } from '../../core/tools';
 
 /**
  * Al salir del botón no se cierra en el acto: hay un hueco entre el botón y su
@@ -98,6 +98,10 @@ export class MenuPrincipalComponent {
 
   rutaDe(herramienta: Herramienta): string {
     return rutaDe(herramienta);
+  }
+
+  clave(grupo: Grupo): ClaveCategoria {
+    return claveDeCategoria(grupo.categoria);
   }
 
   identificador(categoria: Categoria): string {

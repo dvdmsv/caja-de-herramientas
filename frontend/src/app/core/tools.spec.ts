@@ -1,5 +1,5 @@
 import { routes } from '../app.routes';
-import { HERRAMIENTAS, rutaDe } from './tools';
+import { CATEGORIAS, HERRAMIENTAS, claveDeCategoria, rutaDe } from './tools';
 
 /**
  * El catálogo y las rutas se declaran por separado (Angular necesita imports
@@ -25,5 +25,10 @@ describe('catálogo de herramientas', () => {
     HERRAMIENTAS.filter(h => !h.disponible).forEach(herramienta => {
       expect(declaradas.has(rutaDe(herramienta))).toBe(false);
     });
+  });
+
+  it('cada categoría tiene su clave de CSS, sin acentos ni mayúsculas', () => {
+    const claves = CATEGORIAS.map(claveDeCategoria);
+    expect(claves).toEqual(['pdf', 'imagenes', 'documentos']);
   });
 });

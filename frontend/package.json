@@ -23,6 +23,7 @@
     "@angular/platform-browser": "^22.1.4",
     "@angular/platform-browser-dynamic": "^22.1.4",
     "@angular/router": "^22.1.4",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
     "pdfjs-dist": "^6.2.108",

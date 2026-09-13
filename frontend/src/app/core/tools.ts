@@ -24,6 +24,22 @@ export interface Herramienta {
 
 export const CATEGORIAS: Categoria[] = ['PDF', 'Imágenes', 'Documentos'];
 
+/**
+ * Nombre de la categoría tal como lo usa el CSS: en `<html data-categoria>` y en
+ * las clases `pastilla--…` de `estilos/tema.css`, que le dan su color.
+ */
+export type ClaveCategoria = 'pdf' | 'imagenes' | 'documentos';
+
+const CLAVES: Record<Categoria, ClaveCategoria> = {
+  PDF: 'pdf',
+  'Imágenes': 'imagenes',
+  Documentos: 'documentos',
+};
+
+export function claveDeCategoria(categoria: Categoria): ClaveCategoria {
+  return CLAVES[categoria];
+}
+
 export const HERRAMIENTAS: Herramienta[] = [
   {
     slug: 'unir-pdf',

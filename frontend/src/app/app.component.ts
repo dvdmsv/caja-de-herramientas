@@ -3,6 +3,7 @@ import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
+import { TemaService } from './core/tema.service';
 import { MenuPrincipalComponent } from './shared/menu-principal/menu-principal.component';
 
 @Component({
@@ -16,6 +17,15 @@ export class AppComponent {
   readonly anio = new Date().getFullYear();
 
   private readonly router = inject(Router);
+  readonly tema = inject(TemaService);
+
+  get iconoTema(): string {
+    return { sistema: 'bi-circle-half', claro: 'bi-sun', oscuro: 'bi-moon-stars' }[this.tema.preferencia];
+  }
+
+  get etiquetaTema(): string {
+    return { sistema: 'automático', claro: 'claro', oscuro: 'oscuro' }[this.tema.preferencia];
+  }
 
   /**
    * Hay pantallas, como el visor, que necesitan todo el alto: ahí no se pintan

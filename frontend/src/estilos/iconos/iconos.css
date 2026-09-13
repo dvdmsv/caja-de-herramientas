@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   84 iconos de los 2078 que trae bootstrap-icons.
+   85 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -40,6 +40,7 @@
 .bi-check-lg::before { content: "\f633"; }
 .bi-check2-square::before { content: "\f271"; }
 .bi-chevron-down::before { content: "\f282"; }
+.bi-circle-half::before { content: "\f288"; }
 .bi-clipboard::before { content: "\f290"; }
 .bi-clock-history::before { content: "\f292"; }
 .bi-cloud-arrow-up::before { content: "\f297"; }
@@ -96,8 +97,8 @@
 .bi-shield-check::before { content: "\f52f"; }
 .bi-shield-exclamation::before { content: "\f530"; }
 .bi-shield-x::before { content: "\f53e"; }
+.bi-sun::before { content: "\f5a2"; }
 .bi-telephone::before { content: "\f5c1"; }
-.bi-tools::before { content: "\f5db"; }
 .bi-trash::before { content: "\f5de"; }
 .bi-ui-checks::before { content: "\f5f9"; }
 .bi-unlock::before { content: "\f600"; }
