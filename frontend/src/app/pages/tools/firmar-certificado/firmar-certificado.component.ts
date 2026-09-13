@@ -369,6 +369,21 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
     return super.listo && !!this.datosCertificado && (!this.visible || !!this.apariencia);
   }
 
+  override get motivoBloqueo(): string | null {
+    if (super.motivoBloqueo || this.archivos.length === 0) {
+      return super.motivoBloqueo;
+    }
+    if (!this.datosCertificado) {
+      if (this.comprobando) {
+        return 'Comprobando el certificado…';
+      }
+      return this.origen === 'autofirma'
+        ? 'Elige tu certificado con AutoFirma.'
+        : 'Sube tu certificado (.p12 o .pfx) y escribe su contraseña.';
+    }
+    return this.visible && !this.apariencia ? 'Preparando el sello visible…' : null;
+  }
+
   protected override opciones(): Record<string, unknown> {
     return {
       ...this.cuerpoDelSello(),

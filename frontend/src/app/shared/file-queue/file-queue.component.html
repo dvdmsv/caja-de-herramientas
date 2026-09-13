@@ -2,22 +2,30 @@
   (change)="alSeleccionar($event)">
 
 <div class="zona"
+  [class.zona--compacta]="compacta"
   [class.zona--activa]="arrastrando"
   [class.zona--inerte]="deshabilitado"
   role="button"
   tabindex="0"
+  [attr.aria-disabled]="deshabilitado"
   (click)="abrirSelector()"
   (keydown.enter)="abrirSelector()"
-  (keydown.space)="abrirSelector()"
+  (keydown.space)="$event.preventDefault(); abrirSelector()"
   (dragover)="alArrastrarEncima($event)"
   (dragleave)="alSalirArrastre($event)"
   (drop)="alSoltar($event)">
-  <i class="bi bi-cloud-arrow-up fs-2 text-primary"></i>
-  <p class="mb-0 mt-2">{{ ayuda }}</p>
-  @if (accept) {
-    <p class="small text-body-secondary mb-0 formatos">
-      Formatos admitidos: {{ formatosLegibles }}
-    </p>
+  @if (!compacta) {
+    <i class="bi bi-cloud-arrow-up fs-2 text-primary" aria-hidden="true"></i>
+    <p class="mb-0 mt-2">{{ ayuda }}</p>
+    @if (accept) {
+      <p class="small text-body-secondary mb-0 formatos">
+        Formatos admitidos: {{ formatosLegibles }}
+      </p>
+    }
+  } @else {
+    <i class="bi {{ multiple ? 'bi-plus-lg' : 'bi-arrow-repeat' }} text-primary" aria-hidden="true"></i>
+    <span>{{ multiple ? 'Añadir más archivos' : 'Cambiar de archivo' }}</span>
+    <span class="small text-body-secondary d-none d-sm-inline">{{ multiple ? 'o suéltalos aquí' : 'o suéltalo aquí' }}</span>
   }
 </div>
 

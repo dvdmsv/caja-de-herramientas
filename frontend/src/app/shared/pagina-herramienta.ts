@@ -2,7 +2,10 @@ import { inject } from '@angular/core';
 
 import { ApiService, ArchivoServidor, ResumenTamano, VistaPrevia } from '../core/api.service';
 import { ArchivoEnCola } from './file-queue/file-queue.component';
-import { avisoError, avisoExito, mensajeDeError } from './notify';
+import { buscarPorSlug } from '../core/tools';
+import { sinAhorro } from './ahorro';
+import { avisoError, avisoExito, avisoInfo, mensajeDeError } from './notify';
+import { queElegir } from './tipos-archivo';
 
 /**
  * Comportamiento común a todas las páginas de herramienta: subir en cuanto se
@@ -64,6 +67,33 @@ export abstract class PaginaHerramienta {
     return this.archivos.length >= this.minimoArchivos && this.pendientes.length === 0 && !this.ocupado;
   }
 
+  /**
+   * Por qué no se puede pulsar todavía el botón principal, dicho para quien lo
+   * mira; `null` si se puede, o si no hay nada útil que decir.
+   *
+   * Un botón apagado sin explicación obliga a adivinar. Esta versión cubre lo
+   * común a todas; las herramientas que redefinen `listo` con requisitos
+   * propios redefinen también esto, empezando por `super.motivoBloqueo`.
+   */
+  get motivoBloqueo(): string | null {
+    if (this.listo || this.procesando) {
+      return null;
+    }
+    if (this.progreso >= 0) {
+      return 'Espera a que termine la subida.';
+    }
+    if (this.archivos.some(archivo => archivo.estado === 'error')) {
+      return 'Algún archivo no se ha podido subir: reintenta la subida o quítalo de la lista.';
+    }
+    if (this.minimoArchivos > 0 && this.archivos.length === 0) {
+      return `Elige ${queElegir(buscarPorSlug(this.slug)?.acepta ?? '')} para empezar.`;
+    }
+    if (this.archivos.length < this.minimoArchivos) {
+      return `Añade al menos ${this.minimoArchivos} archivos.`;
+    }
+    return null;
+  }
+
   /** Los archivos se suben al soltarlos: al pulsar el botón ya están arriba. */
   alAgregar(nuevos: ArchivoEnCola[]): void {
     this.olvidarResultado();
@@ -96,7 +126,11 @@ export abstract class PaginaHerramienta {
         this.resultados = resultado.files;
         this.resumen = resultado.resumen ?? null;
         this.vistaPrevia = resultado.vista_previa ?? null;
-        avisoExito(this.mensajeExito);
+        if (sinAhorro(this.resumen)) {
+          avisoInfo('Ya estaba optimizado: te dejamos el original.');
+        } else {
+          avisoExito(this.mensajeExito);
+        }
       },
       error: err => {
         this.procesando = false;

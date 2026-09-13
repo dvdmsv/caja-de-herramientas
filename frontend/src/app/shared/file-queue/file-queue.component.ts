@@ -3,6 +3,8 @@ import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-
 import { Component, EventEmitter, Input, Output, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 
 import { PesoPipe } from '../peso.pipe';
+import { avisoInfo } from '../notify';
+import { encaja, explicarRechazo } from '../tipos-archivo';
 
 export type EstadoArchivo = 'local' | 'subiendo' | 'subido' | 'error';
 
@@ -50,6 +52,14 @@ export class FileQueueComponent {
   @Output() agregados = new EventEmitter<ArchivoEnCola[]>();
 
   arrastrando = false;
+
+  /**
+   * Con archivos ya elegidos, la zona se encoge a una franja. Grande no aporta
+   * nada, y en el móvil empujaba el botón principal fuera de la pantalla.
+   */
+  get compacta(): boolean {
+    return this.items.length > 0;
+  }
 
   /**
    * `accept` viene sin espacios (".pdf,.docx,…") y el navegador lo trata como
@@ -102,13 +112,30 @@ export class FileQueueComponent {
     this.itemsChange.emit(this.items);
   }
 
-  /** Añade sólo lo que encaja con `accept` y no estaba ya en la lista. */
+  /**
+   * Añade sólo lo que encaja con `accept` y no estaba ya en la lista, y avisa
+   * de lo que se queda fuera: descartarlo en silencio hacía creer que la
+   * página no respondía.
+   */
   private incorporar(archivos: File[]): void {
-    const admitidos = archivos.filter(file => this.encaja(file) && !this.yaEsta(file));
-    if (admitidos.length === 0) {
+    const noAdmitidos = archivos.filter(file => !encaja(file, this.accept));
+    const repetidos = archivos.filter(file => encaja(file, this.accept) && this.yaEsta(file));
+    const admitidos = archivos.filter(file => encaja(file, this.accept) && !this.yaEsta(file));
+    const conservados = this.multiple ? admitidos : admitidos.slice(0, 1);
+
+    const aviso = explicarRechazo({
+      noAdmitidos: noAdmitidos.map(file => file.name),
+      repetidos: repetidos.map(file => file.name),
+      conservado: admitidos.length > 1 && !this.multiple ? conservados[0].name : undefined,
+    }, this.accept);
+    if (aviso) {
+      avisoInfo(aviso);
+    }
+
+    if (conservados.length === 0) {
       return;
     }
-    const nuevos = aCola(this.multiple ? admitidos : admitidos.slice(0, 1));
+    const nuevos = aCola(conservados);
     if (!this.multiple) {
       this.items.length = 0;
     }
@@ -119,22 +146,5 @@ export class FileQueueComponent {
 
   private yaEsta(file: File): boolean {
     return this.items.some(item => item.file.name === file.name && item.file.size === file.size);
-  }
-
-  /** Comprueba el archivo contra `accept` (extensiones y/o tipos MIME). */
-  private encaja(file: File): boolean {
-    if (!this.accept.trim()) {
-      return true;
-    }
-    const nombre = file.name.toLowerCase();
-    return this.accept.split(',').map(p => p.trim().toLowerCase()).some(patron => {
-      if (patron.startsWith('.')) {
-        return nombre.endsWith(patron);
-      }
-      if (patron.endsWith('/*')) {
-        return file.type.startsWith(patron.slice(0, -1));
-      }
-      return file.type === patron;
-    });
   }
 }

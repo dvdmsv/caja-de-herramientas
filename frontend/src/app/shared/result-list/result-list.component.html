@@ -1,19 +1,33 @@
 @if (archivos.length > 0) {
-  <section class="card border-success mt-4">
-    <div class="card-header bg-success-subtle border-success d-flex flex-wrap align-items-center gap-2">
-      <i class="bi bi-check-circle-fill text-success"></i>
-      <strong class="me-auto">
-        {{ archivos.length === 1 ? 'Tu archivo está listo' : 'Tus ' + archivos.length + ' archivos están listos' }}
-      </strong>
-      @if (ahorro; as porcentaje) {
-        <span class="badge text-bg-success">
-          {{ porcentaje }} % menos de peso
-        </span>
+  <section class="card mt-4" [class.border-success]="!yaOptimizado">
+    @if (!yaOptimizado) {
+      <div class="card-header bg-success-subtle border-success d-flex flex-wrap align-items-center gap-2">
+        <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+        <strong class="me-auto">
+          {{ archivos.length === 1 ? 'Tu archivo está listo' : 'Tus ' + archivos.length + ' archivos están listos' }}
+        </strong>
+        @if (ahorro; as porcentaje) {
+          <span class="badge text-bg-success">
+            {{ porcentaje }} % menos de peso
+          </span>
+        }
+      </div>
+      @if (resumen) {
+        <p class="small text-body-secondary px-3 pt-3 mb-0">
+          De {{ resumen.antes | peso }} a {{ resumen.despues | peso }}.
+        </p>
       }
-    </div>
-    @if (resumen) {
+    } @else {
+      <!-- Comprimir no ha ganado nada: el servidor devuelve el original, y
+           aquí se dice tal cual en vez de celebrarlo. -->
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-info-circle-fill text-body-secondary" aria-hidden="true"></i>
+        <strong>{{ archivos.length === 1 ? 'Tu archivo ya estaba optimizado' : 'Tus archivos ya estaban optimizados' }}</strong>
+      </div>
       <p class="small text-body-secondary px-3 pt-3 mb-0">
-        De {{ resumen.antes | peso }} a {{ resumen.despues | peso }}.
+        No se ha podido reducir sin perder calidad, así que te dejamos
+        {{ archivos.length === 1 ? 'el original' : 'los originales' }}
+        ({{ resumen!.antes | peso }}).
       </p>
     }
     <ul class="list-group list-group-flush">

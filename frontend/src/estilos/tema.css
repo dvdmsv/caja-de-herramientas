@@ -315,3 +315,10 @@ html body .swal2-styled:focus-visible {
 html body .swal2-timer-progress-bar {
   background: rgba(var(--acento-rgb), 0.55);
 }
+
+/* El icono "info" de SweetAlert viene en azul claro: ni pega con el color de la
+   categoría ni debe parecer una alerta. Neutro. */
+html body .swal2-icon.swal2-info {
+  border-color: var(--bs-secondary-color);
+  color: var(--bs-secondary-color);
+}

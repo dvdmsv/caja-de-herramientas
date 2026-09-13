@@ -195,6 +195,16 @@ export class FirmarComponent extends PaginaHerramienta implements OnDestroy {
     return super.listo && !!this.firmas[0]?.id && !!this.firmaPreparada;
   }
 
+  override get motivoBloqueo(): string | null {
+    if (super.motivoBloqueo || this.archivos.length === 0) {
+      return super.motivoBloqueo;
+    }
+    if (!this.firmas[0]?.id) {
+      return 'Añade tu firma: dibújala o sube una foto de ella.';
+    }
+    return this.firmaPreparada ? null : 'Preparando la firma…';
+  }
+
   protected override opciones(): Record<string, unknown> {
     return {
       firma_id: this.firmas[0]?.id,

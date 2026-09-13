@@ -67,6 +67,19 @@ export class GenerarQrComponent extends PaginaHerramienta {
     return super.listo && this.completo;
   }
 
+  override get motivoBloqueo(): string | null {
+    if (super.motivoBloqueo || this.completo) {
+      return super.motivoBloqueo;
+    }
+    switch (this.tipo) {
+      case 'texto': return 'Escribe el texto o el enlace que llevará el código.';
+      case 'wifi': return this.red.trim() ? 'Escribe la contraseña de la red.' : 'Escribe el nombre de la red.';
+      case 'contacto': return 'Escribe el nombre del contacto.';
+      case 'correo': return 'Escribe la dirección de correo.';
+      default: return 'Escribe el número de teléfono.';
+    }
+  }
+
   get completo(): boolean {
     switch (this.tipo) {
       case 'texto': return this.texto.trim().length > 0;

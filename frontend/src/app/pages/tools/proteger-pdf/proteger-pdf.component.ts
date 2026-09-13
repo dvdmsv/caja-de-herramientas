@@ -44,6 +44,19 @@ export class ProtegerPdfComponent extends PaginaHerramienta {
       : this.passwordActual.length > 0;
   }
 
+  override get motivoBloqueo(): string | null {
+    if (super.motivoBloqueo || this.archivos.length === 0) {
+      return super.motivoBloqueo;
+    }
+    if (this.accion === 'quitar') {
+      return this.passwordActual.length > 0 ? null : 'Escribe la contraseña actual del PDF.';
+    }
+    if (!this.suficienteLarga) {
+      return `La contraseña tiene que tener al menos ${LONGITUD_MINIMA} caracteres.`;
+    }
+    return this.coinciden ? null : 'Las dos contraseñas no coinciden.';
+  }
+
   cambiarAccion(accion: 'proteger' | 'quitar'): void {
     this.accion = accion;
     this.alCambiarLista();

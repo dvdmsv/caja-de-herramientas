@@ -19,6 +19,13 @@
   background-color: var(--bs-secondary-bg);
 }
 
+.zona--compacta {
+  flex-direction: row;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-width: 1.5px;
+}
+
 .zona--inerte {
   cursor: not-allowed;
   opacity: 0.6;

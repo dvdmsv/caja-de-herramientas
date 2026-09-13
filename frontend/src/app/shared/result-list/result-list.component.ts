@@ -6,6 +6,7 @@ import { ApiService, ArchivoServidor, ResumenTamano } from '../../core/api.servi
 import { PesoPipe } from '../peso.pipe';
 import { VistaPreviaComponent } from '../vista-previa/vista-previa.component';
 import { tipoDeVistaPrevia } from '../tipos-archivo';
+import { porcentajeAhorro, sinAhorro } from '../ahorro';
 import { avisoError, mensajeDeError } from '../notify';
 
 /**
@@ -75,11 +76,12 @@ export class ResultListComponent implements OnChanges {
 
   /** Porcentaje ahorrado; null si no hubo ahorro o no hay datos. */
   get ahorro(): number | null {
-    if (!this.resumen?.antes) {
-      return null;
-    }
-    const porcentaje = Math.round(100 * (1 - this.resumen.despues / this.resumen.antes));
-    return porcentaje > 0 ? porcentaje : null;
+    return porcentajeAhorro(this.resumen);
+  }
+
+  /** La herramienta prometía aligerar y no ha conseguido nada. */
+  get yaOptimizado(): boolean {
+    return sinAhorro(this.resumen);
   }
 
   // --- renombrado -------------------------------------------------------

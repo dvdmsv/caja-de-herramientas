@@ -18,6 +18,14 @@ export interface Herramienta {
   /** Clase de Bootstrap Icons. */
   icono: string;
   categoria: Categoria;
+  /**
+   * Qué archivos admite, con la misma sintaxis que el `accept` de un
+   * `<input type="file">`; vacío si no recibe archivos (Generar QR, Crear
+   * certificado). Es la fuente única: de aquí lo toma la cola de subida, los
+   * mensajes de "elige un PDF" y "Usar en…", que ofrece a qué herramientas
+   * mandar un resultado.
+   */
+  acepta: string;
   /** Las no disponibles se muestran atenuadas como "próximamente". */
   disponible: boolean;
 }
@@ -47,6 +55,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Combina varios PDF en un único documento, en el orden que elijas.',
     icono: 'bi-file-earmark-plus',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -55,6 +64,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Convierte cada página del PDF en una imagen JPG, PNG, WebP…',
     icono: 'bi-file-earmark-image',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -63,6 +73,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Coloca tu firma donde quieras sobre un PDF o una imagen.',
     icono: 'bi-vector-pen',
     categoria: 'PDF',
+    acepta: '.pdf,image/*',
     disponible: true,
   },
   {
@@ -71,6 +82,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Firma un PDF con tu certificado digital, sin instalar nada ni subirlo a nadie.',
     icono: 'bi-patch-check',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -79,6 +91,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Te dice quién firmó un PDF, cuándo y si alguien lo ha tocado después.',
     icono: 'bi-shield-check',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -87,6 +100,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Lee, busca, subraya y edita tus PDF sin salir del navegador.',
     icono: 'bi-book',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -95,6 +109,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Saca las páginas que necesites a un documento nuevo.',
     icono: 'bi-scissors',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -103,6 +118,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Reordena, gira o elimina páginas arrastrándolas.',
     icono: 'bi-arrows-move',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -111,6 +127,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Pon o quita la contraseña de apertura del documento.',
     icono: 'bi-file-earmark-lock',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -119,6 +136,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Reconoce el texto de un escaneado para poder buscarlo y copiarlo.',
     icono: 'bi-body-text',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -127,6 +145,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Reduce el peso del documento conservando la calidad.',
     icono: 'bi-file-earmark-zip',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -135,6 +154,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Estampa un texto o tu logo en todas las páginas del documento.',
     icono: 'bi-droplet-half',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -143,6 +163,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Pone el número de página donde tú digas, con el formato que elijas.',
     icono: 'bi-list-ol',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -151,6 +172,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Saca las imágenes que lleva dentro un PDF, sin perder calidad.',
     icono: 'bi-card-image',
     categoria: 'PDF',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -159,6 +181,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Baja el peso de tus imágenes ajustando la calidad.',
     icono: 'bi-images',
     categoria: 'Imágenes',
+    acepta: 'image/*',
     disponible: true,
   },
   {
@@ -167,6 +190,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Reúne tus imágenes en un único PDF, en el orden que elijas.',
     icono: 'bi-file-earmark-pdf',
     categoria: 'Imágenes',
+    acepta: 'image/*',
     disponible: true,
   },
   {
@@ -175,6 +199,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Códigos QR para un enlace, tu wifi o tu contacto, sin pasar por nadie.',
     icono: 'bi-qr-code',
     categoria: 'Imágenes',
+    acepta: '',
     disponible: true,
   },
   {
@@ -183,6 +208,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Enseña lo que tus archivos cuentan de ti —hasta dónde se hizo la foto— y lo borra.',
     icono: 'bi-incognito',
     categoria: 'Documentos',
+    acepta: '.pdf,image/*',
     disponible: true,
   },
   {
@@ -191,6 +217,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Convierte Word, ODT, RTF o texto plano a PDF conservando el formato.',
     icono: 'bi-filetype-pdf',
     categoria: 'Documentos',
+    acepta: '.docx,.doc,.odt,.rtf,.txt',
     disponible: true,
   },
   {
@@ -199,6 +226,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Saca un .docx editable de un PDF, con su texto, sus tablas y sus imágenes.',
     icono: 'bi-file-earmark-word',
     categoria: 'Documentos',
+    acepta: '.pdf',
     disponible: true,
   },
   {
@@ -207,6 +235,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Pasa un PDF, Word, Excel o PowerPoint a Markdown para dárselo a una IA.',
     icono: 'bi-markdown',
     categoria: 'Documentos',
+    acepta: '.pdf,.docx,.xlsx,.xls,.pptx,.csv,.json,.xml,.html,.htm,.txt,.md,.epub',
     disponible: true,
   },
   {
@@ -215,6 +244,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Genera un certificado propio para firmar, si todavía no tienes ninguno.',
     icono: 'bi-award',
     categoria: 'Documentos',
+    acepta: '',
     disponible: true,
   },
   {
@@ -223,6 +253,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     descripcion: 'Pasa entre JPG, PNG, WebP y otros formatos.',
     icono: 'bi-arrow-left-right',
     categoria: 'Imágenes',
+    acepta: 'image/*',
     disponible: true,
   },
 ];

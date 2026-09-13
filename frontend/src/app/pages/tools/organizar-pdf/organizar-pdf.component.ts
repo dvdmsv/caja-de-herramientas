@@ -128,6 +128,16 @@ export class OrganizarPdfComponent extends PaginaHerramienta implements OnDestro
     return super.listo && this.paginas.length > 0 && this.hayCambios;
   }
 
+  override get motivoBloqueo(): string | null {
+    if (super.motivoBloqueo || this.archivos.length === 0) {
+      return super.motivoBloqueo;
+    }
+    if (this.paginas.length === 0) {
+      return 'Cargando las páginas…';
+    }
+    return this.hayCambios ? null : 'Mueve, gira o quita alguna página para poder guardar.';
+  }
+
   protected override opciones(): Record<string, unknown> {
     return {
       paginas: this.paginas.map(({ numero, rotacion }) => ({ numero, rotacion })),

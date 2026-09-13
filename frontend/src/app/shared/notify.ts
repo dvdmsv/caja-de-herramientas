@@ -18,6 +18,27 @@ export function avisoExito(texto: string): void {
   });
 }
 
+/**
+ * Un aviso que informa sin interrumpir: como el de éxito, pero dura más, porque
+ * suele traer algo que leer ("ese archivo no vale aquí"). Se detiene mientras el
+ * ratón está encima.
+ */
+export function avisoInfo(texto: string): void {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'info',
+    title: texto,
+    showConfirmButton: false,
+    timer: 6000,
+    timerProgressBar: true,
+    didOpen: aviso => {
+      aviso.addEventListener('mouseenter', Swal.stopTimer);
+      aviso.addEventListener('mouseleave', Swal.resumeTimer);
+    },
+  });
+}
+
 export function avisoError(texto: string): void {
   Swal.fire({ icon: 'error', title: 'Algo ha fallado', text: texto, confirmButtonText: 'Entendido' });
 }

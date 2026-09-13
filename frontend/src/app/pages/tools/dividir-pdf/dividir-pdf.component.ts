@@ -122,6 +122,13 @@ export class DividirPdfComponent extends PaginaHerramienta implements OnDestroy 
     return super.listo && this.seleccion.size > 0;
   }
 
+  override get motivoBloqueo(): string | null {
+    if (super.motivoBloqueo || this.archivos.length === 0) {
+      return super.motivoBloqueo;
+    }
+    return this.seleccion.size > 0 ? null : 'Elige al menos una página.';
+  }
+
   protected override opciones(): Record<string, unknown> {
     return { paginas: this.rangos, modo: this.modo };
   }

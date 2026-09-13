@@ -51,6 +51,19 @@ export class CrearCertificadoComponent extends PaginaHerramienta {
       && this.contrasena.length >= MINIMO_CONTRASENA && this.repetida === this.contrasena;
   }
 
+  override get motivoBloqueo(): string | null {
+    if (!this.nombre.trim()) {
+      return 'Escribe el nombre que irá en el certificado.';
+    }
+    if (this.contrasena.length < MINIMO_CONTRASENA) {
+      return `La contraseña tiene que tener al menos ${MINIMO_CONTRASENA} caracteres.`;
+    }
+    if (this.repetida !== this.contrasena) {
+      return 'Las dos contraseñas no coinciden.';
+    }
+    return super.motivoBloqueo;
+  }
+
   protected override opciones(): Record<string, unknown> {
     return {
       nombre: this.nombre.trim(),

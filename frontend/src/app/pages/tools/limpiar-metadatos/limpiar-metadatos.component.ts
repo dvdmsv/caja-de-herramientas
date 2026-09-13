@@ -39,6 +39,16 @@ export class LimpiarMetadatosComponent extends PaginaHerramienta {
     return super.listo && !this.inspeccionando && this.marcadas.size > 0;
   }
 
+  override get motivoBloqueo(): string | null {
+    if (super.motivoBloqueo || this.archivos.length === 0) {
+      return super.motivoBloqueo;
+    }
+    if (this.inspeccionando) {
+      return 'Leyendo lo que cuenta el archivo…';
+    }
+    return this.marcadas.size === 0 ? 'Marca al menos un dato para borrarlo.' : null;
+  }
+
   get algunaUbicacion(): boolean {
     return this.informe.some(archivo => archivo.ubicacion);
   }

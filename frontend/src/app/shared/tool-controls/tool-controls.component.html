@@ -8,7 +8,8 @@
 }
 
 <div class="d-flex flex-wrap gap-2 mt-4">
-  <button type="button" class="btn btn-primary" [disabled]="!pagina.listo" (click)="pagina.ejecutar()">
+  <button type="button" class="btn btn-primary" [disabled]="!pagina.listo" (click)="pagina.ejecutar()"
+    [attr.aria-describedby]="pagina.motivoBloqueo ? 'motivo-bloqueo' : null">
     @if (pagina.procesando) {
       <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
     }
@@ -32,3 +33,9 @@
     </button>
   }
 </div>
+
+@if (pagina.motivoBloqueo; as motivo) {
+  <p id="motivo-bloqueo" class="form-text mt-2 mb-0 d-flex align-items-center gap-1" aria-live="polite">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>{{ motivo }}
+  </p>
+}

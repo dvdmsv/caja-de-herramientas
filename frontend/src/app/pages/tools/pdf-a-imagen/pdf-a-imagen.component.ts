@@ -76,6 +76,13 @@ export class PdfAImagenComponent extends PaginaHerramienta implements OnInit {
     return super.listo && this.formato !== '';
   }
 
+  override get motivoBloqueo(): string | null {
+    if (super.motivoBloqueo || this.archivos.length === 0) {
+      return super.motivoBloqueo;
+    }
+    return this.formato ? null : 'Elige el formato de salida.';
+  }
+
   protected override opciones(): Record<string, unknown> {
     return { resolucion: this.resolucion, formato: this.formato, calidad: this.calidad };
   }

@@ -59,6 +59,16 @@ export class MarcaDeAguaComponent extends PaginaConVista {
     return this.modo === 'texto' ? this.texto.trim().length > 0 : this.imagenId !== '';
   }
 
+  override get motivoBloqueo(): string | null {
+    if (super.motivoBloqueo || this.archivos.length === 0) {
+      return super.motivoBloqueo;
+    }
+    if (this.modo === 'texto') {
+      return this.texto.trim() ? null : 'Escribe el texto de la marca de agua.';
+    }
+    return this.imagenId ? null : 'Sube la imagen que quieres estampar.';
+  }
+
   get imagenId(): string {
     return this.imagenes.find(item => item.estado === 'subido')?.id ?? '';
   }
