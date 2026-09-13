@@ -265,3 +265,18 @@
     position: relative;
   }
 }
+
+/* En pantallas táctiles, cada botón de la barra con el área que pide el dedo
+   (44 px). Con ratón se quedan compactos: son muchos y la barra ya se desplaza. */
+@media (pointer: coarse) {
+  .boton,
+  .barra__marca {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    justify-content: center;
+  }
+
+  .contador__campo {
+    min-height: 2.75rem;
+  }
+}

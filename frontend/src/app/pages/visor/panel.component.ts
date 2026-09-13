@@ -22,6 +22,8 @@ export interface EntradaIndice {
 const ANCHO_MINIATURA = 140;
 
 @Component({
+  // Es un panel lateral: así lo anuncia un lector de pantalla y sale del "contenido sin región".
+  host: { role: 'complementary', 'aria-label': 'Panel lateral' },
   selector: 'app-visor-panel',
   imports: [FormsModule],
   templateUrl: './panel.component.html',

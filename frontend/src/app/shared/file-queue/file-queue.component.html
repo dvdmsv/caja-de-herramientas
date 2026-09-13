@@ -62,10 +62,10 @@
             }
           }
         </span>
-        <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 flex-shrink-0"
+        <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 flex-shrink-0 boton-tactil"
           [disabled]="deshabilitado" (click)="quitar(i)"
           [attr.aria-label]="'Quitar ' + item.file.name">
-          <i class="bi bi-x-lg"></i>
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
         <div class="hueco" *cdkDragPlaceholder></div>
       </li>

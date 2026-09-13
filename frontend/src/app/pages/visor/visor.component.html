@@ -14,6 +14,7 @@
     @if (documento) {
       <span class="contador">
         <input type="number" class="contador__campo" min="1" [max]="medidas.length"
+          aria-label="Página actual"
           [ngModel]="paginaActual" (ngModelChange)="irAPagina(+$event)">
         <span class="text-body-secondary">/ {{ medidas.length }}</span>
       </span>
@@ -181,7 +182,13 @@
       </app-visor-panel>
     }
 
-    <div class="lectura" #lectura [class.lectura--marcando]="marcando" [class.lectura--escribiendo]="herramienta === 'texto'">
+    <!-- Es la zona principal y se desplaza, así que se puede enfocar: con el
+         teclado se lee a golpe de flechas y Av Pág sin tener que tocar el ratón. -->
+    <div class="lectura" #lectura role="main" tabindex="0" aria-label="Documento"
+      [class.lectura--marcando]="marcando" [class.lectura--escribiendo]="herramienta === 'texto'">
+      @if (documento) {
+        <h1 class="visually-hidden">{{ archivo?.name }}</h1>
+      }
       <!-- Sin documento: sitio donde soltarlo -->
       @if (!documento && !cargando) {
         <div class="bienvenida"

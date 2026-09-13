@@ -322,3 +322,83 @@ html body .swal2-icon.swal2-info {
   border-color: var(--bs-secondary-color);
   color: var(--bs-secondary-color);
 }
+
+/* ─── Accesibilidad ─────────────────────────────────────────────────────── */
+
+/* En oscuro, Bootstrap deja el botón secundario de contorno con su gris de modo
+   claro (#6c757d), que contra el fondo oscuro se queda en 3,4:1. */
+[data-bs-theme='dark'] .btn-outline-secondary {
+  --bs-btn-color: var(--bs-secondary-color);
+  --bs-btn-border-color: var(--bs-border-color);
+  --bs-btn-hover-color: var(--bs-body-color);
+  --bs-btn-hover-bg: var(--bs-secondary-bg);
+  --bs-btn-hover-border-color: var(--bs-border-color);
+  --bs-btn-active-color: var(--bs-body-color);
+  --bs-btn-active-bg: var(--bs-tertiary-bg);
+  --bs-btn-disabled-color: var(--bs-secondary-color);
+}
+
+/* Las opciones en tarjeta (`btn-check` + `btn-outline-primary`) llevan debajo
+   un texto secundario en gris. Con la opción elegida, o al pasar por encima, el
+   fondo pasa al color del acento y ese gris se quedaba por debajo de 4,5:1
+   contra él. Hereda el color del botón, que sí pasa. Arregla las ocho
+   herramientas con opciones de este tipo sin tocar sus plantillas. */
+.btn-check:checked + .btn .text-body-secondary,
+.btn-check:active + .btn .text-body-secondary,
+.btn-outline-primary:hover .text-body-secondary,
+.btn-outline-primary:active .text-body-secondary {
+  color: inherit !important;
+}
+
+/* Un botón de sólo icono con el área que pide el dedo (44 × 44 px, WCAG 2.5.5),
+   sin agrandar el icono: el área crece hacia dentro con relleno. */
+.boton-tactil {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  margin: -0.5rem 0;
+}
+
+/* En pantallas táctiles, los botones pequeños y las migas de pan también. Con
+   ratón se quedan compactos, que es donde caben y se aciertan igual. */
+@media (pointer: coarse) {
+  .btn-sm {
+    min-width: 2.75rem;
+  }
+
+  .btn,
+  .form-control,
+  .form-select,
+  .nav-link,
+  .navbar-toggler,
+  .navbar-brand {
+    min-height: 2.75rem;
+  }
+
+  .btn,
+  .nav-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Las opciones en tarjeta ocupan todo el ancho y alinean su texto a la izquierda. */
+  .btn.text-start {
+    justify-content: flex-start;
+  }
+
+  /* El deslizador mide 24 px de alto; el área de toque, 44. */
+  .form-range {
+    height: 2.75rem;
+  }
+
+  .breadcrumb {
+    align-items: center;
+  }
+
+  .breadcrumb-item a {
+    display: inline-block;
+    padding-block: 0.7rem;
+  }
+}

@@ -37,7 +37,7 @@
           @if (editando !== archivo.id) {
             <span class="text-truncate flex-grow-1" [title]="archivo.name">{{ archivo.name }}</span>
             <span class="small text-body-secondary flex-shrink-0">{{ archivo.size | peso }}</span>
-            <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 flex-shrink-0"
+            <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 flex-shrink-0 boton-tactil"
               (click)="editar(archivo)" [attr.aria-label]="'Cambiar el nombre de ' + archivo.name">
               <i class="bi bi-pencil"></i>
             </button>

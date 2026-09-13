@@ -24,7 +24,9 @@
             [class.miniatura--actual]="numero === paginaActual"
             [class.miniatura--fuera]="eliminadas.has(numero)"
             [attr.data-pagina]="numero" #celda>
-            <button type="button" class="miniatura__imagen" (click)="irAPagina.emit(numero)">
+            <button type="button" class="miniatura__imagen" (click)="irAPagina.emit(numero)"
+              [attr.aria-label]="'Ir a la página ' + numero"
+              [attr.aria-current]="numero === paginaActual ? 'page' : null">
               @if (miniaturas.get(numero); as fuente) {
                 <img [src]="fuente" [alt]="'Página ' + numero"
                   [style.transform]="'rotate(' + rotacionDe(numero) + 'deg)'">
