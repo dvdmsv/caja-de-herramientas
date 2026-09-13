@@ -2,7 +2,6 @@
 
   <app-file-queue
     [items]="archivos"
-    accept=".pdf,image/*"
     [deshabilitado]="ocupado"
     ayuda="Arrastra aquí tus PDF o tus fotos"
     (agregados)="alAgregar($event)"

@@ -2,7 +2,6 @@
 
   <app-file-queue
     [items]="archivos"
-    accept=".docx,.doc,.odt,.rtf,.txt"
     [deshabilitado]="ocupado"
     ayuda="Arrastra aquí tus documentos de Word, ODT, RTF o texto"
     (agregados)="alAgregar($event)"

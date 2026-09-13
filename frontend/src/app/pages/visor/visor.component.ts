@@ -6,6 +6,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { TraspasoService } from '../../core/traspaso.service';
 import { ApiService, ArchivoServidor } from '../../core/api.service';
 import { MemoriaDocumentoService } from '../../core/memoria-documento.service';
 import { DocumentoPdf, PdfService } from '../../core/pdf.service';
@@ -122,6 +123,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   indexadas = 0;
   indexando = false;
 
+  private readonly traspaso = inject(TraspasoService);
   private readonly api = inject(ApiService);
   private readonly pdf = inject(PdfService);
   private readonly render = inject(VisorRenderService);
@@ -154,6 +156,11 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     // El visor es de la familia de los PDF: sus botones, en ese color (estilos/tema.css).
     document.documentElement.dataset['categoria'] = 'pdf';
+    // Un PDF que llega de otra herramienta ("Usar en…" o soltado en el inicio).
+    const [llegado] = this.traspaso.tomar();
+    if (llegado) {
+      setTimeout(() => this.abrir(llegado));
+    }
     // El desplazamiento no pasa por Angular: se dispara decenas de veces por
     // segundo y sólo interesa cuando cambia lo que hay que enseñar.
     this.zone.runOutsideAngular(() => {

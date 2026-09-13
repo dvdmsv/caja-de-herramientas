@@ -49,7 +49,157 @@ a.tarjeta:focus-visible {
 @media (max-width: 575.98px) {
   .tarjeta__cuerpo {
     flex-direction: row;
-    align-items: flex-start;
-    padding: 0.85rem 1rem;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.85rem;
   }
+
+  .tarjeta__cuerpo > div {
+    min-width: 0;
+  }
+
+  /* Una línea de descripción: el nombre ya dice casi todo, y el resto se lee
+     entrando. Es lo que deja la portada en la mitad de alto. */
+  .tarjeta__cuerpo p {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .tarjeta__cuerpo .pastilla {
+    width: 2.4rem;
+    height: 2.4rem;
+    font-size: 1.15rem;
+  }
+
+  .row.g-3 {
+    --bs-gutter-y: 0.5rem;
+  }
+
+  .portada {
+    margin-bottom: 2rem;
+  }
+}
+
+/* --- cabecera: título, buscador y soltar --------------------------------- */
+.portada {
+  max-width: 52rem;
+  margin: 0 auto 3rem;
+  text-align: center;
+}
+
+.portada__titulo {
+  font-size: clamp(1.75rem, 1.2rem + 2.5vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.buscador,
+.portada__subtitulo {
+  max-width: 44rem;
+  margin-inline: auto;
+}
+
+.buscador {
+  position: relative;
+  margin-top: 1.5rem;
+}
+
+.buscador__icono {
+  position: absolute;
+  top: 50%;
+  left: 1.1rem;
+  transform: translateY(-50%);
+  color: var(--bs-secondary-color);
+  pointer-events: none;
+}
+
+.buscador__campo {
+  padding-left: 2.9rem;
+  padding-right: 3rem;
+  border-radius: var(--bs-border-radius-xl);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.buscador__atajo {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  padding: 0.1rem 0.45rem;
+  background-color: var(--bs-tertiary-bg);
+  color: var(--bs-secondary-color);
+  border: 1px solid var(--bs-border-color);
+  font-size: 0.8rem;
+}
+
+.soltar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+/* --- qué hacer con lo soltado ------------------------------------------- */
+.propuesta {
+  border-color: rgba(var(--acento-rgb), 0.35);
+}
+
+.destino {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.destino:hover,
+.destino:focus-visible {
+  border-color: var(--bs-secondary-color);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+/* --- capa al arrastrar archivos sobre la portada ------------------------- */
+.capa-soltar {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background-color: rgba(var(--acento-rgb), 0.12);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.capa-soltar__caja {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  width: min(32rem, 100%);
+  padding: 2.5rem 1.5rem;
+  border: 2px dashed var(--acento);
+  border-radius: var(--bs-border-radius-xl);
+  background-color: var(--bs-body-bg);
+  box-shadow: var(--sombra-elevada);
+  font-weight: 600;
+  text-align: center;
+}
+
+.capa-soltar__caja .bi {
+  font-size: 2.5rem;
+  color: var(--acento-texto);
 }

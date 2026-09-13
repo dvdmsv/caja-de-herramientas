@@ -64,6 +64,9 @@
               <i class="bi bi-eye"></i><span class="visually-hidden">Ver {{ archivo.name }}</span>
             </button>
           }
+          @if (editando !== archivo.id && archivos.length > 1) {
+            <app-usar-en [archivos]="[archivo]"></app-usar-en>
+          }
           @if (editando !== archivo.id) {
             <button type="button" class="btn btn-sm btn-outline-success flex-shrink-0"
               (click)="descargar(archivo)">
@@ -73,6 +76,12 @@
         </li>
       }
     </ul>
+    @if (archivos.length === 1) {
+      <!-- Encadenar: seguir trabajando con el resultado sin descargarlo y volver a subirlo. -->
+      <div class="card-body d-flex flex-wrap align-items-center gap-2 pt-2">
+        <app-usar-en [archivos]="archivos" etiqueta="Seguir con otra herramienta"></app-usar-en>
+      </div>
+    }
     @if (archivos.length > 1) {
       <div class="card-body d-flex flex-wrap align-items-center gap-2">
         <div class="input-group input-group-sm nombre-zip">
@@ -89,6 +98,7 @@
           }
           Descargar todo en un ZIP
         </button>
+        <app-usar-en [archivos]="archivos" etiqueta="Usar todos en…"></app-usar-en>
       </div>
     }
     <app-vista-previa [archivo]="viendo" (cerrado)="cerrarVista()"></app-vista-previa>

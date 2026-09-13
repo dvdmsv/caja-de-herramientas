@@ -109,4 +109,9 @@ describe('explicarRechazo', () => {
     expect(explicarRechazo({ noAdmitidos: [], repetidos: ['a.pdf'], conservado: 'b.pdf' }, '.pdf'))
       .toBe('«a.pdf» ya estaba en la lista. Esta herramienta trabaja con un archivo cada vez: se ha quedado «b.pdf».');
   });
+
+  it('propone otras herramientas cuando las hay', () => {
+    expect(explicarRechazo({ noAdmitidos: ['carta.docx'], repetidos: [], sugerencias: ['Documento a PDF'] }, '.pdf'))
+      .toBe('«carta.docx» no vale aquí: esta herramienta admite PDF. Prueba con Documento a PDF.');
+  });
 });

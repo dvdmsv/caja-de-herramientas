@@ -1,4 +1,4 @@
-<input #entrada type="file" class="d-none" [accept]="accept" [multiple]="multiple"
+<input #entrada type="file" class="d-none" [accept]="aceptados" [multiple]="multiple"
   (change)="alSeleccionar($event)">
 
 <div class="zona"
@@ -17,7 +17,7 @@
   @if (!compacta) {
     <i class="bi bi-cloud-arrow-up fs-2 text-primary" aria-hidden="true"></i>
     <p class="mb-0 mt-2">{{ ayuda }}</p>
-    @if (accept) {
+    @if (aceptados) {
       <p class="small text-body-secondary mb-0 formatos">
         Formatos admitidos: {{ formatosLegibles }}
       </p>

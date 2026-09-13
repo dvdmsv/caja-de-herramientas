@@ -9,7 +9,25 @@ El procesado ocurre en el servidor; el navegador sólo sube, ordena y descarga.
 - **Despliegue**: Docker Compose, con nginx sirviendo el frontend y haciendo de
   pasarela hacia el backend.
 
-![La portada, con el catálogo de herramientas](docs/capturas/portada.png)
+![La portada: buscador, soltar un archivo y el catálogo por colores](docs/capturas/portada.png)
+
+Pensada para usarse, no sólo para funcionar:
+
+- **Encadenar herramientas.** Cada resultado tiene «Seguir con otra
+  herramienta»: comprimes, y el PDF pasa a Firmar o a Organizar sin descargarlo
+  y volverlo a subir. Sólo se ofrecen las herramientas que admiten ese archivo.
+- **Buscar y soltar.** En la portada escribes «juntar» y aparece Unir PDF (tecla
+  `/` para buscar, Intro para entrar). O sueltas un archivo en cualquier parte y
+  te dice qué puedes hacer con él.
+- **Te explica lo que pasa.** Si sueltas un archivo que no vale, lo dice y te
+  propone la herramienta que sí lo admite. Si el botón está apagado, pone por
+  qué. Si comprimir no gana nada, dice que ya estaba optimizado en vez de
+  celebrarlo.
+- **Un color por familia y modo oscuro.** PDF en rojo, Imágenes en violeta y
+  Documentos en verde azulado, en claro u oscuro (automático, o a mano desde el
+  menú). Todos los colores cumplen el contraste AA de WCAG.
+- **Accesible.** Sin fallos serios ni críticos de axe-core en claro, oscuro,
+  escritorio y móvil, navegable con teclado y con áreas táctiles de 44 px.
 
 ## Herramientas
 
@@ -682,14 +700,17 @@ storage import storage` y, si validas algo a mano, `from errors import ApiError`
 Y añádelo a la lista `BLUEPRINTS` de `backend/api/tools/__init__.py`.
 
 **2. Catálogo** — añade su entrada en `frontend/src/app/core/tools.ts` con
-`disponible: true`. Si eliges un icono que la aplicación no usaba todavía,
+`disponible: true`, qué archivos admite en `acepta` (`'.pdf'`, `'image/*'`…),
+si trabaja con `varios` y unas `palabras` para el buscador. De `acepta` salen el
+filtro de la subida, los mensajes («Elige un PDF para empezar») y a qué
+herramientas se ofrece «Usar en…». Si eliges un icono que la aplicación no usaba todavía,
 regenera la fuente recortada:
 
 ```bash
 cd frontend && python3 scripts/generar-iconos.py   # necesita fonttools y brotli
 ```
 
-La fuente lleva sólo los 84 iconos que se usan (12 kB en vez de 228), así que
+La fuente lleva sólo los iconos que se usan (12 kB en vez de 228), así que
 uno nuevo saldría en blanco. `npm run iconos` te avisa, y la CI lo comprueba
 antes de compilar.
 
@@ -714,7 +735,8 @@ export class MiHerramientaComponent extends PaginaHerramienta {
 
 ```html
 <app-tool-page slug="mi-herramienta">
-  <app-file-queue [items]="archivos" accept=".pdf" [deshabilitado]="ocupado"
+  <!-- Sin `accept`: lo toma del `acepta` del catálogo -->
+  <app-file-queue [items]="archivos" [deshabilitado]="ocupado"
                   (agregados)="alAgregar($event)" (itemsChange)="alCambiarLista()">
   </app-file-queue>
   <!-- aquí los controles propios de la herramienta -->
@@ -725,6 +747,10 @@ export class MiHerramientaComponent extends PaginaHerramienta {
 
 Usa `pages/tools/comprimir-imagen/` como referencia si tu herramienta tiene
 opciones, o `pages/tools/unir-pdf/` si no las tiene.
+
+Con eso ya tiene su color de categoría, recibe archivos de otras herramientas
+y se ofrece en «Usar en…» sin hacer nada más. Si redefines `listo` con
+requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
 
 ## Pruebas
 

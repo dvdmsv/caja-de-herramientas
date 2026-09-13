@@ -1,9 +1,11 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
-import { Component, EventEmitter, Input, Output, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, ViewChild, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
 
 import { PesoPipe } from '../peso.pipe';
 import { avisoInfo } from '../notify';
+import { destinosPara } from '../../core/tools';
+import { ColaReceptora, MARCO_HERRAMIENTA } from '../marco-herramienta';
 import { encaja, explicarRechazo } from '../tipos-archivo';
 
 export type EstadoArchivo = 'local' | 'subiendo' | 'subido' | 'error';
@@ -34,12 +36,16 @@ export function aCola(archivos: File[]): ArchivoEnCola[] {
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './file-queue.component.css',
 })
-export class FileQueueComponent {
+export class FileQueueComponent implements OnInit, ColaReceptora {
   @ViewChild('entrada') entrada!: ElementRef<HTMLInputElement>;
 
   /** Lista de archivos. El componente la modifica en sitio y avisa por `itemsChange`. */
   @Input() items: ArchivoEnCola[] = [];
-  /** Filtro del selector nativo, p. ej. `.pdf` o `image/*`. */
+  /**
+   * Filtro del selector nativo, p. ej. `.pdf` o `image/*`. Si no se da, se usa
+   * el `acepta` de la herramienta en el catálogo: sólo lo declaran a mano las
+   * colas secundarias, como la de la imagen de la firma.
+   */
   @Input() accept = '';
   @Input() multiple = true;
   /** Permite arrastrar para cambiar el orden (relevante en "unir PDF"). */
@@ -52,6 +58,24 @@ export class FileQueueComponent {
   @Output() agregados = new EventEmitter<ArchivoEnCola[]>();
 
   arrastrando = false;
+
+  private readonly marco = inject(MARCO_HERRAMIENTA, { optional: true });
+
+  ngOnInit(): void {
+    this.marco?.registrarCola(this);
+  }
+
+  /** Lo que admite de verdad: lo declarado o, si no, lo del catálogo. */
+  get aceptados(): string {
+    return this.accept || this.marco?.herramienta?.acepta || '';
+  }
+
+  /** Archivos que llegan de otra herramienta: como si se hubieran soltado aquí. */
+  recibir(archivos: File[]): void {
+    if (!this.deshabilitado) {
+      this.incorporar(archivos);
+    }
+  }
 
   /**
    * Con archivos ya elegidos, la zona se encoge a una franja. Grande no aporta
@@ -66,7 +90,7 @@ export class FileQueueComponent {
    * una sola palabra: con muchos formatos se sale de la caja en el móvil.
    */
   get formatosLegibles(): string {
-    return this.accept.split(',').map(formato => formato.trim()).join(', ');
+    return this.aceptados.split(',').map(formato => formato.trim()).join(', ');
   }
 
   abrirSelector(): void {
@@ -118,16 +142,20 @@ export class FileQueueComponent {
    * página no respondía.
    */
   private incorporar(archivos: File[]): void {
-    const noAdmitidos = archivos.filter(file => !encaja(file, this.accept));
-    const repetidos = archivos.filter(file => encaja(file, this.accept) && this.yaEsta(file));
-    const admitidos = archivos.filter(file => encaja(file, this.accept) && !this.yaEsta(file));
+    const aceptados = this.aceptados;
+    const noAdmitidos = archivos.filter(file => !encaja(file, aceptados));
+    const repetidos = archivos.filter(file => encaja(file, aceptados) && this.yaEsta(file));
+    const admitidos = archivos.filter(file => encaja(file, aceptados) && !this.yaEsta(file));
     const conservados = this.multiple ? admitidos : admitidos.slice(0, 1);
 
     const aviso = explicarRechazo({
       noAdmitidos: noAdmitidos.map(file => file.name),
       repetidos: repetidos.map(file => file.name),
       conservado: admitidos.length > 1 && !this.multiple ? conservados[0].name : undefined,
-    }, this.accept);
+      // Sólo en la cola principal tiene sentido proponer otra herramienta.
+      sugerencias: this.accept ? [] : destinosPara(noAdmitidos, this.marco?.herramienta?.slug)
+        .slice(0, 3).map(h => h.nombre),
+    }, aceptados);
     if (aviso) {
       avisoInfo(aviso);
     }

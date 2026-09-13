@@ -1,46 +1,151 @@
-<header class="text-center mb-5">
-  <h1 class="fw-semibold">Herramientas para PDF e imágenes</h1>
+<header class="portada">
+  <h1 class="portada__titulo">Herramientas para PDF e imágenes</h1>
+  <p class="portada__subtitulo text-body-secondary">
+    Sin registro y sin instalar nada. Busca lo que necesitas o suelta un archivo.
+  </p>
+
+  <div class="buscador" role="search">
+    <i class="bi bi-search buscador__icono" aria-hidden="true"></i>
+    <input #buscador type="search" class="form-control form-control-lg buscador__campo"
+      placeholder="Unir, firmar, comprimir…"
+      aria-label="Buscar una herramienta" aria-describedby="atajo-buscar"
+      [(ngModel)]="busqueda" (keydown.enter)="abrirPrimera()" autocomplete="off">
+    <kbd class="buscador__atajo d-none d-md-inline" id="atajo-buscar" title="Pulsa / para buscar">/</kbd>
+  </div>
+
+  <div class="soltar">
+    <span class="text-body-secondary">¿Ya tienes el archivo?</span>
+    <label class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-folder2-open me-1" aria-hidden="true"></i>Elige uno
+      <input type="file" class="visually-hidden" multiple (change)="alElegir($event)">
+    </label>
+    <span class="text-body-secondary d-none d-md-inline">o suéltalo en cualquier parte de la página</span>
+  </div>
 </header>
 
-@for (grupo of grupos; track grupo) {
-  <section class="mb-5">
-    <h2 class="categoria categoria--{{ clave(grupo) }}">{{ grupo.categoria }}</h2>
-    <div class="row g-3">
-      @for (herramienta of grupo.herramientas; track herramienta) {
-        <div class="col-12 col-sm-6 col-lg-4">
-          <!-- Disponible: tarjeta enlazada -->
-          @if (herramienta.disponible) {
-            <a
-              class="tarjeta card h-100 text-decoration-none"
-              [routerLink]="rutaDe(herramienta)">
-              <div class="card-body tarjeta__cuerpo">
-                <span class="pastilla pastilla--{{ clave(grupo) }}" aria-hidden="true">
-                  <i class="bi {{ herramienta.icono }}"></i>
-                </span>
-                <div>
-                  <h3 class="h6 mb-1">{{ herramienta.nombre }}</h3>
-                  <p class="small text-body-secondary mb-0">{{ herramienta.descripcion }}</p>
-                </div>
-              </div>
-            </a>
+<!-- Una tarjeta de herramienta; la usan todas las listas de la portada. -->
+<ng-template #tarjeta let-h let-clave="clave">
+  <a class="tarjeta card h-100 text-decoration-none" [routerLink]="rutaDe(h)">
+    <div class="card-body tarjeta__cuerpo">
+      <span class="pastilla pastilla--{{ clave }}" aria-hidden="true"><i class="bi {{ h.icono }}"></i></span>
+      <div>
+        <h3 class="h6 mb-1">{{ h.nombre }}</h3>
+        <p class="small text-body-secondary mb-0">{{ h.descripcion }}</p>
+      </div>
+    </div>
+  </a>
+</ng-template>
+
+<!-- Archivos elegidos o soltados: qué se puede hacer con ellos -->
+@if (soltados.length > 0) {
+  <section class="card propuesta mb-5" aria-live="polite">
+    <div class="card-body">
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h2 class="h5 mb-0 me-auto">
+          @if (soltados.length === 1) {
+            Qué puedes hacer con «{{ soltados[0].name }}»
+          } @else {
+            Qué puedes hacer con estos {{ soltados.length }} archivos
           }
-          <!-- Aún no disponible: misma tarjeta, atenuada y sin enlace -->
-          @if (!herramienta.disponible) {
-            <div class="tarjeta card h-100 tarjeta--pendiente">
-              <div class="card-body tarjeta__cuerpo">
-                <span class="pastilla" aria-hidden="true"><i class="bi {{ herramienta.icono }}"></i></span>
-                <div>
-                <h3 class="h6 mb-1">
-                  {{ herramienta.nombre }}
-                  <span class="badge text-bg-light fw-normal align-middle ms-1">Próximamente</span>
-                </h3>
-                <p class="small text-body-secondary mb-0">{{ herramienta.descripcion }}</p>
-                </div>
-              </div>
+        </h2>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="descartar()">
+          <i class="bi bi-x-lg me-1" aria-hidden="true"></i>Descartar
+        </button>
+      </div>
+      @if (destinos.length > 0) {
+        <div class="row g-2">
+          @for (h of destinos; track h.slug) {
+            <div class="col-12 col-sm-6 col-lg-4">
+              <button type="button" class="destino" (click)="usarCon(h)">
+                <span class="pastilla pastilla--sm pastilla--{{ claveDe(h) }}" aria-hidden="true"><i class="bi {{ h.icono }}"></i></span>
+                {{ h.nombre }}
+              </button>
             </div>
           }
         </div>
+      } @else {
+        <p class="mb-0 text-body-secondary">
+          Ninguna herramienta trabaja con
+          {{ soltados.length === 1 ? 'este tipo de archivo' : 'todos estos archivos a la vez' }}.
+          @if (soltados.length > 1) {
+            Prueba a soltarlos por separado.
+          }
+        </p>
       }
     </div>
   </section>
+}
+
+@if (busqueda.trim()) {
+  <!-- Resultados de la búsqueda -->
+  <section class="mb-5" aria-live="polite">
+    <h2 class="categoria">
+      {{ resultados.length === 1 ? '1 herramienta' : resultados.length + ' herramientas' }}
+    </h2>
+    @if (resultados.length > 0) {
+      <div class="row g-3">
+        @for (h of resultados; track h.slug) {
+          <div class="col-12 col-sm-6 col-lg-4">
+            <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: h, clave: claveDe(h) }"></ng-container>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="text-body-secondary">
+        No hay ninguna herramienta que case con «{{ busqueda.trim() }}». Prueba con otra palabra, como
+        «unir», «firmar» o «convertir».
+      </p>
+    }
+  </section>
+} @else {
+  @if (recientes.length > 0) {
+    <section class="mb-5">
+      <h2 class="categoria">Usadas hace poco</h2>
+      <div class="row g-3">
+        @for (h of recientes; track h.slug) {
+          <div class="col-12 col-sm-6 col-lg-3">
+            <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: h, clave: claveDe(h) }"></ng-container>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @for (grupo of grupos; track grupo) {
+    <section class="mb-5">
+      <h2 class="categoria categoria--{{ clave(grupo) }}">{{ grupo.categoria }}</h2>
+      <div class="row g-3">
+        @for (herramienta of grupo.herramientas; track herramienta) {
+          <div class="col-12 col-sm-6 col-lg-4">
+            @if (herramienta.disponible) {
+              <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: herramienta, clave: clave(grupo) }"></ng-container>
+            } @else {
+              <!-- Aún no disponible: misma tarjeta, atenuada y sin enlace -->
+              <div class="tarjeta card h-100 tarjeta--pendiente">
+                <div class="card-body tarjeta__cuerpo">
+                  <span class="pastilla" aria-hidden="true"><i class="bi {{ herramienta.icono }}"></i></span>
+                  <div>
+                    <h3 class="h6 mb-1">
+                      {{ herramienta.nombre }}
+                      <span class="badge text-bg-light fw-normal align-middle ms-1">Próximamente</span>
+                    </h3>
+                    <p class="small text-body-secondary mb-0">{{ herramienta.descripcion }}</p>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
+}
+
+@if (arrastrando) {
+  <div class="capa-soltar" aria-hidden="true">
+    <div class="capa-soltar__caja">
+      <i class="bi bi-cloud-arrow-up"></i>
+      <p class="mb-0">Suelta tu archivo y te digo qué puedes hacer con él</p>
+    </div>
+  </div>
 }

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 
 import { ApiService, ArchivoServidor, ResumenTamano } from '../../core/api.service';
 import { PesoPipe } from '../peso.pipe';
+import { UsarEnComponent } from '../usar-en/usar-en.component';
 import { VistaPreviaComponent } from '../vista-previa/vista-previa.component';
 import { tipoDeVistaPrevia } from '../tipos-archivo';
 import { porcentajeAhorro, sinAhorro } from '../ahorro';
@@ -18,7 +19,7 @@ import { avisoError, mensajeDeError } from '../notify';
  */
 @Component({
   selector: 'app-result-list',
-  imports: [FormsModule, PesoPipe, VistaPreviaComponent],
+  imports: [FormsModule, PesoPipe, UsarEnComponent, VistaPreviaComponent],
   templateUrl: './result-list.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './result-list.component.css',

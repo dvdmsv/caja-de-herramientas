@@ -113,6 +113,8 @@ export interface Descartes {
   repetidos: string[];
   /** La herramienta trabaja con uno solo y se han soltado varios: el que se queda. */
   conservado?: string;
+  /** Nombres de herramientas que sí admiten los rechazados. */
+  sugerencias?: string[];
 }
 
 /**
@@ -122,12 +124,15 @@ export interface Descartes {
  */
 export function explicarRechazo(descartes: Descartes, accept: string): string | null {
   const frases: string[] = [];
-  const { noAdmitidos, repetidos, conservado } = descartes;
+  const { noAdmitidos, repetidos, conservado, sugerencias = [] } = descartes;
 
   if (noAdmitidos.length === 1) {
     frases.push(`«${noAdmitidos[0]}» no vale aquí: esta herramienta admite ${describirFormatos(accept)}.`);
   } else if (noAdmitidos.length > 1) {
     frases.push(`${noAdmitidos.length} archivos no valen aquí: esta herramienta admite ${describirFormatos(accept)}.`);
+  }
+  if (noAdmitidos.length > 0 && sugerencias.length > 0) {
+    frases.push(`Prueba con ${sugerencias.join(', ')}.`);
   }
 
   if (repetidos.length === 1) {

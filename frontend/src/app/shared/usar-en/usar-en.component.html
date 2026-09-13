@@ -1,0 +1,37 @@
+@if (grupos.length > 0) {
+  <button #disparador type="button"
+    class="btn btn-sm flex-shrink-0"
+    [class.btn-outline-primary]="!!etiqueta"
+    [class.btn-outline-secondary]="!etiqueta"
+    [attr.aria-expanded]="abierto" aria-haspopup="true"
+    [attr.aria-label]="etiqueta ? null : descripcion"
+    [title]="descripcion"
+    [disabled]="cargando"
+    (click)="alternar()">
+    @if (cargando) {
+      <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+    } @else {
+      <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+    }
+    @if (etiqueta) {
+      <span class="ms-1">{{ etiqueta }}</span>
+    }
+  </button>
+
+  @if (abierto) {
+    <div #menu class="menu" role="group" [attr.aria-label]="descripcion"
+      [class.menu--derecha]="!etiqueta" [class.menu--arriba]="haciaArriba">
+      @for (grupo of grupos; track grupo.categoria) {
+        <p class="menu__categoria">{{ grupo.categoria }}</p>
+        @for (herramienta of grupo.herramientas; track herramienta.slug) {
+          <button type="button" class="menu__opcion" [disabled]="cargando" (click)="usarEn(herramienta)">
+            <span class="pastilla pastilla--sm pastilla--{{ grupo.clave }}" aria-hidden="true">
+              <i class="bi {{ herramienta.icono }}"></i>
+            </span>
+            {{ herramienta.nombre }}
+          </button>
+        }
+      }
+    </div>
+  }
+}

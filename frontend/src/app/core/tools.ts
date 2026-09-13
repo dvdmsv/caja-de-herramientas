@@ -8,6 +8,8 @@
  *   3. crear el blueprint equivalente en `backend/api/tools/`.
  */
 
+import { encaja } from '../shared/tipos-archivo';
+
 export type Categoria = 'PDF' | 'Imágenes' | 'Documentos';
 
 export interface Herramienta {
@@ -26,6 +28,13 @@ export interface Herramienta {
    * mandar un resultado.
    */
   acepta: string;
+  /** Si trabaja con varios archivos a la vez; si no, con uno cada vez. */
+  varios: boolean;
+  /**
+   * Otras formas de llamarla, para el buscador del inicio: quien quiere unir
+   * PDF puede escribir "juntar". Sin acentos no hace falta: se normalizan.
+   */
+  palabras: string[];
   /** Las no disponibles se muestran atenuadas como "próximamente". */
   disponible: boolean;
 }
@@ -56,6 +65,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-file-earmark-plus',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: true,
+    palabras: ['juntar', 'fusionar', 'combinar', 'merge', 'concatenar'],
     disponible: true,
   },
   {
@@ -65,6 +76,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-file-earmark-image',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['jpg', 'png', 'webp', 'convertir', 'exportar', 'rasterizar'],
     disponible: true,
   },
   {
@@ -74,6 +87,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-vector-pen',
     categoria: 'PDF',
     acepta: '.pdf,image/*',
+    varios: false,
+    palabras: ['firma', 'rubrica', 'autografa', 'dibujar'],
     disponible: true,
   },
   {
@@ -83,6 +98,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-patch-check',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['firma digital', 'certificado', 'autofirma', 'dnie', 'fnmt', 'p12', 'pades'],
     disponible: true,
   },
   {
@@ -92,6 +109,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-shield-check',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: true,
+    palabras: ['verificar', 'validar', 'firma digital', 'certificado'],
     disponible: true,
   },
   {
@@ -101,6 +120,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-book',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['leer', 'ver', 'abrir', 'subrayar', 'anotar', 'buscar texto', 'rellenar formulario'],
     disponible: true,
   },
   {
@@ -110,6 +131,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-scissors',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['separar', 'extraer paginas', 'cortar', 'partir', 'split'],
     disponible: true,
   },
   {
@@ -119,6 +142,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-arrows-move',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['ordenar', 'reordenar', 'girar', 'rotar', 'borrar paginas', 'eliminar paginas'],
     disponible: true,
   },
   {
@@ -128,6 +153,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-file-earmark-lock',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['contraseña', 'password', 'cifrar', 'bloquear', 'desbloquear', 'quitar contraseña'],
     disponible: true,
   },
   {
@@ -137,6 +164,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-body-text',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['escaneado', 'reconocer texto', 'texto seleccionable', 'buscable'],
     disponible: true,
   },
   {
@@ -146,6 +175,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-file-earmark-zip',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['reducir', 'aligerar', 'peso', 'tamaño', 'optimizar'],
     disponible: true,
   },
   {
@@ -155,6 +186,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-droplet-half',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['sello', 'logo', 'borrador', 'confidencial', 'estampar'],
     disponible: true,
   },
   {
@@ -164,6 +197,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-list-ol',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['numeros', 'paginacion', 'pie de pagina'],
     disponible: true,
   },
   {
@@ -173,6 +208,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-card-image',
     categoria: 'PDF',
     acepta: '.pdf',
+    varios: false,
+    palabras: ['sacar fotos', 'guardar imagenes', 'fotos'],
     disponible: true,
   },
   {
@@ -182,6 +219,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-images',
     categoria: 'Imágenes',
     acepta: 'image/*',
+    varios: true,
+    palabras: ['reducir', 'aligerar', 'peso', 'tamaño', 'optimizar', 'foto', 'jpg'],
     disponible: true,
   },
   {
@@ -191,6 +230,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-file-earmark-pdf',
     categoria: 'Imágenes',
     acepta: 'image/*',
+    varios: true,
+    palabras: ['fotos a pdf', 'jpg a pdf', 'png a pdf', 'escanear', 'juntar fotos'],
     disponible: true,
   },
   {
@@ -200,6 +241,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-qr-code',
     categoria: 'Imágenes',
     acepta: '',
+    varios: false,
+    palabras: ['codigo qr', 'wifi', 'contacto', 'vcard', 'enlace'],
     disponible: true,
   },
   {
@@ -209,6 +252,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-incognito',
     categoria: 'Documentos',
     acepta: '.pdf,image/*',
+    varios: true,
+    palabras: ['privacidad', 'exif', 'gps', 'ubicacion', 'autor', 'anonimizar'],
     disponible: true,
   },
   {
@@ -218,6 +263,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-filetype-pdf',
     categoria: 'Documentos',
     acepta: '.docx,.doc,.odt,.rtf,.txt',
+    varios: true,
+    palabras: ['word a pdf', 'docx', 'odt', 'rtf', 'convertir', 'exportar'],
     disponible: true,
   },
   {
@@ -227,6 +274,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-file-earmark-word',
     categoria: 'Documentos',
     acepta: '.pdf',
+    varios: true,
+    palabras: ['docx', 'editar pdf', 'convertir', 'exportar'],
     disponible: true,
   },
   {
@@ -236,6 +285,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-markdown',
     categoria: 'Documentos',
     acepta: '.pdf,.docx,.xlsx,.xls,.pptx,.csv,.json,.xml,.html,.htm,.txt,.md,.epub',
+    varios: true,
+    palabras: ['md', 'texto', 'ia', 'chatgpt', 'llm', 'excel', 'powerpoint', 'extraer texto'],
     disponible: true,
   },
   {
@@ -245,6 +296,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-award',
     categoria: 'Documentos',
     acepta: '',
+    varios: false,
+    palabras: ['p12', 'pfx', 'autofirmado', 'generar certificado'],
     disponible: true,
   },
   {
@@ -254,6 +307,8 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-arrow-left-right',
     categoria: 'Imágenes',
     acepta: 'image/*',
+    varios: true,
+    palabras: ['jpg', 'png', 'webp', 'heic', 'formato', 'cambiar formato'],
     disponible: true,
   },
 ];
@@ -288,4 +343,46 @@ export function rutaDe(herramienta: Herramienta): string {
 
 export function buscarPorSlug(slug: string): Herramienta | undefined {
   return HERRAMIENTAS.find(h => h.slug === slug);
+}
+
+/** Minúsculas y sin acentos, para comparar lo que se escribe con el catálogo. */
+export function normalizar(texto: string): string {
+  return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+/**
+ * Las herramientas disponibles que casan con lo que se busca, las que casan por
+ * el nombre primero. Cada palabra de la búsqueda tiene que aparecer en el
+ * nombre, la descripción o las palabras clave; da igual el orden.
+ */
+export function buscar(texto: string): Herramienta[] {
+  const terminos = normalizar(texto).split(/\s+/).filter(Boolean);
+  if (terminos.length === 0) {
+    return [];
+  }
+  const puntuadas = HERRAMIENTAS
+    .filter(h => h.disponible)
+    .map(h => {
+      const nombre = normalizar(h.nombre);
+      const resto = normalizar([h.descripcion, ...h.palabras].join(' '));
+      const casan = terminos.every(t => nombre.includes(t) || resto.includes(t));
+      const porNombre = terminos.filter(t => nombre.includes(t)).length;
+      return { h, casan, porNombre };
+    })
+    .filter(x => x.casan);
+  return puntuadas.sort((a, b) => b.porNombre - a.porNombre).map(x => x.h);
+}
+
+/**
+ * A qué herramientas se pueden mandar estos archivos: las disponibles que
+ * admiten todos ellos y, si son varios, que trabajan con varios.
+ */
+export function destinosPara(archivos: { name: string; type: string }[], excepto?: string): Herramienta[] {
+  if (archivos.length === 0) {
+    return [];
+  }
+  return HERRAMIENTAS.filter(h =>
+    h.disponible && h.slug !== excepto && h.acepta !== ''
+    && (archivos.length === 1 || h.varios)
+    && archivos.every(a => encaja(a, h.acepta)));
 }
