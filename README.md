@@ -319,11 +319,13 @@ no tiene texto que sacar; para eso está "PDF con OCR" antes.
 Las dos son caras y se lanzan **como proceso aparte**, igual que el OCR: así se
 pueden cortar por tiempo, su memoria vuelve entera al terminar y ni opencv ni
 numpy se quedan residentes en el servidor entre conversión y conversión. Y las
-dos comparten **turno** (`backend/api/conversion.py`): sólo una conversión de
-estas a la vez en todo el proceso, porque el servidor atiende con cuatro hilos y
-cuatro LibreOffice arrancando a la vez se llevan por delante el contenedor. A
-quien llega y lo encuentra ocupado se le dice que vuelva en un momento, en lugar
-de dejarle esperando hasta que nginx corte.
+tres —éstas dos y el OCR— comparten **turno** (`backend/api/conversion.py`):
+sólo un trabajo de estos a la vez en todo el proceso, porque el servidor atiende
+con cuatro hilos y cuatro LibreOffice —o cuatro OCR— arrancando a la vez se
+llevan por delante el contenedor. El turno es uno para los tres y no uno por
+herramienta porque lo que se está repartiendo es la memoria, y a ésta le da
+igual quién se la coma. A quien llega y lo encuentra ocupado se le dice que
+vuelva en un momento, en lugar de dejarle esperando hasta que nginx corte.
 
 "Limpiar metadatos" es la que mejor explica por qué existe esta aplicación. Un
 PDF lleva dentro quién lo escribió y con qué programa; una foto de móvil lleva el
@@ -530,8 +532,8 @@ calculado. Todas están comentadas en [`.env.example`](.env.example).
 | `GUNICORN_WORKERS` | *se calcula* | Procesos que atienden peticiones. Los que quepan a 768 MB cada uno, sin pasar de los núcleos ni de 4 |
 | `GUNICORN_THREADS` | `4` | Peticiones a la vez por proceso. Bastan hilos porque PyMuPDF y Pillow sueltan el GIL |
 | `GUNICORN_TIMEOUT` | `300` | Plazo de una petición. Tiene que ser **mayor que todos** los plazos de abajo |
-| `MAX_CONCURRENT_CONVERSIONS` | `1` | Conversiones de ofimática simultáneas **por worker** — las reales son `GUNICORN_WORKERS` × ésta. Cada una arranca su LibreOffice: entre 130 y 350 MB |
-| `CONVERSION_QUEUE_TIMEOUT_SECONDS` | `45` | Cuánto espera una petición a que le toque el turno |
+| `MAX_CONCURRENT_CONVERSIONS` | `1` | Trabajos pesados simultáneos **por worker** — los reales son `GUNICORN_WORKERS` × ésta. Son los tres que arrancan un programa aparte (documento a PDF, PDF a Word y OCR) y comparten turno: un LibreOffice come entre 130 y 350 MB, y un OCR a cuatro núcleos, 327 MB |
+| `CONVERSION_QUEUE_TIMEOUT_SECONDS` | `45` | Cuánto espera una petición a que le toque el turno. **Se suma al plazo del trabajo**: con el OCR son 45 + 240 = 285 s, y `GUNICORN_TIMEOUT` son 300 |
 | `OCR_JOBS` | *se calcula* | Páginas que el OCR reconoce a la vez; por defecto, los núcleos que haya. **El ajuste que más se nota**: con 4 núcleos, 60 páginas pasan de 36 s a 21 s, a cambio de 150 MB más |
 | `OCR_OPTIMIZE` | `1` | Cuánto aprieta el PDF resultante, de 0 a 3. El 1 sale casi gratis: mismo tiempo y archivos hasta cuatro veces menores |
 | `OCR_TIMEOUT_SECONDS` | `240` | Plazo del OCR |
@@ -555,9 +557,11 @@ docker compose up -d          # sin --build: eso sólo si cambia el código
 ```
 
 Dos reglas al tocarlos. Los **plazos de las herramientas van siempre por debajo
-de `GUNICORN_TIMEOUT`**: si no, gunicorn corta la respuesta y el usuario ve un
-error feo en vez de uno explicado. Y de la **memoria** manda la suma: cada worker
-con sus hilos, más lo que ocupe cada conversión simultánea.
+de `GUNICORN_TIMEOUT`**, y en las tres que hacen cola hay que contar también lo
+que se espera el turno (`CONVERSION_QUEUE_TIMEOUT_SECONDS`): si la suma se pasa,
+gunicorn corta la respuesta y el usuario ve un error feo en vez de uno explicado.
+Y de la **memoria** manda la suma: cada worker con sus hilos, más lo que ocupe
+cada trabajo pesado simultáneo.
 
 Un valor que no sea un número no tumba el servidor: avisa por el log y sigue con
 el valor por defecto.

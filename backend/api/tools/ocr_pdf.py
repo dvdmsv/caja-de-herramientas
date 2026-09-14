@@ -8,9 +8,16 @@ El trabajo lo hace ocrmypdf, y se lanza como proceso aparte en vez de por su API
 de Python: reparte trabajo con multiprocessing y este servidor atiende con
 hilos, así que aislarlo evita sorpresas y permite cortarlo por tiempo sin
 llevarse por delante al worker.
+
+Va por `api/conversion.py`, igual que LibreOffice y pdf2docx, y por la misma
+razón: es el trabajo que más memoria pide de toda la aplicación —medido, 180 MB
+con un `--jobs` y 327 MB con cuatro— y el worker atiende con cuatro hilos. Sin
+turno, cuatro escaneados a la vez son cuatro ocrmypdf con sus cuatro procesos
+cada uno: pasan de 1,3 GB, y eso en un contenedor de 1,5 GB que además tiene que
+dar de comer a los workers. El cgroup lo mata, Docker lo reinicia y se lleva por
+delante lo que estuvieran haciendo los demás.
 """
 import os
-import subprocess
 
 import fitz  # PyMuPDF
 from flask import Blueprint, current_app, jsonify
@@ -31,8 +38,9 @@ IDIOMAS = {'spa', 'eng', 'spa+eng'}
 # plazo de aquí abajo, no un número de páginas inventado.
 #
 # Por debajo del plazo de gunicorn, para poder contestar con un error entendible
-# en vez de que nos corten la respuesta. Si se sube, hay que subir también
-# `GUNICORN_TIMEOUT`.
+# en vez de que nos corten la respuesta. Y con sitio para la espera del turno,
+# que va por delante: 45 + 240 = 285 s contra los 300 de gunicorn. Si se sube,
+# hay que subir también `GUNICORN_TIMEOUT`.
 TIEMPO_LIMITE = config.entorno_entero('OCR_TIMEOUT_SECONDS', 240)
 
 # Páginas que ocrmypdf reconoce en paralelo. Medido con 60 páginas escaneadas en
@@ -108,15 +116,10 @@ def _reconocer(origen: str, destino: str, idioma: str, rehacer: bool) -> None:
         destino,
     ]
 
-    try:
-        resultado = subprocess.run(orden, capture_output=True, text=True, timeout=TIEMPO_LIMITE)
-    except FileNotFoundError as err:  # falta el programa en la imagen
-        current_app.logger.error('ocrmypdf no está instalado: %s', err)
-        raise ApiError('El reconocimiento de texto no está disponible en este servidor.', 500) from err
-    except subprocess.TimeoutExpired as err:
-        raise ApiError(
-            f'El reconocimiento ha tardado más de {conversion.en_palabras(TIEMPO_LIMITE)} y se ha '
-            'cancelado. Prueba con un documento más corto.', 504) from err
+    resultado = conversion.ejecutar(
+        orden, TIEMPO_LIMITE, 'ocrmypdf',
+        'El reconocimiento de texto no está disponible en este servidor.',
+        trabajo='El reconocimiento')
 
     if resultado.returncode == 0:
         return

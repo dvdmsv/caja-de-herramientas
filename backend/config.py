@@ -76,6 +76,11 @@ def memoria_mb() -> int:
 # Cuánta memoria se le supone a cada worker con las bibliotecas ya cargadas.
 # Medido: unos 300 MB. Se redondea a 768 para dejar sitio a los procesos que
 # lanza (LibreOffice, pdf2docx, ocrmypdf) sin tener que modelar cada caso.
+#
+# Ese sitio es para **uno** de esos procesos, no para los que quepan: el worker
+# atiende con cuatro hilos, y quien impide que arranquen cuatro a la vez es el
+# turno de `api/conversion.py`. Si alguna herramienta pesada dejara de pedirlo,
+# esta cuenta se queda en nada.
 MEMORIA_POR_WORKER_MB = 768
 
 # Techo de workers. No lo pone la memoria, lo pone que esto es una herramienta
