@@ -50,7 +50,7 @@ Pensada para usarse, no sólo para funcionar:
 | Documento a Markdown | Extrae el contenido para dárselo a un LLM | unir todo en un archivo |
 | Documento a PDF | Pasa Word, ODT, RTF o texto plano a PDF | varios documentos de una vez |
 | PDF a Word | Saca un `.docx` editable de un PDF | varios documentos de una vez |
-| Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, cuerpo y margen |
+| Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo y margen |
 | Limpiar metadatos | Enseña lo que tus archivos cuentan de ti y borra lo que elijas | campo a campo, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
 | Numerar páginas | Numera el documento | posición, formato, desde qué página, con vista previa |
@@ -333,7 +333,19 @@ de un PDF sale el texto para dárselo a un LLM, y lo que el LLM devuelve —que 
 siempre es Markdown— vuelve a ser un documento presentable sin pasar por un
 editor. Se maquetan títulos, listas, tablas, bloques de código, citas y enlaces,
 que quedan pulsables; se elige tamaño de página, orientación, tipo de letra,
-cuerpo y margen.
+color de acento, cuerpo y margen.
+
+Y sale **compuesto, no volcado**: filete de color bajo el título, tablas con la
+cabecera en banda oscura y versalitas espaciadas, filas alternas sombreadas,
+citas con su barra de color y el código sobre fondo claro. El color de acento
+—azul, rojo, verde o grafito— tiñe el filete, los subtítulos, los enlaces y esa
+barra. Cada regla de la hoja de estilos está comprobada contra MuPDF, que
+entiende un subconjunto de CSS y **no avisa de lo que ignora**: la raya cebra,
+por ejemplo, no se puede pedir con `tr:nth-child(even)`, así que las filas se
+marcan una a una al convertir el Markdown. Lo que no hay manera de conseguir es
+una tabla a todo el ancho: MuPDF las ajusta al contenido se le pida lo que se le
+pida, medido con `width` en porcentaje y en puntos, sobre la tabla y sobre las
+celdas.
 
 Y ésta **no** pasa por el turno de arriba, porque no arranca nada: la maqueta
 PyMuPDF con `fitz.Story`, el mismo motor que ya hace el resto del trabajo con

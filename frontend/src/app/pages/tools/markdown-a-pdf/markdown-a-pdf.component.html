@@ -66,6 +66,27 @@
     </div>
   </fieldset>
 
+  <fieldset class="mt-4">
+    <legend class="h6">Color de acento</legend>
+    <p class="form-text mt-0 mb-2">
+      Tiñe el filete del título, los subtítulos, los enlaces y la barra de las citas.
+    </p>
+    <div class="row g-2">
+      @for (opcion of acentos; track opcion) {
+        <div class="col-6 col-sm-3">
+          <input type="radio" class="btn-check" name="acento" [id]="'ace-' + opcion.id"
+            [checked]="acento === opcion.id" [disabled]="ocupado"
+            (change)="elegirAcento(opcion.id)">
+          <label class="btn btn-outline-primary w-100 text-start" [for]="'ace-' + opcion.id">
+            <span class="d-inline-block rounded-circle me-2 align-middle"
+              style="width: .8rem; height: .8rem;" [style.background-color]="opcion.color"></span>
+            <span class="fw-semibold align-middle">{{ opcion.nombre }}</span>
+          </label>
+        </div>
+      }
+    </div>
+  </fieldset>
+
   <div class="row g-4 mt-1">
     <div class="col-12 col-md-6">
       <label for="cuerpo" class="form-label h6 mb-1">
@@ -88,8 +109,9 @@
 
   <p class="text-body-secondary small mt-4 mb-0">
     <i class="bi bi-info-circle me-1"></i>
-    Se maquetan títulos, listas, tablas, bloques de código, citas y enlaces, que quedan
-    pulsables. Las imágenes enlazadas no se descargan: el servidor no tiene esos archivos.
+    Las tablas salen con la cabecera en banda oscura y las filas alternas sombreadas; los
+    enlaces quedan pulsables. Las imágenes enlazadas no se descargan: el servidor no tiene
+    esos archivos.
   </p>
 
   <app-tool-controls [pagina]="pagina" accion="Crear el PDF" icono="bi-file-earmark-pdf">

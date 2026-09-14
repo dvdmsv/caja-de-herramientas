@@ -117,30 +117,59 @@ ANADIDOS = ['table', 'strikethrough']
 # 1,7 MB de Markdown, bastante más de lo que nadie maqueta de una vez.
 MAXIMO_PAGINAS = 2000
 
+# Color de acento: lo que separa un documento de un volcado de texto. Tiñe el
+# filete del título, los subtítulos, los enlaces y la barra de las citas.
+COLORES_ACENTO = {
+    'azul': '#1a56a8',
+    'rojo': '#b3122c',
+    'verde': '#186b4c',
+    'grafito': '#3a4148',
+}
+
+# Fondo de las filas pares de una tabla. No se puede pedir con
+# `tr:nth-child(even)` —MuPDF no entiende ese selector, comprobado—, así que las
+# filas se marcan una a una con la clase `rayada` al convertir el Markdown.
+CLASE_RAYADA = 'rayada'
+
 # La hoja de estilos. Va aquí y no en un archivo aparte porque es corta y porque
 # leerla al lado de lo que la usa ahorra el viaje.
 #
-# MuPDF entiende un subconjunto de CSS: sirven las familias, los cuerpos, los
-# colores, los márgenes, los bordes y las alineaciones, que es justo lo que pide
-# un documento de texto.
+# Cada regla está comprobada contra MuPDF, que entiende un subconjunto de CSS y
+# no avisa de lo que ignora. Lo que **sí** respeta y se usa aquí: familias,
+# cuerpos, colores de texto y de fondo, márgenes, rellenos, bordes por lado,
+# `text-transform`, `letter-spacing` y los selectores por clase. Lo que ignora,
+# y por eso no está: `width` en las tablas (siempre se ajustan al contenido, se
+# les pida lo que se les pida), `nth-child`, y los fondos y rellenos sobre
+# elementos en línea como `span`.
 ESTILOS = """
-body {{ font-family: {familia}; font-size: {cuerpo}pt; line-height: 1.45; color: #1a1a1a; }}
-h1 {{ font-size: {h1:.1f}pt; margin: 0 0 10pt 0; }}
-h2 {{ font-size: {h2:.1f}pt; margin: 16pt 0 6pt 0; }}
-h3 {{ font-size: {h3:.1f}pt; margin: 13pt 0 5pt 0; }}
-h4, h5, h6 {{ font-size: {h4:.1f}pt; margin: 11pt 0 4pt 0; }}
+body {{ font-family: {familia}; font-size: {cuerpo}pt; line-height: 1.45; color: #1f2328; }}
+
+h1 {{ font-size: {h1:.1f}pt; color: #14181c; margin: 0 0 9pt 0;
+     border-bottom: 2pt solid {acento}; padding-bottom: 5pt; }}
+h2 {{ font-size: {h2:.1f}pt; color: #14181c; margin: 17pt 0 6pt 0;
+     border-bottom: 0.6pt solid #dde1e5; padding-bottom: 3pt; }}
+h3 {{ font-size: {h3:.1f}pt; color: {acento}; margin: 14pt 0 5pt 0; }}
+h4, h5, h6 {{ font-size: {h4:.1f}pt; color: #3a4148; margin: 12pt 0 4pt 0; }}
+
 p {{ margin: 0 0 {parrafo:.1f}pt 0; }}
 ul, ol {{ margin: 0 0 {parrafo:.1f}pt 0; }}
-li {{ margin: 0 0 2pt 0; }}
-a {{ color: #0b5ed7; }}
-code {{ font-family: monospace; font-size: {codigo:.1f}pt; background-color: #f2f2f2; }}
-pre {{ font-family: monospace; font-size: {codigo:.1f}pt; background-color: #f6f6f6;
-      padding: 6pt; margin: 0 0 {parrafo:.1f}pt 0; }}
-blockquote {{ margin: 0 0 {parrafo:.1f}pt 14pt; color: #4a4a4a; }}
-table {{ margin: 0 0 {parrafo:.1f}pt 0; border-collapse: collapse; }}
-th, td {{ border: 0.7pt solid #b0b0b0; padding: 4pt; text-align: left; }}
-th {{ background-color: #f2f2f2; }}
-hr {{ margin: 12pt 0; }}
+li {{ margin: 0 0 3pt 0; }}
+a {{ color: {acento}; }}
+hr {{ border: none; border-top: 0.6pt solid #dde1e5; margin: 14pt 0; }}
+
+table {{ margin: 4pt 0 {parrafo:.1f}pt 0; border-collapse: collapse; }}
+th {{ background-color: #23272b; color: #ffffff; text-align: left;
+     font-size: {cabecera:.1f}pt; text-transform: uppercase; letter-spacing: 0.5pt;
+     padding: 5pt; }}
+td {{ padding: 5pt; border-bottom: 0.5pt solid #e4e7ea; }}
+tr.{rayada} {{ background-color: #f4f6f8; }}
+
+blockquote {{ border-left: 3pt solid {acento}; background-color: #f7f9fb;
+             padding: 6pt; margin: 0 0 {parrafo:.1f}pt 0; color: #46505a; }}
+
+code {{ font-family: monospace; font-size: {codigo:.1f}pt; background-color: #eef1f4; }}
+pre {{ font-family: monospace; font-size: {codigo:.1f}pt; background-color: #f7f9fb;
+      border-left: 3pt solid #c9d2db; padding: 7pt; margin: 0 0 {parrafo:.1f}pt 0; }}
 """
 
 
@@ -153,6 +182,7 @@ def markdown_a_pdf():
     tamano = params.opcion(datos, 'pagina', PAGINAS, 'a4')
     orientacion = params.opcion(datos, 'orientacion', ORIENTACIONES, 'vertical')
     familia = params.opcion(datos, 'familia', FAMILIAS, 'sans')
+    acento = params.opcion(datos, 'acento', COLORES_ACENTO, 'azul')
     cuerpo = params.entero(datos, 'cuerpo', CUERPO_POR_DEFECTO, CUERPO_MINIMO, CUERPO_MAXIMO)
     margen = params.entero(datos, 'margen', MARGEN_POR_DEFECTO_MM,
                            MARGEN_MINIMO_MM, MARGEN_MAXIMO_MM) * MILIMETRO
@@ -167,7 +197,7 @@ def markdown_a_pdf():
         entradas.append((record, storage.path_of(session_id, file_id)))
 
     marco = _marco(tamano, orientacion)
-    estilos = _estilos(familia, cuerpo)
+    estilos = _estilos(familia, cuerpo, acento)
 
     resultados = []
     for record, ruta in entradas:
@@ -189,23 +219,58 @@ def _marco(tamano: str, orientacion: str) -> fitz.Rect:
     return fitz.Rect(0, 0, ancho, alto)
 
 
-def _estilos(familia: str, cuerpo: int) -> str:
-    """La hoja de estilos con los tamaños ya resueltos.
+def _estilos(familia: str, cuerpo: int, acento: str) -> str:
+    """La hoja de estilos con los tamaños y el color ya resueltos.
 
     Los encabezados y el código se calculan **a partir del cuerpo** en vez de
     fijarse en puntos: quien sube el cuerpo a 14 porque va a imprimir para
     alguien que no ve bien espera que los títulos suban con él.
+
+    La cabecera de las tablas va al revés, más pequeña que el texto: es una
+    etiqueta en versalitas, no una frase, y a tamaño completo compite con el
+    contenido en vez de ordenarlo.
     """
     return ESTILOS.format(
         familia=FAMILIAS[familia],
+        acento=COLORES_ACENTO[acento],
+        rayada=CLASE_RAYADA,
         cuerpo=cuerpo,
         h1=cuerpo * 1.9,
         h2=cuerpo * 1.45,
         h3=cuerpo * 1.2,
         h4=cuerpo * 1.05,
         codigo=cuerpo * 0.88,
+        cabecera=cuerpo * 0.8,
         parrafo=cuerpo * 0.6,
     )
+
+
+def _a_html(texto: str) -> str:
+    """El Markdown convertido, con las filas pares de cada tabla ya marcadas.
+
+    Se hace en dos tiempos —analizar, retocar, escribir— en vez de renderizar
+    de un tirón porque la raya cebra no se puede pedir por CSS: MuPDF no
+    entiende `tr:nth-child(even)`. Retocar los tokens es más honrado que buscar
+    `<tr>` con una expresión regular sobre el HTML ya escrito, que se rompería
+    con la primera tabla dentro de una cita.
+    """
+    lector = MarkdownIt('commonmark', {'html': True}).enable(ANADIDOS)
+    tokens = lector.parse(texto)
+
+    en_cuerpo, fila = False, 0
+    for token in tokens:
+        if token.type == 'tbody_open':
+            en_cuerpo, fila = True, 0
+        elif token.type == 'tbody_close':
+            en_cuerpo = False
+        elif token.type == 'tr_open' and en_cuerpo:
+            # La cabecera va en `thead` y queda fuera: la raya empieza a contar
+            # en la primera fila de datos.
+            fila += 1
+            if fila % 2 == 0:
+                token.attrJoin('class', CLASE_RAYADA)
+
+    return lector.renderer.render(tokens, lector.options, {})
 
 
 def _leer(ruta: str, nombre: str) -> str:
@@ -236,7 +301,7 @@ def _maquetar(texto: str, nombre: str, marco: fitz.Rect, margen: float,
     porque es lo único que conserva los enlaces: sin él, un `[texto](url)` sale
     subrayado y en azul pero no se puede pulsar, que es peor que no ponerlo.
     """
-    html = MarkdownIt('commonmark', {'html': True}).enable(ANADIDOS).render(texto)
+    html = _a_html(texto)
     area = marco + (margen, margen, -margen, -margen)
 
     def donde_va(numero: int, _relleno: float):

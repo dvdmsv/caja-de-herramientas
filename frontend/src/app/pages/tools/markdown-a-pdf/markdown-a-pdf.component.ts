@@ -54,9 +54,21 @@ export class MarkdownAPdfComponent extends PaginaHerramienta {
     { id: 'serif', nombre: 'Times', detalle: 'con remates, la de imprenta' },
   ];
 
+  /**
+   * Los mismos valores que `COLORES_ACENTO` en el backend: aquí sólo se enseña
+   * la muestra de color, quien la aplica al documento es el servidor.
+   */
+  readonly acentos = [
+    { id: 'azul', nombre: 'Azul', color: '#1a56a8' },
+    { id: 'rojo', nombre: 'Rojo', color: '#b3122c' },
+    { id: 'verde', nombre: 'Verde', color: '#186b4c' },
+    { id: 'grafito', nombre: 'Grafito', color: '#3a4148' },
+  ];
+
   tamano = 'a4';
   orientacion = 'vertical';
   familia = 'sans';
+  acento = 'azul';
   margen = 20;
   cuerpo = 11;
 
@@ -65,6 +77,7 @@ export class MarkdownAPdfComponent extends PaginaHerramienta {
       pagina: this.tamano,
       orientacion: this.orientacion,
       familia: this.familia,
+      acento: this.acento,
       margen: this.margen,
       cuerpo: this.cuerpo,
     };
@@ -82,6 +95,11 @@ export class MarkdownAPdfComponent extends PaginaHerramienta {
 
   elegirFamilia(id: string): void {
     this.familia = id;
+    this.alCambiarLista();
+  }
+
+  elegirAcento(id: string): void {
+    this.acento = id;
     this.alCambiarLista();
   }
 }
