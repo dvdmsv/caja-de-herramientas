@@ -290,6 +290,17 @@ export const HERRAMIENTAS: Herramienta[] = [
     disponible: true,
   },
   {
+    slug: 'markdown-a-pdf',
+    nombre: 'Markdown a PDF',
+    descripcion: 'Maqueta un .md como documento, con sus títulos, listas, tablas y código.',
+    icono: 'bi-filetype-md',
+    categoria: 'Documentos',
+    acepta: '.md',
+    varios: true,
+    palabras: ['md', 'maquetar', 'imprimir', 'informe', 'ia', 'chatgpt', 'llm', 'convertir'],
+    disponible: true,
+  },
+  {
     slug: 'crear-certificado',
     nombre: 'Crear certificado',
     descripcion: 'Genera un certificado propio para firmar, si todavía no tienes ninguno.',

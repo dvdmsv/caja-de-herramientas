@@ -50,6 +50,7 @@ Pensada para usarse, no sólo para funcionar:
 | Documento a Markdown | Extrae el contenido para dárselo a un LLM | unir todo en un archivo |
 | Documento a PDF | Pasa Word, ODT, RTF o texto plano a PDF | varios documentos de una vez |
 | PDF a Word | Saca un `.docx` editable de un PDF | varios documentos de una vez |
+| Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, cuerpo y margen |
 | Limpiar metadatos | Enseña lo que tus archivos cuentan de ti y borra lo que elijas | campo a campo, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
 | Numerar páginas | Numera el documento | posición, formato, desde qué página, con vista previa |
@@ -326,6 +327,37 @@ llevan por delante el contenedor. El turno es uno para los tres y no uno por
 herramienta porque lo que se está repartiendo es la memoria, y a ésta le da
 igual quién se la coma. A quien llega y lo encuentra ocupado se le dice que
 vuelva en un momento, en lugar de dejarle esperando hasta que nginx corte.
+
+"Markdown a PDF" cierra el círculo de "Documento a Markdown" por el otro lado:
+de un PDF sale el texto para dárselo a un LLM, y lo que el LLM devuelve —que casi
+siempre es Markdown— vuelve a ser un documento presentable sin pasar por un
+editor. Se maquetan títulos, listas, tablas, bloques de código, citas y enlaces,
+que quedan pulsables; se elige tamaño de página, orientación, tipo de letra,
+cuerpo y margen.
+
+Y ésta **no** pasa por el turno de arriba, porque no arranca nada: la maqueta
+PyMuPDF con `fitz.Story`, el mismo motor que ya hace el resto del trabajo con
+los PDF. Medido: 135 kB de Markdown, 156 páginas, 220 ms. LibreOffice se
+descartó porque tarda segundos, ocuparía el turno del OCR y no da control sobre
+la maquetación, y pandoc porque necesita un motor de PDF aparte —LaTeX o
+Chromium—, que son cientos de megas de imagen para algo que aquí sale de una
+dependencia de 200 kB.
+
+Un detalle que conviene saber: **nada de lo que enlace el documento se va a
+buscar**. `fitz.Story` sólo resuelve imágenes contra un archivo comprimido que
+aquí no se le da, así que un `.md` con `![](/etc/hostname)` no lee nada del
+disco del servidor y uno con una imagen en `http://` no le pide nada a nadie
+—comprobado—. Se incrustan sólo las imágenes `data:` que el propio archivo trae
+dentro; con el resto, MuPDF deja el hueco y sigue.
+
+El PDF pesa unos 100 kB aunque tenga una página, y unos 390 si el documento
+lleva listas anidadas: MuPDF incrusta enteras las tipografías con las que
+compone, y para el `○` del segundo nivel carga una fuente de símbolos entera.
+PyMuPDF sabe recortarlas —deja ese archivo en 82 kB— y aquí **no se hace a
+propósito**, porque en la versión que usa este proyecto el recorte se come el
+**signo del euro**: comprobado carácter a carácter, es el único que se pierde, y
+desaparece dejando el texto en el archivo, así que ni copiándolo se nota. Un
+documento que se manda o se imprime no puede perder ese carácter.
 
 "Limpiar metadatos" es la que mejor explica por qué existe esta aplicación. Un
 PDF lleva dentro quién lo escribió y con qué programa; una foto de móvil lleva el
@@ -818,7 +850,7 @@ comercial encima, mira las licencias tú.
 | **PyMuPDF** | AGPL-3.0 o comercial — la que condiciona todo lo demás |
 | **`frontend/src/assets/autofirma/autoscript.js`** | GPL-2.0-or-later / EUPL-1.1. Es la librería oficial del Gobierno de España para hablar con AutoFirma; se incluye sin modificar y con su procedencia anotada en [`NOTICE.md`](frontend/src/assets/autofirma/NOTICE.md) |
 | ocrmypdf | MPL-2.0 |
-| pypdf, Flask, segno | BSD-3-Clause |
+| pypdf, Flask, segno, Python-Markdown | BSD-3-Clause |
 | Pillow, pyHanko, markitdown, pdf2docx, Flask-Cors, gunicorn | MIT |
 | Angular, Bootstrap, pdf.js | MIT / Apache-2.0 |
 

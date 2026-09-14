@@ -1,0 +1,100 @@
+<app-tool-page slug="markdown-a-pdf">
+
+  <app-file-queue
+    [items]="archivos"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra tus archivos .md aquí o haz clic para elegirlos"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarLista()">
+  </app-file-queue>
+
+  @if (archivos.length > 1) {
+    <p class="text-body-secondary small mt-3 mb-0">
+      <i class="bi bi-info-circle me-1"></i>
+      Cada archivo sale como un PDF aparte. Para reunirlos, pásalos luego por «Unir PDF».
+    </p>
+  }
+
+  <fieldset class="mt-4">
+    <legend class="h6">Tamaño de página</legend>
+    <div class="row g-2">
+      @for (opcion of tamanos; track opcion) {
+        <div class="col-12 col-sm-6">
+          <input type="radio" class="btn-check" name="tamano" [id]="'tam-' + opcion.id"
+            [checked]="tamano === opcion.id" [disabled]="ocupado"
+            (change)="elegirTamano(opcion.id)">
+          <label class="btn btn-outline-primary w-100 text-start" [for]="'tam-' + opcion.id">
+            <span class="d-block fw-semibold">{{ opcion.nombre }}</span>
+            <small class="text-body-secondary">{{ opcion.detalle }}</small>
+          </label>
+        </div>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Orientación</legend>
+    <div class="row g-2">
+      @for (opcion of orientaciones; track opcion) {
+        <div class="col-12 col-sm-6">
+          <input type="radio" class="btn-check" name="orientacion" [id]="'ori-' + opcion.id"
+            [checked]="orientacion === opcion.id" [disabled]="ocupado"
+            (change)="elegirOrientacion(opcion.id)">
+          <label class="btn btn-outline-primary w-100 text-start" [for]="'ori-' + opcion.id">
+            <span class="d-block fw-semibold">{{ opcion.nombre }}</span>
+            <small class="text-body-secondary">{{ opcion.detalle }}</small>
+          </label>
+        </div>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Tipo de letra</legend>
+    <div class="row g-2">
+      @for (opcion of familias; track opcion) {
+        <div class="col-12 col-sm-6">
+          <input type="radio" class="btn-check" name="familia" [id]="'fam-' + opcion.id"
+            [checked]="familia === opcion.id" [disabled]="ocupado"
+            (change)="elegirFamilia(opcion.id)">
+          <label class="btn btn-outline-primary w-100 text-start" [for]="'fam-' + opcion.id">
+            <span class="d-block fw-semibold">{{ opcion.nombre }}</span>
+            <small class="text-body-secondary">{{ opcion.detalle }}</small>
+          </label>
+        </div>
+      }
+    </div>
+  </fieldset>
+
+  <div class="row g-4 mt-1">
+    <div class="col-12 col-md-6">
+      <label for="cuerpo" class="form-label h6 mb-1">
+        Cuerpo de letra: <span class="fw-normal">{{ cuerpo }} pt</span>
+      </label>
+      <input type="range" class="form-range" id="cuerpo" min="8" max="16" step="1"
+        [disabled]="ocupado" [(ngModel)]="cuerpo" (change)="alCambiarLista()">
+      <p class="form-text mt-0">Los títulos y el código crecen con él.</p>
+    </div>
+
+    <div class="col-12 col-md-6">
+      <label for="margen" class="form-label h6 mb-1">
+        Margen: <span class="fw-normal">{{ margen }} mm</span>
+      </label>
+      <input type="range" class="form-range" id="margen" min="10" max="40" step="5"
+        [disabled]="ocupado" [(ngModel)]="margen" (change)="alCambiarLista()">
+      <p class="form-text mt-0">Espacio en blanco alrededor del texto.</p>
+    </div>
+  </div>
+
+  <p class="text-body-secondary small mt-4 mb-0">
+    <i class="bi bi-info-circle me-1"></i>
+    Se maquetan títulos, listas, tablas, bloques de código, citas y enlaces, que quedan
+    pulsables. Las imágenes enlazadas no se descargan: el servidor no tiene esos archivos.
+  </p>
+
+  <app-tool-controls [pagina]="pagina" accion="Crear el PDF" icono="bi-file-earmark-pdf">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados"></app-result-list>
+
+</app-tool-page>

@@ -153,6 +153,13 @@ export const routes: Routes = [
       import('./pages/tools/a-markdown/a-markdown.component').then(m => m.AMarkdownComponent),
   },
   {
+    path: 'herramientas/markdown-a-pdf',
+    title: 'Markdown a PDF',
+    loadComponent: () =>
+      import('./pages/tools/markdown-a-pdf/markdown-a-pdf.component')
+        .then(m => m.MarkdownAPdfComponent),
+  },
+  {
     // El visor manda en toda la pantalla: sin barra de navegación ni pie.
     path: 'visor',
     title: 'Visor de PDF',

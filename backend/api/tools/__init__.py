@@ -7,8 +7,8 @@ de abajo. No hay que tocar nada más ni en el arranque ni en nginx.
 from api.tools import (a_markdown, comprimir_imagen, comprimir_pdf, comprobar_firmas,
                        convertir_imagen, crear_certificado, dividir_pdf, documento_a_pdf,
                        extraer_imagenes, firmar, firmar_certificado, generar_qr, imagen_a_pdf,
-                       limpiar_metadatos, marca_de_agua, numerar_paginas, ocr_pdf, organizar_pdf,
-                       pdf_a_imagen, pdf_a_word, proteger_pdf, unir_pdf, visor)
+                       limpiar_metadatos, marca_de_agua, markdown_a_pdf, numerar_paginas, ocr_pdf,
+                       organizar_pdf, pdf_a_imagen, pdf_a_word, proteger_pdf, unir_pdf, visor)
 
 BLUEPRINTS = [
     unir_pdf.bp,
@@ -21,6 +21,7 @@ BLUEPRINTS = [
     a_markdown.bp,
     documento_a_pdf.bp,
     pdf_a_word.bp,
+    markdown_a_pdf.bp,
     dividir_pdf.bp,
     organizar_pdf.bp,
     proteger_pdf.bp,

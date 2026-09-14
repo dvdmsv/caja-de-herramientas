@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   86 iconos de los 2078 que trae bootstrap-icons.
+   87 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -61,6 +61,7 @@
 .bi-file-earmark-plus::before { content: "\f37d"; }
 .bi-file-earmark-word::before { content: "\f38d"; }
 .bi-file-earmark-zip::before { content: "\f391"; }
+.bi-filetype-md::before { content: "\f750"; }
 .bi-filetype-pdf::before { content: "\f756"; }
 .bi-folder2-open::before { content: "\f3d8"; }
 .bi-fonts::before { content: "\f3da"; }
