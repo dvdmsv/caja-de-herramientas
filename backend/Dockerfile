@@ -17,6 +17,11 @@ WORKDIR /app
 #     Writer no necesita Java para exportar a PDF y son ~180 MB de menos.
 #     `fonts-liberation` da las métricas de Arial, Times New Roman y Courier
 #     New, para que un .docx hecho en Windows pagine donde tiene que paginar.
+#   - "Markdown a PDF": WeasyPrint compone con Pango (`libpango-1.0-0`,
+#     `libpangoft2-1.0-0`), y sus letras —Inter, Charis SIL y DejaVu Sans Mono—
+#     van instaladas para que el resultado no dependa de lo que haya. De Inter
+#     sólo se usan seis caras (normal, seminegrita y negrita, con sus
+#     cursivas): el paquete trae 36 y el resto, unos 18 MB, se borra aquí mismo.
 #
 # La limpieza va en este mismo RUN a propósito: borrar en una capa posterior no
 # quita nada de peso, porque los archivos siguen dentro de la capa que los creó.
@@ -26,7 +31,12 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ghostscript tesseract-ocr tesseract-ocr-spa \
        libreoffice-writer fonts-liberation \
+       libpango-1.0-0 libpangoft2-1.0-0 fonts-inter fonts-sil-charis fonts-dejavu-mono \
     && rm -rf /var/lib/apt/lists/* \
+    && find /usr/share/fonts/opentype/inter -type f \
+         ! -name 'Inter-Regular.otf' ! -name 'Inter-Italic.otf' \
+         ! -name 'Inter-SemiBold.otf' ! -name 'Inter-SemiBoldItalic.otf' \
+         ! -name 'Inter-Bold.otf' ! -name 'Inter-BoldItalic.otf' -delete \
     && rm -rf /usr/lib/libreoffice/share/gallery \
               /usr/lib/libreoffice/share/template \
               /usr/lib/libreoffice/share/wizards \

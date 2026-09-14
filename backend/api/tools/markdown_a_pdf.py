@@ -2,76 +2,67 @@
 
 Es la vuelta de "Documento a Markdown", que cierra el círculo: de un PDF sale el
 texto para dárselo a un LLM, y lo que el LLM devuelve —que casi siempre es
-Markdown— vuelve a ser un documento presentable sin pasar por un editor.
+Markdown— vuelve a ser un documento presentable sin pasar por un editor. La
+vara de medir es esa: que el PDF que sale **se reconozca como el documento del
+que salió el Markdown** —sus apartados, sus tablas, sus importes alineados— y
+que tenga aspecto de documento cuidado, no de volcado de texto.
 
-**Quién lo maqueta.** PyMuPDF, con `fitz.Story`: se convierte el Markdown a HTML
-y se le da a MuPDF, que lo va colocando en páginas. No hace falta ningún
-programa de fuera, así que esta herramienta no pasa por el turno de
-`api/conversion.py` como "Documento a PDF": es código de esta misma casa y
-trabaja en milisegundos. Medido: 135 kB de Markdown, 156 páginas, 220 ms.
+**Quién lo maqueta: WeasyPrint.** Convierte HTML y CSS de impresión en PDF, sin
+navegador y sin programas de fuera. La primera versión usaba `fitz.Story` de
+PyMuPDF, y MuPDF entiende un subconjunto de CSS que se quedaba corto justo en lo
+que hace que un documento parezca un documento: las tablas no se pueden
+estirar al ancho de la página (siempre se encogen al contenido), no hay fondos
+en elementos en línea (el `código` no se distingue), no entiende `nth-child`,
+no numera páginas y cada nivel de lista a partir del segundo pide una fuente de
+símbolos entera. WeasyPrint hace todo eso con CSS normal: `@page` con el pie
+«Página n de N», cabeceras de tabla que se repiten al saltar de página, filas
+que no se parten, bloques de código que no se cortan si caben enteros.
+Chromium habría sido todavía más fiel, pero son cientos de megas en la imagen y
+un proceso por petición.
 
 **Quién lee el Markdown, y por qué éste y no otro.** `markdown-it-py`, que sigue
 CommonMark. La primera versión usaba Python-Markdown y **se equivocaba con
-documentos normales**: es el más estricto de los tres motores de Python y exige
-una línea en blanco antes de cada tabla, cosa que casi nadie escribe. Sin ella
-escupía la tabla en crudo —los `|` y los `---` como texto corrido—, que es
-exactamente lo que le pasó a un usuario con una rutina de gimnasio. Medido sobre
-los mismos ejemplos, Python-Markdown fallaba cuatro casos que markdown-it
-resuelve:
-
-- una tabla que sigue a un párrafo sin línea en blanco (lo de arriba);
-- una lista anidada con **dos espacios** de sangría, que es como se escribe en
-  todas partes; Python-Markdown exige cuatro y, si no, aplana los niveles;
-- una lista pegada al párrafo anterior;
-- el tachado `~~así~~`.
-
+documentos normales**: exige una línea en blanco antes de cada tabla, cosa que
+casi nadie escribe, y aplana las listas anidadas con dos espacios de sangría.
 Va con `html=True` para que el `<br>` de dentro de una celda sea un salto de
-línea de verdad: las tablas que escribe un LLM lo usan constantemente para poner
-una nota debajo del nombre, y con el HTML desactivado saldría el literal `<br>`
-en mitad del texto. Lo que entra por ahí es HTML que acaba en MuPDF, que ni lee
-del disco ni sale a la red (ver abajo): lo peor que puede hacer un documento
-raro es quedar raro.
+línea de verdad, y para respetar el `<p align="…">` con el que "Documento a
+Markdown" conserva un texto centrado o a la derecha.
 
-El parser se construye en cada petición, no una vez en el módulo: cuesta 0,11 ms
-—nada al lado de los 20 ms de maquetar— y así no hay que preguntarse si es
-seguro compartirlo entre los cuatro hilos del worker.
+**Las tablas se leen antes de pintarlas.** Al pasar los tokens a HTML se marca
+cada tabla con lo que el Markdown dice sin decirlo: una fila con todas las
+celdas en negrita es una fila de etiquetas (como en un impreso), la última en
+negrita es la de totales, y una tabla de dos columnas cortas con importes es un
+cuadro de totales, que va a la derecha y no a todo el ancho, como en una factura.
+Las columnas numéricas se alinean a la derecha aunque el Markdown no lo pida.
 
-LibreOffice era la alternativa —convertir a HTML y dárselo—, y se descartó por
-tres razones: tarda segundos en arrancar, ocuparía el turno que hoy se reparten
-el OCR y la ofimática, y no da control sobre la maquetación. Pandoc pedía un
-motor de PDF aparte (LaTeX o Chromium), que son cientos de megas en la imagen
-por una herramienta que aquí sale gratis.
+**Tipografías.** Inter para la de palo seco, Charis SIL para la de remates y
+DejaVu Sans Mono para el código, instaladas en la imagen desde Debian
+(`fonts-inter`, `fonts-sil-charis`, `fonts-dejavu-mono`). Se nombran por su
+nombre y no con las genéricas de CSS para que el resultado no dependa de lo que
+fontconfig decida elegir. WeasyPrint incrusta sólo los caracteres usados, así
+que el PDF pesa decenas de kB y no cientos, y el € sale entero.
 
-**Nada se sale a buscar.** `fitz.Story` sólo resuelve imágenes contra un
-`Archive`, y aquí no se le da ninguno: comprobado, un `![](/etc/hostname)` no
-lee nada del disco y un `src` con `http://` no pide nada a la red. Lo único que
-se incrusta son las imágenes `data:` que el propio archivo trae dentro. Con
-cualquier otra, MuPDF deja el hueco y sigue.
+**Nada se sale a buscar.** El `URLFetcher` sólo admite `data:`: un
+`![](/etc/hostname)` o un `src` con `http://` no leen nada del disco ni piden
+nada a la red —además no hay `base_url`, así que una ruta relativa ni siquiera
+llega a pedirse—. Lo único que se incrusta son las imágenes que el propio
+archivo trae dentro. Lo demás deja el hueco y se sigue.
 
-**Por qué el PDF pesa lo que pesa.** Unos 100 kB con una página, y unos 390 si el
-documento lleva listas anidadas: MuPDF incrusta enteras las tipografías con las
-que compone —no sabe referenciar las catorce de serie sin incrustarlas— y para
-el `○` del segundo nivel de una lista carga una fuente de símbolos entera, 285
-kB para dibujar un círculo. Se intentó evitarla con `list-style-type`, pero
-MuPDF sólo atiende ese ajuste en el primer nivel de anidamiento.
-
-PyMuPDF trae `subset_fonts()` para recortar lo que no se usa —deja ese mismo
-archivo en 82 kB, medido— y **no se usa a propósito**: en la versión que lleva
-este proyecto (1.24.10) el recorte se come el **signo del euro**. Comprobado
-carácter a carácter, es el único que se pierde: £, ¥, ©, ®, ™, †, ‰, æ y las
-vocales acentuadas sobreviven, y el € desaparece dejando su hueco —con el texto
-todavía en el archivo, así que ni copiándolo se nota—. Un documento que se
-manda o se imprime no puede perder precisamente ese carácter, así que aquí pesa
-más y sale entero. Si algún día sube la versión de PyMuPDF, esto se vuelve a
-medir antes de tocarlo.
-
-**Lo que no hace.** No resuelve las imágenes enlazadas —el servidor no tiene esos
-archivos, y salir a por ellos convertiría esto en un mensajero para pedir cosas
-en nombre del servidor— y no colorea el código.
+**Lo que no hace.** No resuelve imágenes enlazadas, por lo mismo de arriba.
 """
-import fitz  # PyMuPDF
+import logging
+import re
+
 from flask import Blueprint, jsonify
 from markdown_it import MarkdownIt
+from markdown_it.token import Token
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import get_lexer_by_name
+from pygments.util import ClassNotFound
+from weasyprint import CSS, HTML
+from weasyprint.text.fonts import FontConfiguration
+from weasyprint.urls import URLFetcher
 
 from api import current_session, params
 from errors import ApiError
@@ -79,22 +70,23 @@ from storage import storage, cambiar_extension
 
 bp = Blueprint('markdown_a_pdf', __name__, url_prefix='/api/tools')
 
+# WeasyPrint y fontTools cuentan cada paso y cada glifo recortado a nivel INFO:
+# decenas de líneas por documento que ahogarían el registro del servidor.
+for _ruidoso in ('weasyprint', 'weasyprint.progress', 'fontTools'):
+    logging.getLogger(_ruidoso).setLevel(logging.WARNING)
+
 EXTENSIONES_ADMITIDAS = {'.md'}
 
-# Tamaños de página en puntos PostScript, los mismos que "Imagen a PDF".
-PAGINAS = {'a4': (595.28, 841.89), 'carta': (612.0, 792.0)}
+# Tamaños de página en milímetros, para `@page { size }`.
+PAGINAS = {'a4': (210, 297), 'carta': (215.9, 279.4)}
 ORIENTACIONES = {'vertical', 'horizontal'}
 
-# Qué familia pide el CSS.
-#
-# Se nombran las dos clásicas del PDF en vez de las genéricas de CSS a
-# propósito: MuPDF resuelve `Helvetica` y `Times` a Nimbus Sans y Nimbus Roman,
-# que son las equivalentes métricas de las que usa el resto de la aplicación
-# (`api/tipografia.py`), mientras que `serif` a secas le saca una Charis SIL que
-# aquí no pinta nada. Lo mismo escrito, la misma letra.
-FAMILIAS = {'sans': 'Helvetica', 'serif': 'Times'}
+FAMILIAS = {
+    'sans': "'Inter', 'DejaVu Sans', sans-serif",
+    'serif': "'Charis SIL', 'DejaVu Serif', serif",
+}
+MONO = "'DejaVu Sans Mono', monospace"
 
-MILIMETRO = 72 / 25.4
 MARGEN_MINIMO_MM, MARGEN_MAXIMO_MM, MARGEN_POR_DEFECTO_MM = 10, 40, 20
 
 # 11 pt es el cuerpo de un documento de oficina. Por debajo de 8 no se lee en
@@ -102,74 +94,113 @@ MARGEN_MINIMO_MM, MARGEN_MAXIMO_MM, MARGEN_POR_DEFECTO_MM = 10, 40, 20
 CUERPO_MINIMO, CUERPO_MAXIMO, CUERPO_POR_DEFECTO = 8, 16, 11
 
 # Lo que se le añade a CommonMark: las dos cosas de GitHub que escribe todo el
-# mundo y que CommonMark no lleva de serie. Los bloques cercados con ``` y las
-# listas numeradas ya vienen dentro.
+# mundo y que CommonMark no lleva de serie.
 ANADIDOS = ['table', 'strikethrough']
 
-# Tope de páginas, y no de tamaño del archivo.
-#
-# No es un límite de producto, es una red: el bucle de maquetación repite hasta
-# que MuPDF dice que ya no queda contenido, y si algún día un documento no
-# convergiera, ese bucle escribiría páginas hasta llenar el disco. Se probaron
-# los casos que lo tentarían —una palabra de 5000 letras, una tabla de 40
-# columnas, 200 citas anidadas, un área de 2 pt— y todos terminan, así que esto
-# no debería saltar nunca. Acota de paso el disparate: 2000 páginas son unos
-# 1,7 MB de Markdown, bastante más de lo que nadie maqueta de una vez.
-MAXIMO_PAGINAS = 2000
+# Tope de páginas. Es una red, no un límite de producto: WeasyPrint tarda unos
+# 75 ms por página con tablas (medido: 63 páginas en 4,6 s), así que 1000
+# páginas rondan los 75 s, holgados dentro de los 300 de gunicorn. Un documento
+# más largo se parte.
+MAXIMO_PAGINAS = 1000
 
-# Color de acento: lo que separa un documento de un volcado de texto. Tiñe el
-# filete del título, los subtítulos, los enlaces y la barra de las citas.
+# Color de acento: tiñe el filete del título, la banda de los apartados, la
+# cabecera de las tablas, los enlaces y la barra de las citas. `oscuro` es la
+# variante para texto sobre fondo claro y `tenue`, el fondo de las bandas.
 COLORES_ACENTO = {
-    'azul': '#1a56a8',
-    'rojo': '#b3122c',
-    'verde': '#186b4c',
-    'grafito': '#3a4148',
+    'azul': {'base': '#1a56a8', 'oscuro': '#123f7c', 'tenue': '#eaf1fa'},
+    'rojo': {'base': '#b3122c', 'oscuro': '#8a0d21', 'tenue': '#fbecee'},
+    'verde': {'base': '#186b4c', 'oscuro': '#0f4f37', 'tenue': '#e8f3ee'},
+    'grafito': {'base': '#3a4148', 'oscuro': '#23282d', 'tenue': '#eef0f2'},
 }
 
-# Fondo de las filas pares de una tabla. No se puede pedir con
-# `tr:nth-child(even)` —MuPDF no entiende ese selector, comprobado—, así que las
-# filas se marcan una a una con la clase `rayada` al convertir el Markdown.
-CLASE_RAYADA = 'rayada'
+NUMERICO = re.compile(r'^[−\-+]?\s*[\d.,\s]*\d\s*(€|%|\$|£)?$')
 
-# La hoja de estilos. Va aquí y no en un archivo aparte porque es corta y porque
-# leerla al lado de lo que la usa ahorra el viaje.
-#
-# Cada regla está comprobada contra MuPDF, que entiende un subconjunto de CSS y
-# no avisa de lo que ignora. Lo que **sí** respeta y se usa aquí: familias,
-# cuerpos, colores de texto y de fondo, márgenes, rellenos, bordes por lado,
-# `text-transform`, `letter-spacing` y los selectores por clase. Lo que ignora,
-# y por eso no está: `width` en las tablas (siempre se ajustan al contenido, se
-# les pida lo que se les pida), `nth-child`, y los fondos y rellenos sobre
-# elementos en línea como `span`.
 ESTILOS = """
-body {{ font-family: {familia}; font-size: {cuerpo}pt; line-height: 1.45; color: #1f2328; }}
+@page {{
+  size: {ancho}mm {alto}mm;
+  margin: {margen}mm {margen}mm {margen_inferior}mm {margen}mm;
+  @bottom-left {{
+    content: string(titulo);
+    font: {pie}pt {familia}; color: #7b8590;
+  }}
+  @bottom-right {{
+    content: "Página " counter(page) " de " counter(pages);
+    font: {pie}pt {familia}; color: #7b8590;
+  }}
+}}
 
-h1 {{ font-size: {h1:.1f}pt; color: #14181c; margin: 0 0 9pt 0;
-     border-bottom: 2pt solid {acento}; padding-bottom: 5pt; }}
-h2 {{ font-size: {h2:.1f}pt; color: #14181c; margin: 17pt 0 6pt 0;
-     border-bottom: 0.6pt solid #dde1e5; padding-bottom: 3pt; }}
-h3 {{ font-size: {h3:.1f}pt; color: {acento}; margin: 14pt 0 5pt 0; }}
-h4, h5, h6 {{ font-size: {h4:.1f}pt; color: #3a4148; margin: 12pt 0 4pt 0; }}
+html {{ font-family: {familia}; font-size: {cuerpo}pt; line-height: 1.5; color: #1f2328; }}
+body {{ margin: 0; }}
 
-p {{ margin: 0 0 {parrafo:.1f}pt 0; }}
-ul, ol {{ margin: 0 0 {parrafo:.1f}pt 0; }}
-li {{ margin: 0 0 3pt 0; }}
-a {{ color: {acento}; }}
-hr {{ border: none; border-top: 0.6pt solid #dde1e5; margin: 14pt 0; }}
+h1, h2, h3, h4, h5, h6 {{ line-height: 1.25; break-after: avoid; font-weight: 700; }}
+h1 {{ string-set: titulo content(); font-size: 2em; color: #14181c; letter-spacing: -0.01em;
+     margin: 0 0 0.7em; padding-bottom: 0.3em; border-bottom: 2.5pt solid {acento}; }}
+h2 {{ font-size: 1.2em; color: {acento_oscuro}; background: {acento_tenue};
+     border-left: 3pt solid {acento}; padding: 0.3em 0.6em; margin: 1.4em 0 0.7em; }}
+h3 {{ font-size: 1.07em; color: {acento_oscuro}; margin: 1.2em 0 0.45em; }}
+h4, h5, h6 {{ font-size: 1em; color: #2b3137; margin: 1em 0 0.35em; }}
+h1 + h2, h2 + h3 {{ margin-top: 0.6em; }}
 
-table {{ margin: 4pt 0 {parrafo:.1f}pt 0; border-collapse: collapse; }}
-th {{ background-color: #23272b; color: #ffffff; text-align: left;
-     font-size: {cabecera:.1f}pt; text-transform: uppercase; letter-spacing: 0.5pt;
-     padding: 5pt; }}
-td {{ padding: 5pt; border-bottom: 0.5pt solid #e4e7ea; }}
-tr.{rayada} {{ background-color: #f4f6f8; }}
+p {{ margin: 0 0 0.65em; orphans: 2; widows: 2; }}
+p[align="center"] {{ text-align: center; }}
+p[align="right"] {{ text-align: right; }}
+h1 + p {{ color: #4a535c; }}
+a {{ color: {acento}; text-decoration: none; }}
+strong {{ color: #14181c; }}
+hr {{ border: 0; border-top: 0.6pt solid #d5dbe1; margin: 1.2em 0; }}
+img {{ max-width: 100%; }}
 
-blockquote {{ border-left: 3pt solid {acento}; background-color: #f7f9fb;
-             padding: 6pt; margin: 0 0 {parrafo:.1f}pt 0; color: #46505a; }}
+ul, ol {{ margin: 0 0 0.65em; padding-left: 1.4em; }}
+li {{ margin: 0.15em 0; }}
+li > ul, li > ol {{ margin: 0.1em 0 0.2em; }}
+ul > li::marker {{ color: {acento}; }}
+ol > li::marker {{ color: {acento_oscuro}; font-weight: 600; }}
 
-code {{ font-family: monospace; font-size: {codigo:.1f}pt; background-color: #eef1f4; }}
-pre {{ font-family: monospace; font-size: {codigo:.1f}pt; background-color: #f7f9fb;
-      border-left: 3pt solid #c9d2db; padding: 7pt; margin: 0 0 {parrafo:.1f}pt 0; }}
+table {{ width: 100%; border-collapse: collapse; margin: 0.35em 0 1em; font-size: 0.92em;
+        line-height: 1.35; }}
+thead {{ display: table-header-group; }}
+tr {{ break-inside: avoid; }}
+th {{ background: {acento}; color: #ffffff; font-weight: 600; text-align: left;
+     padding: 0.45em 0.65em; border: 0.5pt solid {acento}; }}
+td {{ padding: 0.42em 0.65em; border-bottom: 0.5pt solid #d9dee3; vertical-align: top; }}
+tbody tr:nth-child(even) td {{ background: #f6f8fa; }}
+td.numero, th.numero {{ text-align: right; white-space: nowrap; }}
+tr.etiquetas td {{ background: #eef1f4; color: #4a535c; font-size: 0.85em;
+                  padding-top: 0.3em; padding-bottom: 0.3em; }}
+tr.etiquetas td strong {{ color: #4a535c; font-weight: 600; }}
+tr.total td {{ background: {acento_tenue}; border-top: 1pt solid {acento}; border-bottom: 0; }}
+table.cuadro {{ width: auto; min-width: 45%; margin-left: auto; }}
+table.cuadro td {{ border-bottom: 0.5pt solid #d9dee3; }}
+
+table.cuadro th {{ background: none; color: inherit; font-weight: 400; border: 0;
+                 border-bottom: 0.5pt solid #d9dee3; }}
+table.formulario th, table.formulario tr.etiquetas td {{ background: #eef1f4; color: #4a535c;
+    font-size: 0.85em; font-weight: 600; border: 0.5pt solid #c9d0d7; padding: 0.3em 0.65em; }}
+table.formulario td {{ border: 0.5pt solid #c9d0d7; background: none; }}
+table.formulario tbody tr:nth-child(even) td {{ background: none; }}
+table.formulario tbody tr.etiquetas td {{ background: #eef1f4; }}
+
+section.portada {{ break-after: page; padding: 32% 0 0 1.1em; border-left: 7pt solid {acento};
+                  min-height: 60%; }}
+section.portada h1 {{ font-size: 2.7em; border: 0; color: {acento_oscuro}; margin-bottom: 0.5em; }}
+section.portada p {{ font-size: 1.2em; color: #4a535c; }}
+
+li.tarea {{ list-style: none; margin-left: -1.1em; }}
+.casilla {{ display: inline-block; width: 0.8em; height: 0.8em; margin-right: 0.45em;
+           border: 0.9pt solid #8a949e; border-radius: 2pt; vertical-align: -0.08em; }}
+.casilla.marcada {{ background: {acento}; border-color: {acento}; }}
+li.tarea:has(.marcada) {{ color: #6b747d; }}
+
+blockquote {{ margin: 0.2em 0 0.9em; padding: 0.5em 0.9em; border-left: 3pt solid {acento};
+             background: #f6f8fa; color: #3d4650; }}
+blockquote p:last-child {{ margin-bottom: 0; }}
+
+code {{ font-family: {mono}; font-size: 0.86em; background: #eef1f4; border-radius: 2.5pt;
+       padding: 0.05em 0.3em; }}
+pre {{ font-family: {mono}; font-size: 0.82em; line-height: 1.45; background: #f6f8fa;
+      border: 0.5pt solid #dfe4e9; border-radius: 4pt; padding: 0.75em 0.9em;
+      margin: 0.2em 0 0.9em; white-space: pre-wrap; break-inside: avoid; }}
+pre code {{ background: none; padding: 0; font-size: 1em; }}
 """
 
 
@@ -179,13 +210,15 @@ def markdown_a_pdf():
     datos = params.cuerpo()
     file_ids = params.ids(datos, minimo=1, mensaje='Selecciona al menos un archivo Markdown.')
 
-    tamano = params.opcion(datos, 'pagina', PAGINAS, 'a4')
-    orientacion = params.opcion(datos, 'orientacion', ORIENTACIONES, 'vertical')
-    familia = params.opcion(datos, 'familia', FAMILIAS, 'sans')
-    acento = params.opcion(datos, 'acento', COLORES_ACENTO, 'azul')
-    cuerpo = params.entero(datos, 'cuerpo', CUERPO_POR_DEFECTO, CUERPO_MINIMO, CUERPO_MAXIMO)
-    margen = params.entero(datos, 'margen', MARGEN_POR_DEFECTO_MM,
-                           MARGEN_MINIMO_MM, MARGEN_MAXIMO_MM) * MILIMETRO
+    opciones = {
+        'pagina': params.opcion(datos, 'pagina', PAGINAS, 'a4'),
+        'orientacion': params.opcion(datos, 'orientacion', ORIENTACIONES, 'vertical'),
+        'familia': params.opcion(datos, 'familia', FAMILIAS, 'sans'),
+        'acento': params.opcion(datos, 'acento', COLORES_ACENTO, 'azul'),
+        'cuerpo': params.entero(datos, 'cuerpo', CUERPO_POR_DEFECTO, CUERPO_MINIMO, CUERPO_MAXIMO),
+        'margen': params.entero(datos, 'margen', MARGEN_POR_DEFECTO_MM,
+                                MARGEN_MINIMO_MM, MARGEN_MAXIMO_MM),
+    }
 
     # Se resuelve y valida todo antes de maquetar nada: si uno no sirve, mejor
     # decirlo antes de tener medio lote hecho.
@@ -196,81 +229,177 @@ def markdown_a_pdf():
             raise ApiError(f'"{record.name}" no es un archivo Markdown (.md).', 400)
         entradas.append((record, storage.path_of(session_id, file_id)))
 
-    marco = _marco(tamano, orientacion)
-    estilos = _estilos(familia, cuerpo, acento)
-
     resultados = []
     for record, ruta in entradas:
-        documento = _maquetar(_leer(ruta, record.name), record.name, marco, margen, estilos)
+        pdf = generar(_leer(ruta, record.name), record.name, **opciones)
         destino, salida = storage.reserve_output(
             session_id, cambiar_extension(record.name, '.pdf'))
-        with documento:
-            documento.save(destino, deflate=True, garbage=3)
+        with open(destino, 'wb') as fichero:
+            fichero.write(pdf)
         resultados.append(storage.commit_output(session_id, salida).to_json())
 
     return jsonify({'files': resultados}), 201
 
 
-def _marco(tamano: str, orientacion: str) -> fitz.Rect:
-    """El tamaño de página elegido, tumbado si se ha pedido horizontal."""
-    ancho, alto = PAGINAS[tamano]
+def generar(texto: str, nombre: str, pagina: str = 'a4', orientacion: str = 'vertical',
+            familia: str = 'sans', acento: str = 'azul', cuerpo: int = CUERPO_POR_DEFECTO,
+            margen: int = MARGEN_POR_DEFECTO_MM) -> bytes:
+    """El Markdown maquetado como PDF, en bytes."""
+    html = _a_html(texto)
+    fuentes = FontConfiguration()
+    hoja = CSS(string=_estilos(pagina, orientacion, familia, acento, cuerpo, margen),
+               font_config=fuentes)
+    try:
+        documento = HTML(string=html, url_fetcher=URLFetcher(allowed_protocols={'data'})) \
+            .render(stylesheets=[hoja], font_config=fuentes)
+    except Exception as err:
+        raise ApiError(f'No se ha podido maquetar "{nombre}": {err}', 422) from err
+    if len(documento.pages) > MAXIMO_PAGINAS:
+        raise ApiError(
+            f'"{nombre}" pasa de {MAXIMO_PAGINAS} páginas maquetado. Pártelo en varios '
+            'archivos o sube el margen y baja el cuerpo de letra.', 413)
+    return documento.write_pdf()
+
+
+def _estilos(pagina: str, orientacion: str, familia: str, acento: str, cuerpo: int,
+             margen: int) -> str:
+    """La hoja de estilos con la página, la letra y el color ya resueltos.
+
+    Los títulos y el código van en `em`, así que suben con el cuerpo: quien lo
+    sube a 14 porque va a imprimir para alguien que no ve bien espera que los
+    títulos suban con él. El margen inferior deja sitio al pie de página.
+    """
+    ancho, alto = PAGINAS[pagina]
     if orientacion == 'horizontal':
         ancho, alto = alto, ancho
-    return fitz.Rect(0, 0, ancho, alto)
-
-
-def _estilos(familia: str, cuerpo: int, acento: str) -> str:
-    """La hoja de estilos con los tamaños y el color ya resueltos.
-
-    Los encabezados y el código se calculan **a partir del cuerpo** en vez de
-    fijarse en puntos: quien sube el cuerpo a 14 porque va a imprimir para
-    alguien que no ve bien espera que los títulos suban con él.
-
-    La cabecera de las tablas va al revés, más pequeña que el texto: es una
-    etiqueta en versalitas, no una frase, y a tamaño completo compite con el
-    contenido en vez de ordenarlo.
-    """
-    return ESTILOS.format(
-        familia=FAMILIAS[familia],
-        acento=COLORES_ACENTO[acento],
-        rayada=CLASE_RAYADA,
-        cuerpo=cuerpo,
-        h1=cuerpo * 1.9,
-        h2=cuerpo * 1.45,
-        h3=cuerpo * 1.2,
-        h4=cuerpo * 1.05,
-        codigo=cuerpo * 0.88,
-        cabecera=cuerpo * 0.8,
-        parrafo=cuerpo * 0.6,
+    color = COLORES_ACENTO[acento]
+    estilos = ESTILOS.format(
+        ancho=ancho, alto=alto, margen=margen, margen_inferior=margen + 4,
+        familia=FAMILIAS[familia], mono=MONO, cuerpo=cuerpo, pie=max(7, round(cuerpo * 0.72, 1)),
+        acento=color['base'], acento_oscuro=color['oscuro'], acento_tenue=color['tenue'],
     )
+    return estilos + HtmlFormatter(style='friendly').get_style_defs('.resaltado')
+
+
+def _resaltar(codigo: str, lenguaje: str, _atributos) -> str:
+    """Colorea un bloque de código si dice en qué lenguaje está."""
+    if not lenguaje:
+        return ''
+    try:
+        lexer = get_lexer_by_name(lenguaje.split()[0])
+    except ClassNotFound:
+        return ''
+    return highlight(codigo, lexer, HtmlFormatter(nowrap=True, cssclass='resaltado'))
 
 
 def _a_html(texto: str) -> str:
-    """El Markdown convertido, con las filas pares de cada tabla ya marcadas.
+    """El Markdown convertido, con las tablas ya leídas y marcadas.
 
-    Se hace en dos tiempos —analizar, retocar, escribir— en vez de renderizar
-    de un tirón porque la raya cebra no se puede pedir por CSS: MuPDF no
-    entiende `tr:nth-child(even)`. Retocar los tokens es más honrado que buscar
-    `<tr>` con una expresión regular sobre el HTML ya escrito, que se rompería
-    con la primera tabla dentro de una cita.
+    Se hace en dos tiempos —analizar, retocar, escribir— porque lo que se marca
+    depende del contenido de las celdas, y retocar los tokens es más honrado que
+    buscar `<tr>` con una expresión regular sobre el HTML ya escrito.
     """
-    lector = MarkdownIt('commonmark', {'html': True}).enable(ANADIDOS)
+    lector = MarkdownIt('commonmark', {'html': True, 'highlight': _resaltar}).enable(ANADIDOS)
     tokens = lector.parse(texto)
 
-    en_cuerpo, fila = False, 0
-    for token in tokens:
-        if token.type == 'tbody_open':
-            en_cuerpo, fila = True, 0
-        elif token.type == 'tbody_close':
-            en_cuerpo = False
-        elif token.type == 'tr_open' and en_cuerpo:
-            # La cabecera va en `thead` y queda fuera: la raya empieza a contar
-            # en la primera fila de datos.
-            fila += 1
-            if fila % 2 == 0:
-                token.attrJoin('class', CLASE_RAYADA)
+    _marcar_casillas(tokens)
+    indice = 0
+    while indice < len(tokens):
+        if tokens[indice].type == 'table_open':
+            fin = next(i for i in range(indice, len(tokens)) if tokens[i].type == 'table_close')
+            _marcar_tabla(tokens[indice:fin + 1])
+            indice = fin
+        indice += 1
 
-    return lector.renderer.render(tokens, lector.options, {})
+    cuerpo = _con_portada(tokens, lector.renderer.render(tokens, lector.options, {}))
+    cuerpo = cuerpo.replace('<pre><code class="language-', '<pre class="resaltado"><code class="language-')
+    return f'<!doctype html><html lang="es"><head><meta charset="utf-8"></head><body>{cuerpo}</body></html>'
+
+
+CASILLA = re.compile(r'^\[([ xX])\]\s+')
+
+
+def _marcar_casillas(tokens) -> None:
+    """Las listas de tareas de GitHub (`- [x] hecho`) con su casilla dibujada.
+
+    La casilla es un `span` con borde y no un carácter ☐/☑: Inter no los trae
+    y dependería de qué fuente de símbolos haya instalada.
+    """
+    for posicion, token in enumerate(tokens):
+        if token.type != 'inline' or posicion < 2 or tokens[posicion - 2].type != 'list_item_open':
+            continue
+        primero = token.children[0] if token.children else None
+        coincidencia = CASILLA.match(primero.content) if primero and primero.type == 'text' else None
+        if not coincidencia:
+            continue
+        marcada = coincidencia.group(1) != ' '
+        primero.content = primero.content[coincidencia.end():]
+        casilla = Token('html_inline', '', 0)
+        casilla.content = f'<span class="casilla{" marcada" if marcada else ""}"></span>'
+        token.children.insert(0, casilla)
+        tokens[posicion - 2].attrJoin('class', 'tarea')
+
+
+SALTO = re.compile(r'<div[^>]*page-break-after:\s*always[^>]*>\s*</div>', re.IGNORECASE)
+
+
+def _con_portada(tokens, html: str) -> str:
+    """Si el documento abre con un título y poco más antes del primer salto de
+    página, eso es una portada, y se compone como tal."""
+    salto = SALTO.search(html)
+    if not salto:
+        return html
+    antes = []
+    for token in tokens:
+        if token.type == 'html_block' and SALTO.search(token.content):
+            break
+        if token.nesting == 1 or token.type in ('fence', 'code_block', 'hr', 'html_block'):
+            antes.append(token.type)
+    permitido = {'heading_open', 'paragraph_open'}
+    if 'heading_open' not in antes or set(antes) - permitido or len(antes) > 6:
+        return html
+    return f'<section class="portada">{html[:salto.start()]}</section>{html[salto.end():]}'
+
+
+def _marcar_tabla(tokens) -> None:
+    """Clases de fila, de columna y de tabla deducidas del contenido."""
+    filas = []  # (token tr_open, [(token td/th, contenido)])
+    for posicion, token in enumerate(tokens):
+        if token.type == 'tr_open':
+            filas.append((token, []))
+        elif token.type in ('td_open', 'th_open') and filas:
+            contenido = tokens[posicion + 1].content if posicion + 1 < len(tokens) else ''
+            filas[-1][1].append((token, contenido.strip()))
+    if not filas:
+        return
+
+    cuerpo = filas[1:]
+    columnas = max(len(celdas) for _, celdas in filas)
+
+    def en_negrita(celdas):
+        llenas = [c for _, c in celdas if c]
+        return bool(llenas) and all(re.fullmatch(r'\*\*.+\*\*|__.+__', c) for c in llenas)
+
+    for numero, (tr, celdas) in enumerate(cuerpo):
+        if en_negrita(celdas):
+            tr.attrJoin('class', 'total' if numero == len(cuerpo) - 1 and numero > 0 else 'etiquetas')
+
+    etiquetas = {id(tr) for tr, celdas in cuerpo if 'etiquetas' in (tr.attrGet('class') or '')}
+    for columna in range(columnas):
+        valores = [celdas[columna][1].strip('*_ ') for tr, celdas in cuerpo
+                   if id(tr) not in etiquetas and columna < len(celdas) and celdas[columna][1]]
+        if valores and sum(bool(NUMERICO.match(v)) for v in valores) >= len(valores) * 0.7:
+            for tr, celdas in filas:
+                if columna < len(celdas) and id(tr) not in etiquetas:
+                    celdas[columna][0].attrJoin('class', 'numero')
+
+    # Dos columnas cortas con importes: un cuadro de totales, no una tabla.
+    textos = [c for _, celdas in filas for _, c in celdas]
+    numerica = any('numero' in (celdas[-1][0].attrGet('class') or '') for _, celdas in cuerpo)
+    if columnas == 2 and numerica and max((len(t) for t in textos), default=0) <= 32:
+        tokens[0].attrJoin('class', 'cuadro')
+    elif etiquetas:
+        tokens[0].attrJoin('class', 'formulario')
 
 
 def _leer(ruta: str, nombre: str) -> str:
@@ -291,30 +420,3 @@ def _leer(ruta: str, nombre: str) -> str:
             continue
     raise ApiError(f'No se ha podido leer el texto de "{nombre}": no parece un archivo '
                    'de texto.', 422)
-
-
-def _maquetar(texto: str, nombre: str, marco: fitz.Rect, margen: float,
-              estilos: str) -> fitz.Document:
-    """Convierte el Markdown en un PDF ya paginado.
-
-    Va por `write_with_links` y no por el bucle a mano con `DocumentWriter`
-    porque es lo único que conserva los enlaces: sin él, un `[texto](url)` sale
-    subrayado y en azul pero no se puede pulsar, que es peor que no ponerlo.
-    """
-    html = _a_html(texto)
-    area = marco + (margen, margen, -margen, -margen)
-
-    def donde_va(numero: int, _relleno: float):
-        """Qué página toca ahora. La llama MuPDF una vez por página."""
-        if numero >= MAXIMO_PAGINAS:
-            raise ApiError(
-                f'"{nombre}" pasa de {MAXIMO_PAGINAS} páginas maquetado. Pártelo en varios '
-                'archivos o sube el margen y baja el cuerpo de letra.', 413)
-        return marco, area, None
-
-    try:
-        return fitz.Story(html=html, user_css=estilos).write_with_links(donde_va)
-    except ApiError:
-        raise
-    except Exception as err:
-        raise ApiError(f'No se ha podido maquetar "{nombre}": {err}', 422) from err
