@@ -10,6 +10,32 @@ programa de fuera, así que esta herramienta no pasa por el turno de
 `api/conversion.py` como "Documento a PDF": es código de esta misma casa y
 trabaja en milisegundos. Medido: 135 kB de Markdown, 156 páginas, 220 ms.
 
+**Quién lee el Markdown, y por qué éste y no otro.** `markdown-it-py`, que sigue
+CommonMark. La primera versión usaba Python-Markdown y **se equivocaba con
+documentos normales**: es el más estricto de los tres motores de Python y exige
+una línea en blanco antes de cada tabla, cosa que casi nadie escribe. Sin ella
+escupía la tabla en crudo —los `|` y los `---` como texto corrido—, que es
+exactamente lo que le pasó a un usuario con una rutina de gimnasio. Medido sobre
+los mismos ejemplos, Python-Markdown fallaba cuatro casos que markdown-it
+resuelve:
+
+- una tabla que sigue a un párrafo sin línea en blanco (lo de arriba);
+- una lista anidada con **dos espacios** de sangría, que es como se escribe en
+  todas partes; Python-Markdown exige cuatro y, si no, aplana los niveles;
+- una lista pegada al párrafo anterior;
+- el tachado `~~así~~`.
+
+Va con `html=True` para que el `<br>` de dentro de una celda sea un salto de
+línea de verdad: las tablas que escribe un LLM lo usan constantemente para poner
+una nota debajo del nombre, y con el HTML desactivado saldría el literal `<br>`
+en mitad del texto. Lo que entra por ahí es HTML que acaba en MuPDF, que ni lee
+del disco ni sale a la red (ver abajo): lo peor que puede hacer un documento
+raro es quedar raro.
+
+El parser se construye en cada petición, no una vez en el módulo: cuesta 0,11 ms
+—nada al lado de los 20 ms de maquetar— y así no hay que preguntarse si es
+seguro compartirlo entre los cuatro hilos del worker.
+
 LibreOffice era la alternativa —convertir a HTML y dárselo—, y se descartó por
 tres razones: tarda segundos en arrancar, ocuparía el turno que hoy se reparten
 el OCR y la ofimática, y no da control sobre la maquetación. Pandoc pedía un
@@ -41,13 +67,11 @@ medir antes de tocarlo.
 
 **Lo que no hace.** No resuelve las imágenes enlazadas —el servidor no tiene esos
 archivos, y salir a por ellos convertiría esto en un mensajero para pedir cosas
-en nombre del servidor—, no colorea el código y no admite las extensiones de
-GitHub (listas de tareas, tachado): Markdown estándar más tablas y bloques
-cercados, que es lo que escribe un LLM.
+en nombre del servidor— y no colorea el código.
 """
 import fitz  # PyMuPDF
-import markdown
 from flask import Blueprint, jsonify
+from markdown_it import MarkdownIt
 
 from api import current_session, params
 from errors import ApiError
@@ -77,14 +101,10 @@ MARGEN_MINIMO_MM, MARGEN_MAXIMO_MM, MARGEN_POR_DEFECTO_MM = 10, 40, 20
 # papel y por encima de 16 no es un documento, es un cartel.
 CUERPO_MINIMO, CUERPO_MAXIMO, CUERPO_POR_DEFECTO = 8, 16, 11
 
-# Extensiones de Python-Markdown:
-#   - `tables`, porque un LLM las escribe constantemente;
-#   - `fenced_code`, por los ```bloques``` (el Markdown original pide sangrar
-#     con cuatro espacios, que nadie hace);
-#   - `sane_lists`, que es el que hace falta para que una lista numerada salga
-#     numerada: sin él, Python-Markdown funde la `1.` con la viñeta de arriba y
-#     todo acaba con el mismo punto gordo. Comprobado.
-EXTENSIONES_MARKDOWN = ['tables', 'fenced_code', 'sane_lists']
+# Lo que se le añade a CommonMark: las dos cosas de GitHub que escribe todo el
+# mundo y que CommonMark no lleva de serie. Los bloques cercados con ``` y las
+# listas numeradas ya vienen dentro.
+ANADIDOS = ['table', 'strikethrough']
 
 # Tope de páginas, y no de tamaño del archivo.
 #
@@ -216,7 +236,7 @@ def _maquetar(texto: str, nombre: str, marco: fitz.Rect, margen: float,
     porque es lo único que conserva los enlaces: sin él, un `[texto](url)` sale
     subrayado y en azul pero no se puede pulsar, que es peor que no ponerlo.
     """
-    html = markdown.markdown(texto, extensions=EXTENSIONES_MARKDOWN, output_format='html')
+    html = MarkdownIt('commonmark', {'html': True}).enable(ANADIDOS).render(texto)
     area = marco + (margen, margen, -margen, -margen)
 
     def donde_va(numero: int, _relleno: float):

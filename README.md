@@ -341,7 +341,19 @@ los PDF. Medido: 135 kB de Markdown, 156 páginas, 220 ms. LibreOffice se
 descartó porque tarda segundos, ocuparía el turno del OCR y no da control sobre
 la maquetación, y pandoc porque necesita un motor de PDF aparte —LaTeX o
 Chromium—, que son cientos de megas de imagen para algo que aquí sale de una
-dependencia de 200 kB.
+dependencia pequeña y sin nada que instalar con `apt`.
+
+Quien lee el Markdown es **markdown-it-py**, que sigue CommonMark, y la elección
+importa más de lo que parece. La primera versión usaba Python-Markdown y se
+equivocaba con documentos normales: es el más estricto de los tres motores de
+Python y exige una línea en blanco antes de cada tabla, cosa que casi nadie
+escribe; sin ella escupía la tabla en crudo, con los `|` y los `---` como texto
+corrido. Medido sobre los mismos ejemplos, fallaba cuatro casos que markdown-it
+resuelve: esa tabla, una lista anidada con **dos espacios** de sangría (Python-
+Markdown exige cuatro y si no aplana los niveles), una lista pegada al párrafo
+anterior y el tachado `~~así~~`. Va además con el HTML activado, para que el
+`<br>` de dentro de una celda sea un salto de línea de verdad: las tablas que
+escribe un LLM lo usan constantemente para poner una nota bajo el nombre.
 
 Un detalle que conviene saber: **nada de lo que enlace el documento se va a
 buscar**. `fitz.Story` sólo resuelve imágenes contra un archivo comprimido que
@@ -850,8 +862,8 @@ comercial encima, mira las licencias tú.
 | **PyMuPDF** | AGPL-3.0 o comercial — la que condiciona todo lo demás |
 | **`frontend/src/assets/autofirma/autoscript.js`** | GPL-2.0-or-later / EUPL-1.1. Es la librería oficial del Gobierno de España para hablar con AutoFirma; se incluye sin modificar y con su procedencia anotada en [`NOTICE.md`](frontend/src/assets/autofirma/NOTICE.md) |
 | ocrmypdf | MPL-2.0 |
-| pypdf, Flask, segno, Python-Markdown | BSD-3-Clause |
-| Pillow, pyHanko, markitdown, pdf2docx, Flask-Cors, gunicorn | MIT |
+| pypdf, Flask, segno | BSD-3-Clause |
+| Pillow, pyHanko, markitdown, markdown-it-py, pdf2docx, Flask-Cors, gunicorn | MIT |
 | Angular, Bootstrap, pdf.js | MIT / Apache-2.0 |
 
 **AutoFirma no se distribuye aquí.** Sólo la librería de JavaScript que lo
