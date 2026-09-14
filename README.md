@@ -310,7 +310,13 @@ citas y las tablas: las de rejilla con `find_tables()` y las que no la tienen
 pequeña encima del valor, se desdoblan en una fila de etiquetas y otra de
 valores; una tabla que sigue en la página siguiente se une con su cabecera
 repetida quitada, y lo que se repite en la cabecera o el pie de todas las
-páginas sale del texto (si no lleva número de página, queda una vez al final).
+páginas sale del texto (si no lleva número de página, queda una vez al final;
+en un documento de una sola página se quita lo que en el pie repite un texto de
+la propia página, como el título). Una cabecera sólo se quita si es letra
+pequeña: un título grande arriba del todo es contenido. Las casillas dibujadas
+delante de un texto salen como `[x]` o `[ ]` —se mira el centro en píxeles para
+saber si están marcadas—, así que una lista de tareas o las opciones de un
+impreso sobreviven a la ida y vuelta.
 Una portada se marca con el salto de página de siempre,
 `<div style="page-break-after: always"></div>`, y un texto centrado o a la
 derecha, con `<p align="…">`: "Markdown a PDF" entiende las dos cosas.

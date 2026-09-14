@@ -50,7 +50,12 @@ NUMERO_PAGINA = re.compile(
     r'^\s*(p[aá]g(ina|\.)?\s*)?\d{1,4}(\s*(de|/|of)\s*\d{1,4})?\s*$', re.IGNORECASE)
 NUMERICO = re.compile(r'^[−\-+]?\s*[\d.,\s]*\d\s*(€|%|\$|£)?$')
 
-MARCA_SUELTA = re.compile(r'^([•◦▪‣○●■□–—\-*·]|\d{1,3}[.)])$')
+MARCA_SUELTA = re.compile(r'^([•◦▪‣○●■□–—\-*·]|\d{1,3}[.)]|\[[ xX]\])$')
+TAREA = re.compile(r'^\s*\[([ xX])\]\s+(.*)$')
+
+# Lado de una casilla dibujada, en puntos: de un 6 pt de formulario apretado a
+# la de 14 pt de un impreso generoso.
+CASILLA_MINIMA, CASILLA_MAXIMA = 5, 16
 
 # Franja de la página, por arriba y por abajo, donde viven cabeceras y pies.
 FRANJA = 0.08
@@ -65,6 +70,7 @@ class Tramo:
     mono: bool
     x0: float
     x1: float
+    crudo: bool = False  # Markdown ya escrito (la casilla «[x]»): no se escapa
 
 
 @dataclass
@@ -181,7 +187,49 @@ def _leer_pagina(pagina: fitz.Page, numero: int):
                 continue
             lineas.append(Linea(tramos, x0, y0, x1, y1))
     lineas = _sin_negrita_simulada(lineas)
+    _poner_casillas(pagina, lineas)
     return numero, lineas, [tabla for _, tabla in tablas]
+
+
+def _poner_casillas(pagina: fitz.Page, lineas: list[Linea]) -> None:
+    """Las casillas dibujadas delante de un texto pasan a «[x]» o «[ ]».
+
+    Una casilla no es texto: es un cuadrado dibujado, así que sin esto una lista
+    de tareas —o las opciones marcadas de un impreso— perdía justo lo que dice
+    si algo está hecho o elegido. Si está marcada se decide mirando el centro
+    en píxeles y no el trazado: una casilla vacía con borde redondeado también
+    se dibuja como una figura rellena (el anillo del borde).
+    """
+    casillas = {}
+    for dibujo in pagina.get_drawings():
+        rect = dibujo['rect']
+        if CASILLA_MINIMA <= rect.width <= CASILLA_MAXIMA and abs(rect.width - rect.height) <= 1.5:
+            casillas[tuple(round(v) for v in rect)] = rect
+    if not casillas:
+        return
+    usadas = set()
+    for linea in sorted(lineas, key=lambda l: l.x0):
+        centro = (linea.y0 + linea.y1) / 2
+        for clave, rect in casillas.items():
+            if clave in usadas or not rect.y0 - 2 <= centro <= rect.y1 + 2:
+                continue
+            if not 0 <= linea.x0 - rect.x1 <= max(12, linea.tamano):
+                continue
+            usadas.add(clave)
+            marca = '[x] ' if _casilla_marcada(pagina, rect) else '[ ] '
+            linea.tramos.insert(0, Tramo(marca, linea.tamano, False, False, False,
+                                         rect.x0, rect.x1, crudo=True))
+            linea.x0 = rect.x0
+            break
+
+
+def _casilla_marcada(pagina: fitz.Page, rect: fitz.Rect) -> bool:
+    lado = min(rect.width, rect.height) * 0.3
+    centro = fitz.Rect(rect.x0 + rect.width / 2 - lado / 2, rect.y0 + rect.height / 2 - lado / 2,
+                       rect.x0 + rect.width / 2 + lado / 2, rect.y0 + rect.height / 2 + lado / 2)
+    imagen = pagina.get_pixmap(clip=centro, dpi=144, colorspace=fitz.csGRAY)
+    muestras = imagen.samples
+    return bool(muestras) and sum(muestras) / len(muestras) < 200
 
 
 def _tramo(span) -> Tramo:
@@ -294,13 +342,24 @@ def _tabla_de_celdas(celdas, y0: float, numero: int) -> Tabla:
 
 
 def _quitar_cabeceras_y_pies(paginas, altos, total):
+    # Cabeceras y pies son letra pequeña. Un título grande que cae en la franja
+    # —«Solicitud… hoja 2» arriba del todo— es contenido, aunque cambie de
+    # número en cada página.
+    dominante = _tamano_dominante([l for _, lineas, _ in paginas for l in lineas])
+
+    def _en_franja(linea, alto):
+        return _en_la_franja(linea, alto) and linea.tamano <= dominante * 1.1
+
     if total < 2:
-        # Con una sola página no hay repetición que buscar: sólo el número.
+        # Con una sola página no hay repetición que buscar. Se quita el número
+        # de página y lo que en la franja repite un texto de la propia página:
+        # el título que muchos programas ponen también en el pie.
         limpias = []
         for numero, lineas, tablas in paginas:
             alto = altos[numero]
-            limpias.append((numero, [l for l in lineas if not (
-                _en_franja(l, alto) and NUMERO_PAGINA.match(l.texto))], tablas))
+            fuera = {_normalizar(l.texto) for l in lineas if not _en_franja(l, alto)}
+            limpias.append((numero, [l for l in lineas if not (_en_franja(l, alto) and (
+                NUMERO_PAGINA.match(l.texto) or _normalizar(l.texto) in fuera))], tablas))
         return limpias, []
 
     firmas = Counter()
@@ -335,7 +394,11 @@ def _quitar_cabeceras_y_pies(paginas, altos, total):
     return limpias, pies
 
 
-def _en_franja(linea: Linea, alto: float) -> bool:
+def _normalizar(texto: str) -> str:
+    return re.sub(r'\s+', ' ', texto).strip().casefold()
+
+
+def _en_la_franja(linea: Linea, alto: float) -> bool:
     return linea.y1 < alto * FRANJA or linea.y0 > alto * (1 - FRANJA)
 
 
@@ -423,6 +486,8 @@ def _bloque_de_renglon(renglon: Renglon, cuerpo: float, izquierda: float, derech
 
     if all(l.mono for l in lineas):
         return Bloque('codigo', [renglon], y0=y0)
+    if TAREA.match(_sin_negrita(texto)):
+        return Bloque('lista', [renglon], y0=y0)
     if VINETA.match(texto) or NUMERADA.match(texto):
         # «1. DATOS DEL SOLICITANTE» en negrita y solo en su renglón es un
         # apartado, no una lista.
@@ -666,7 +731,9 @@ def _escribir_lista(bloque: Bloque) -> str:
         nivel = max(i for i, x in enumerate(niveles) if round(renglon.x0) >= x - 6)
         numerada = NUMERADA.match(_sin_negrita(texto))
         vineta = VINETA.match(_sin_negrita(texto))
-        if numerada and numerada.group(1).isdigit():
+        if TAREA.match(_sin_negrita(texto)):
+            marca, cuerpo = '-', texto
+        elif numerada and numerada.group(1).isdigit():
             marca, cuerpo = f'{numerada.group(1)}.', _quitar_prefijo(texto, numerada.group(3))
         elif vineta:
             marca, cuerpo = '-', _quitar_prefijo(texto, vineta.group(2))
@@ -735,13 +802,20 @@ def _markdown_tramos(tramos: list[Tramo]) -> str:
     """Tramos a Markdown en línea, juntando los contiguos con el mismo estilo."""
     grupos: list[list] = []
     for tramo in tramos:
+        if tramo.crudo:
+            grupos.append([None, tramo.texto])
+            continue
         clave = (tramo.negrita and not tramo.mono, tramo.cursiva and not tramo.mono, tramo.mono)
         if grupos and grupos[-1][0] == clave:
             grupos[-1][1] += tramo.texto
         else:
             grupos.append([clave, tramo.texto])
     salida = ''
-    for (negrita, cursiva, mono), texto in grupos:
+    for clave, texto in grupos:
+        if clave is None:
+            salida += texto
+            continue
+        negrita, cursiva, mono = clave
         if not texto.strip():
             salida += texto
             continue
