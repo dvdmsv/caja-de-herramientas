@@ -9,7 +9,7 @@ import threading
 
 from flask import Blueprint, jsonify
 
-from api import current_session, params
+from api import current_session, params, pdf_estructura
 from errors import ApiError
 from storage import storage, nombre_seguro
 
@@ -78,11 +78,16 @@ def a_markdown():
 
 def _convertir(ruta: str, nombre: str) -> str:
     try:
-        resultado = _markitdown().convert(ruta)
+        if os.path.splitext(ruta)[1].lower() == '.pdf':
+            # Los PDF van por PyMuPDF, que ve tamaños, negritas y posiciones:
+            # markitdown los lee como texto corrido (ver api/pdf_estructura.py).
+            texto = pdf_estructura.pdf_a_markdown(ruta)
+        else:
+            texto = getattr(_markitdown().convert(ruta), 'text_content', '') or ''
     except Exception as err:
         raise ApiError(f'No se ha podido leer "{nombre}": {err}', 422) from err
 
-    texto = (getattr(resultado, 'text_content', '') or '').strip()
+    texto = texto.strip()
     if not texto:
         raise ApiError(
             f'"{nombre}" no tiene texto que extraer. Si es un PDF escaneado haría falta '

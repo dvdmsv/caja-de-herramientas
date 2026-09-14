@@ -50,8 +50,8 @@ export class MarkdownAPdfComponent extends PaginaHerramienta {
   ];
 
   readonly familias: Opcion[] = [
-    { id: 'sans', nombre: 'Helvetica', detalle: 'sin remates, la de pantalla' },
-    { id: 'serif', nombre: 'Times', detalle: 'con remates, la de imprenta' },
+    { id: 'sans', nombre: 'Inter', detalle: 'sin remates, la de pantalla' },
+    { id: 'serif', nombre: 'Charis', detalle: 'con remates, la de imprenta' },
   ];
 
   /**
