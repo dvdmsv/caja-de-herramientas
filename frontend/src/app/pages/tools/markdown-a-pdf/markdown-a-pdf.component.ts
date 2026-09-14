@@ -72,6 +72,15 @@ export class MarkdownAPdfComponent extends PaginaHerramienta {
   margen = 20;
   cuerpo = 11;
 
+  /**
+   * Marcado por defecto, al revés de lo que dice el estándar de Markdown.
+   *
+   * Lo que más entra aquí es texto sacado de otro documento, con una línea por
+   * renglón: fundirlas en un párrafo, que es lo que manda el estándar, deja el
+   * documento hecho un ladrillo.
+   */
+  saltos = true;
+
   protected override opciones(): Record<string, unknown> {
     return {
       pagina: this.tamano,
@@ -80,6 +89,7 @@ export class MarkdownAPdfComponent extends PaginaHerramienta {
       acento: this.acento,
       margen: this.margen,
       cuerpo: this.cuerpo,
+      saltos: this.saltos,
     };
   }
 

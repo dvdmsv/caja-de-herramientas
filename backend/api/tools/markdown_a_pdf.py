@@ -25,6 +25,15 @@ resuelve:
 - una lista pegada al párrafo anterior;
 - el tachado `~~así~~`.
 
+**Los saltos de línea sueltos se respetan por defecto**, que es lo contrario de
+lo que manda el estándar. En Markdown, dos líneas seguidas son un mismo párrafo,
+y eso está bien para quien escribe prosa partida a lo ancho. Pero lo que más
+entra aquí no es eso: es texto sacado de otro documento —el que devuelve
+"Documento a Markdown", por ejemplo— con una línea por renglón y ninguna línea
+en blanco. Fundirlas convierte el documento en un ladrillo: el título, el
+subtítulo y los apartados acaban en la misma frase, y así llegó la queja que
+originó esta opción. Se puede desmarcar, y entonces manda el estándar.
+
 Va con `html=True` para que el `<br>` de dentro de una celda sea un salto de
 línea de verdad: las tablas que escribe un LLM lo usan constantemente para poner
 una nota debajo del nombre, y con el HTML desactivado saldría el literal `<br>`
@@ -183,6 +192,9 @@ def markdown_a_pdf():
     orientacion = params.opcion(datos, 'orientacion', ORIENTACIONES, 'vertical')
     familia = params.opcion(datos, 'familia', FAMILIAS, 'sans')
     acento = params.opcion(datos, 'acento', COLORES_ACENTO, 'azul')
+    # Viene marcado: el caso corriente aquí es texto pegado o sacado de otro
+    # documento, donde cada renglón es una línea y fundirlas arruina la página.
+    saltos = params.booleano(datos, 'saltos', True)
     cuerpo = params.entero(datos, 'cuerpo', CUERPO_POR_DEFECTO, CUERPO_MINIMO, CUERPO_MAXIMO)
     margen = params.entero(datos, 'margen', MARGEN_POR_DEFECTO_MM,
                            MARGEN_MINIMO_MM, MARGEN_MAXIMO_MM) * MILIMETRO
@@ -201,7 +213,8 @@ def markdown_a_pdf():
 
     resultados = []
     for record, ruta in entradas:
-        documento = _maquetar(_leer(ruta, record.name), record.name, marco, margen, estilos)
+        documento = _maquetar(_leer(ruta, record.name), record.name, marco, margen,
+                              estilos, saltos)
         destino, salida = storage.reserve_output(
             session_id, cambiar_extension(record.name, '.pdf'))
         with documento:
@@ -245,8 +258,17 @@ def _estilos(familia: str, cuerpo: int, acento: str) -> str:
     )
 
 
-def _a_html(texto: str) -> str:
+def _a_html(texto: str, saltos: bool) -> str:
     """El Markdown convertido, con las filas pares de cada tabla ya marcadas.
+
+    `saltos` decide qué se hace con un salto de línea suelto. En Markdown
+    estándar no significa nada: las líneas seguidas se funden en un párrafo, que
+    es lo que quiere quien escribe prosa partida a lo ancho. Pero el texto que
+    sale de "Documento a Markdown" —o el que se pega desde cualquier sitio—
+    trae **una línea por renglón y ninguna línea en blanco**, y ahí esa regla
+    convierte el documento entero en un ladrillo: el título, el subtítulo y los
+    apartados acaban en la misma frase. Con `saltos` cada línea se queda donde
+    estaba.
 
     Se hace en dos tiempos —analizar, retocar, escribir— en vez de renderizar
     de un tirón porque la raya cebra no se puede pedir por CSS: MuPDF no
@@ -254,7 +276,7 @@ def _a_html(texto: str) -> str:
     `<tr>` con una expresión regular sobre el HTML ya escrito, que se rompería
     con la primera tabla dentro de una cita.
     """
-    lector = MarkdownIt('commonmark', {'html': True}).enable(ANADIDOS)
+    lector = MarkdownIt('commonmark', {'html': True, 'breaks': saltos}).enable(ANADIDOS)
     tokens = lector.parse(texto)
 
     en_cuerpo, fila = False, 0
@@ -294,14 +316,14 @@ def _leer(ruta: str, nombre: str) -> str:
 
 
 def _maquetar(texto: str, nombre: str, marco: fitz.Rect, margen: float,
-              estilos: str) -> fitz.Document:
+              estilos: str, saltos: bool = True) -> fitz.Document:
     """Convierte el Markdown en un PDF ya paginado.
 
     Va por `write_with_links` y no por el bucle a mano con `DocumentWriter`
     porque es lo único que conserva los enlaces: sin él, un `[texto](url)` sale
     subrayado y en azul pero no se puede pulsar, que es peor que no ponerlo.
     """
-    html = _a_html(texto)
+    html = _a_html(texto, saltos)
     area = marco + (margen, margen, -margen, -margen)
 
     def donde_va(numero: int, _relleno: float):

@@ -50,7 +50,7 @@ Pensada para usarse, no sólo para funcionar:
 | Documento a Markdown | Extrae el contenido para dárselo a un LLM | unir todo en un archivo |
 | Documento a PDF | Pasa Word, ODT, RTF o texto plano a PDF | varios documentos de una vez |
 | PDF a Word | Saca un `.docx` editable de un PDF | varios documentos de una vez |
-| Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo y margen |
+| Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo, margen y respetar los saltos de línea |
 | Limpiar metadatos | Enseña lo que tus archivos cuentan de ti y borra lo que elijas | campo a campo, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
 | Numerar páginas | Numera el documento | posición, formato, desde qué página, con vista previa |
@@ -366,6 +366,23 @@ Markdown exige cuatro y si no aplana los niveles), una lista pegada al párrafo
 anterior y el tachado `~~así~~`. Va además con el HTML activado, para que el
 `<br>` de dentro de una celda sea un salto de línea de verdad: las tablas que
 escribe un LLM lo usan constantemente para poner una nota bajo el nombre.
+
+Y **respeta los saltos de línea sueltos**, que es justo lo contrario de lo que
+manda el estándar. En Markdown dos líneas seguidas son el mismo párrafo, y está
+bien para quien escribe prosa partida a lo ancho; pero lo que más entra aquí es
+texto sacado de otro documento —el que devuelve "Documento a Markdown", sin ir
+más lejos— con una línea por renglón y ninguna línea en blanco, y fundirlas deja
+el documento hecho un ladrillo, con el título, el subtítulo y los apartados en la
+misma frase. Se puede desmarcar en la propia pantalla, y entonces manda el
+estándar.
+
+Conviene saber que **el círculo no se cierra del todo**: de un PDF a Markdown y
+de vuelta a PDF no se recupera el documento de partida. Extraer es adivinar, y
+markitdown reconstruye las tablas mirando en qué columna cae cada palabra, así
+que una nota escrita bajo el nombre del ejercicio —dentro de su celda— sale como
+una fila aparte, y lo que en el original era un título vuelve como una línea de
+texto más. Si conservas el Markdown original, ése es el que hay que maquetar; el
+que sale de una extracción es una aproximación, por buena que parezca.
 
 Un detalle que conviene saber: **nada de lo que enlace el documento se va a
 buscar**. `fitz.Story` sólo resuelve imágenes contra un archivo comprimido que
