@@ -5,6 +5,8 @@ PyMuPDF==1.24.10
 Pillow==12.3.0
 markitdown[pdf,docx,xlsx,pptx]==0.1.7
 markdown-it-py==4.2.0
+weasyprint==70.0
+Pygments==2.21.0
 ocrmypdf==17.11.0
 pdf2docx==0.5.8
 segno==1.6.6

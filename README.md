@@ -288,12 +288,38 @@ superior) y de que Pillow suba a la rama 12: las versiones nuevas de
 `pdfminer.six` que arrastra ocrmypdf traen consigo un `pdfplumber` que ya no
 admite Pillow 10.
 
-"Documento a Markdown" usa [markitdown](https://github.com/microsoft/markitdown)
-de Microsoft y acepta PDF, Word, Excel, PowerPoint, HTML, CSV y EPub. Conserva
+"Documento a Markdown" acepta PDF, Word, Excel, PowerPoint, HTML, CSV y EPub.
+Los PDF los lee con PyMuPDF (`backend/api/pdf_estructura.py`) y el resto con
+[markitdown](https://github.com/microsoft/markitdown) de Microsoft. Conserva
 la estructura —títulos, listas y tablas— en vez de escupir texto plano, enseña
 el resultado en pantalla con el recuento de palabras y una estimación de tokens,
 y lo copia al portapapeles de un clic. Un PDF escaneado no da texto y la
 herramienta lo dice claramente: no hace OCR.
+
+Los PDF no pasan por markitdown porque lo lee con pdfminer como un chorro de
+texto: los títulos salen como una línea más, la negrita que muchos programas
+simulan escribiendo el texto dos veces con medio punto de desplazamiento salía
+**duplicada** («PPeerrssoonnaa»), el pie de cada página («1 de 2») acababa en mitad
+del texto, las tablas sin rejilla se perdían y, como todo salía sin líneas en
+blanco, el Markdown entero se leía como un único párrafo. PyMuPDF da cada trozo
+de texto con su tamaño, su fuente y su posición, y con eso se reconstruyen los
+títulos (por tamaño, o por ir enteros en negrita y solos en su renglón), la
+negrita y la cursiva, las listas con su sangría, los bloques de código, las
+citas y las tablas: las de rejilla con `find_tables()` y las que no la tienen
+—la mayoría— alineando columnas. Las celdas de formulario, con una etiqueta
+pequeña encima del valor, se desdoblan en una fila de etiquetas y otra de
+valores; una tabla que sigue en la página siguiente se une con su cabecera
+repetida quitada, y lo que se repite en la cabecera o el pie de todas las
+páginas sale del texto (si no lleva número de página, queda una vez al final;
+en un documento de una sola página se quita lo que en el pie repite un texto de
+la propia página, como el título). Una cabecera sólo se quita si es letra
+pequeña: un título grande arriba del todo es contenido. Las casillas dibujadas
+delante de un texto salen como `[x]` o `[ ]` —se mira el centro en píxeles para
+saber si están marcadas—, así que una lista de tareas o las opciones de un
+impreso sobreviven a la ida y vuelta.
+Una portada se marca con el salto de página de siempre,
+`<div style="page-break-after: always"></div>`, y un texto centrado o a la
+derecha, con `<p align="…">`: "Markdown a PDF" entiende las dos cosas.
 
 Esa dependencia es la que más pesa del backend: markitdown arrastra `magika`
 (detección de tipos), que a su vez trae `onnxruntime` y `numpy`, y los extras de
@@ -331,41 +357,40 @@ vuelva en un momento, en lugar de dejarle esperando hasta que nginx corte.
 "Markdown a PDF" cierra el círculo de "Documento a Markdown" por el otro lado:
 de un PDF sale el texto para dárselo a un LLM, y lo que el LLM devuelve —que casi
 siempre es Markdown— vuelve a ser un documento presentable sin pasar por un
-editor. Se maquetan títulos, listas, tablas, bloques de código, citas y enlaces,
-que quedan pulsables; se elige tamaño de página, orientación, tipo de letra,
-color de acento, cuerpo y margen.
+editor. La vara de medir es esa: que el PDF que sale **se reconozca como el
+documento del que salió el Markdown** y tenga aspecto de documento cuidado. Se
+maquetan títulos, listas (también las de tareas, con su casilla), tablas,
+bloques de código coloreados si dicen su lenguaje, citas y enlaces; se elige
+tamaño de página, orientación, tipo de letra, color de acento, cuerpo y margen.
 
-Y sale **compuesto, no volcado**: filete de color bajo el título, tablas con la
-cabecera en banda oscura y versalitas espaciadas, filas alternas sombreadas,
-citas con su barra de color y el código sobre fondo claro. El color de acento
-—azul, rojo, verde o grafito— tiñe el filete, los subtítulos, los enlaces y esa
-barra. Cada regla de la hoja de estilos está comprobada contra MuPDF, que
-entiende un subconjunto de CSS y **no avisa de lo que ignora**: la raya cebra,
-por ejemplo, no se puede pedir con `tr:nth-child(even)`, así que las filas se
-marcan una a una al convertir el Markdown. Lo que no hay manera de conseguir es
-una tabla a todo el ancho: MuPDF las ajusta al contenido se le pida lo que se le
-pida, medido con `width` en porcentaje y en puntos, sobre la tabla y sobre las
-celdas.
+Lo maqueta **WeasyPrint**, que convierte HTML y CSS de impresión en PDF sin
+navegador. La primera versión usaba `fitz.Story` de PyMuPDF, y MuPDF entiende un
+subconjunto de CSS que se quedaba corto justo en lo que hace que un documento lo
+parezca: las tablas no se podían estirar al ancho de la página, el código en
+línea no podía llevar fondo, no había `nth-child` ni numeración de páginas. Con
+WeasyPrint sale: título con filete de color, apartados en banda tenue con su
+barra, tablas a todo el ancho con la cabecera repetida al saltar de página,
+filas que no se parten, pie con el título y «Página n de N» y, si el documento
+abre con un título y un salto de página, una portada.
 
-Y ésta **no** pasa por el turno de arriba, porque no arranca nada: la maqueta
-PyMuPDF con `fitz.Story`, el mismo motor que ya hace el resto del trabajo con
-los PDF. Medido: 135 kB de Markdown, 156 páginas, 220 ms. LibreOffice se
-descartó porque tarda segundos, ocuparía el turno del OCR y no da control sobre
-la maquetación, y pandoc porque necesita un motor de PDF aparte —LaTeX o
-Chromium—, que son cientos de megas de imagen para algo que aquí sale de una
-dependencia pequeña y sin nada que instalar con `apt`.
+Las tablas **se leen antes de pintarlas**: una fila entera en negrita es una
+fila de etiquetas, como en un impreso, y la tabla se dibuja con rejilla; la
+última fila en negrita es la de totales; una tabla de dos columnas cortas con
+importes es un cuadro de totales, que va a la derecha como en una factura, y las
+columnas numéricas se alinean a la derecha aunque el Markdown no lo pida.
+
+Las letras son Inter, Charis SIL y DejaVu Sans Mono, instaladas desde Debian.
+WeasyPrint incrusta sólo los caracteres usados: una página pesa unos 70 kB y
+63 páginas con tablas, 234 kB. Tarda unos 75 ms por página (63 páginas, 4,6 s)
+y no pasa por el turno de las conversiones pesadas: no arranca ningún proceso.
 
 Quien lee el Markdown es **markdown-it-py**, que sigue CommonMark, y la elección
 importa más de lo que parece. La primera versión usaba Python-Markdown y se
-equivocaba con documentos normales: es el más estricto de los tres motores de
-Python y exige una línea en blanco antes de cada tabla, cosa que casi nadie
-escribe; sin ella escupía la tabla en crudo, con los `|` y los `---` como texto
-corrido. Medido sobre los mismos ejemplos, fallaba cuatro casos que markdown-it
-resuelve: esa tabla, una lista anidada con **dos espacios** de sangría (Python-
-Markdown exige cuatro y si no aplana los niveles), una lista pegada al párrafo
-anterior y el tachado `~~así~~`. Va además con el HTML activado, para que el
-`<br>` de dentro de una celda sea un salto de línea de verdad: las tablas que
-escribe un LLM lo usan constantemente para poner una nota bajo el nombre.
+equivocaba con documentos normales: exige una línea en blanco antes de cada
+tabla, cosa que casi nadie escribe, y aplana las listas anidadas con dos
+espacios de sangría. Va además con el HTML activado, para que el `<br>` de
+dentro de una celda sea un salto de línea de verdad: las tablas que escribe un
+LLM lo usan constantemente para poner una nota bajo el nombre.
 
 Y **respeta los saltos de línea sueltos**, que es justo lo contrario de lo que
 manda el estándar. En Markdown dos líneas seguidas son el mismo párrafo, y está
@@ -385,20 +410,11 @@ texto más. Si conservas el Markdown original, ése es el que hay que maquetar; 
 que sale de una extracción es una aproximación, por buena que parezca.
 
 Un detalle que conviene saber: **nada de lo que enlace el documento se va a
-buscar**. `fitz.Story` sólo resuelve imágenes contra un archivo comprimido que
-aquí no se le da, así que un `.md` con `![](/etc/hostname)` no lee nada del
-disco del servidor y uno con una imagen en `http://` no le pide nada a nadie
-—comprobado—. Se incrustan sólo las imágenes `data:` que el propio archivo trae
-dentro; con el resto, MuPDF deja el hueco y sigue.
-
-El PDF pesa unos 100 kB aunque tenga una página, y unos 390 si el documento
-lleva listas anidadas: MuPDF incrusta enteras las tipografías con las que
-compone, y para el `○` del segundo nivel carga una fuente de símbolos entera.
-PyMuPDF sabe recortarlas —deja ese archivo en 82 kB— y aquí **no se hace a
-propósito**, porque en la versión que usa este proyecto el recorte se come el
-**signo del euro**: comprobado carácter a carácter, es el único que se pierde, y
-desaparece dejando el texto en el archivo, así que ni copiándolo se nota. Un
-documento que se manda o se imprime no puede perder ese carácter.
+buscar**. WeasyPrint recibe un `URLFetcher` que sólo admite `data:` y no hay
+`base_url`, así que un `.md` con `![](/etc/hostname)` no lee nada del disco del
+servidor y uno con una imagen en `http://` no le pide nada a nadie —comprobado
+con un servidor a la escucha—. Se incrustan sólo las imágenes que el propio
+archivo trae dentro.
 
 "Limpiar metadatos" es la que mejor explica por qué existe esta aplicación. Un
 PDF lleva dentro quién lo escribió y con qué programa; una foto de móvil lleva el
@@ -899,6 +915,8 @@ comercial encima, mira las licencias tú.
 | ocrmypdf | MPL-2.0 |
 | pypdf, Flask, segno | BSD-3-Clause |
 | Pillow, pyHanko, markitdown, markdown-it-py, pdf2docx, Flask-Cors, gunicorn | MIT |
+| WeasyPrint, Pygments | BSD-3-Clause / BSD-2-Clause |
+| Inter, Charis SIL | SIL Open Font License 1.1 |
 | Angular, Bootstrap, pdf.js | MIT / Apache-2.0 |
 
 **AutoFirma no se distribuye aquí.** Sólo la librería de JavaScript que lo
