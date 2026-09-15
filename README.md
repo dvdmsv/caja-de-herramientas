@@ -575,7 +575,7 @@ empezar. En `docker-compose.yml` se le pasan al contenedor del backend.
 | Variable | Por defecto | Para qué |
 |---|---|---|
 | `UPLOAD_ROOT` | `uploads` | Dónde se guardan los archivos de cada sesión |
-| `MAX_CONTENT_LENGTH_MB` | `200` | Tope de una petición completa. En el `docker-compose.yml` se baja a 50 |
+| `MAX_CONTENT_LENGTH_MB` | `200` | Tope de una petición completa. nginx tiene el suyo y manda el más bajo de los dos |
 | `SESSION_TTL_MINUTES` | `120` | Cuánto sobreviven los archivos sin actividad |
 | `CLEANUP_INTERVAL_MINUTES` | `15` | Cada cuánto pasa el recolector |
 | `TSA_URL` | `https://freetsa.org/tsr` | Autoridad de sellado de tiempo, sólo si se marca la casilla al firmar |
@@ -598,7 +598,11 @@ Máquina detectada: 4 núcleos, 1536 MB de memoria -> 2 workers, 4 hilos
 ```
 
 Si quieres llevarle la contraria, cualquiera de estas variables manda sobre lo
-calculado. Todas están comentadas en [`.env.example`](.env.example).
+calculado. Todas están comentadas en [`.env.example`](.env.example), y las
+**recetas por tipo de máquina** —un VPS mínimo, uno normal, un servidor
+holgado— están en [`docs/ajustar-a-la-maquina.md`](docs/ajustar-a-la-maquina.md),
+con las cuentas de memoria, la cadena de plazos y cómo comprobar que has
+acertado.
 
 | Variable | Por defecto | Qué significa subirla |
 |---|---|---|
@@ -613,6 +617,7 @@ calculado. Todas están comentadas en [`.env.example`](.env.example).
 | `PDF_TO_WORD_TIMEOUT_SECONDS` | `240` | Plazo al convertir a `.docx` |
 | `DOC_TO_PDF_TIMEOUT_SECONDS` | `180` | Plazo del lote hacia PDF |
 | `BACKEND_MEM_LIMIT` | `1536m` | Tope de memoria del contenedor. **Es la entrada del cálculo de arriba**: subirlo da más workers |
+| `BACKEND_CPUS` | `4.0` | Núcleos que se le dan al contenedor. La otra entrada del cálculo: el backend cree tener los que aquí se digan, no los de la máquina |
 | `MAX_CONTENT_LENGTH_MB` | `200` | Tamaño máximo de una petición. nginx tiene el suyo y manda el más bajo |
 
 **No hay límite de páginas ni de archivos en ninguna herramienta.** Lo que las
@@ -688,19 +693,20 @@ declara su `slug`, sus opciones y su plantilla.
 La configuración por defecto está pensada para una máquina modesta, y todo se
 puede subir por variables de entorno (ver arriba):
 
-- **Un proceso con cuatro hilos**. Atiende varias peticiones a la vez en lugar de
-  encolarlas, sin pagar un segundo proceso: cada worker ronda los 300 MB con las
-  bibliotecas cargadas.
+- **Los workers que quepan, con cuatro hilos cada uno**, calculados al arrancar
+  a partir de lo que tenga el contenedor. Cada uno ronda los 300 MB con las
+  bibliotecas cargadas; con los topes de serie salen dos.
 - **Plazo de 300 s**, el mismo que espera nginx. Con los valores por defecto de
   gunicorn (un proceso y 30 s) moría cualquier trabajo largo.
 - **markitdown se carga la primera vez que se usa**, no al arrancar. El backend
   se queda en unos 75 MB y sólo sube a ~200 MB si alguien convierte a Markdown;
   como los workers se reciclan cada 200 peticiones, esa memoria se devuelve
   sola.
-- **Topes de 1,5 GB y 4 CPU** en `docker-compose.yml`, para que un trabajo
-  desbocado mate su contenedor en vez de tumbar la máquina entera, y subidas
-  limitadas a 50 MB (`MAX_CONTENT_LENGTH_MB`). Es un tope, no una reserva: sólo
-  se paga lo que se usa.
+- **Topes de 1,5 GB y 4 CPU** en `docker-compose.yml` (`BACKEND_MEM_LIMIT` y
+  `BACKEND_CPUS`), para que un trabajo desbocado mate su contenedor en vez de
+  tumbar la máquina entera, y subidas de hasta 200 MB por petición
+  (`MAX_CONTENT_LENGTH_MB`, con el mismo tope en nginx). Es un tope, no una
+  reserva: sólo se paga lo que se usa.
 
 El porqué de cada opción está comentado en `backend/Dockerfile`.
 

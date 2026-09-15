@@ -38,7 +38,12 @@ services:
     # varios workers y varias conversiones a la vez, y eso lo decides con
     # `GUNICORN_WORKERS` y `MAX_CONCURRENT_CONVERSIONS`.
     mem_limit: ${BACKEND_MEM_LIMIT:-1536m}
-    cpus: 4.0
+    # Los dos topes son **la entrada del autodimensionado**, no sólo una
+    # protección: el backend le pregunta al cgroup qué tiene y se ajusta a lo que
+    # aquí le pongas, no a lo que tenga la máquina. Por eso van los dos por
+    # variable — dejar los núcleos escritos a fuego le mentía al cálculo en
+    # cuanto el servidor no tenía exactamente cuatro.
+    cpus: ${BACKEND_CPUS:-4.0}
     networks:
       - app-network
 
