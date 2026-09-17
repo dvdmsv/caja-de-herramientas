@@ -110,6 +110,81 @@ class Storage:
             raise ApiError('El archivo ya no está disponible. Vuelve a subirlo.', 404)
         return record, binary_path
 
+    # --- espacio ----------------------------------------------------------
+
+    def tamano_sesion(self, session_id: str) -> int:
+        """Lo que ocupa una sesión, contando subidas y resultados."""
+        path = self.session_dir(session_id, create=False)
+        total = 0
+        try:
+            with os.scandir(path) as entradas:
+                for entrada in entradas:
+                    if entrada.is_file():
+                        total += entrada.stat().st_size
+        except FileNotFoundError:
+            return 0
+        return total
+
+    def espacio_libre(self) -> int:
+        """Bytes libres en el disco donde vive el volumen."""
+        return shutil.disk_usage(self.root).free
+
+    def _comprobar_cuota(self, session_id: str, nuevos: int) -> None:
+        """Que la sesión no se pase de lo suyo."""
+        tope = config.SESSION_QUOTA_MB * 1024 * 1024
+        usado = self.tamano_sesion(session_id)
+        if usado + nuevos > tope:
+            raise ApiError(
+                f'Tus archivos de esta sesión ocupan ya {usado / 1024 / 1024:.0f} MB '
+                f'y el máximo son {config.SESSION_QUOTA_MB} MB. Borra lo que no '
+                'necesites con "Empezar de cero" y vuelve a intentarlo.', 413)
+
+    def _comprobar_disco(self, necesarios: int) -> None:
+        """Que quede sitio en el disco, desalojando sesiones viejas si hace falta.
+
+        La reserva no es para esta aplicación: el volumen comparte disco con
+        todo lo demás de la máquina, y llenarlo se lleva por delante a los
+        vecinos.
+        """
+        reserva = config.DISK_RESERVE_MB * 1024 * 1024
+        if self.espacio_libre() - necesarios >= reserva:
+            return
+        self.liberar_espacio(reserva + necesarios - self.espacio_libre())
+        if self.espacio_libre() - necesarios < reserva:
+            raise ApiError('El servidor se ha quedado sin espacio. Inténtalo más tarde.', 507)
+
+    def liberar_espacio(self, necesarios: int) -> int:
+        """Desaloja sesiones, de la más vieja a la más nueva, hasta tener sitio.
+
+        Nunca toca las que han tenido actividad reciente: puede que alguien esté
+        a mitad de un trabajo. Si con las viejas no llega, se queda como esté y
+        quien pidió el sitio recibe el error.
+        """
+        protegidas = time.time() - config.SESION_PROTEGIDA_SEGUNDOS
+        candidatas = []
+        try:
+            nombres = os.listdir(self.root)
+        except FileNotFoundError:
+            return 0
+        for nombre in nombres:
+            path = os.path.join(self.root, nombre)
+            if not os.path.isdir(path):
+                continue
+            try:
+                visto = os.path.getmtime(path)
+            except OSError:
+                continue
+            if visto < protegidas:
+                candidatas.append((visto, path))
+
+        liberados = 0
+        for _, path in sorted(candidatas):
+            if liberados >= necesarios:
+                break
+            liberados += _tamano_arbol(path)
+            shutil.rmtree(path, ignore_errors=True)
+        return liberados
+
     # --- escritura --------------------------------------------------------
 
     def save_upload(self, session_id: str, file_storage, allowed_exts: set[str] | None = None,
@@ -125,16 +200,34 @@ class Storage:
             permitidas = descripcion or ', '.join(sorted(allowed_exts))
             raise ApiError(f'"{original}": formato no admitido. Se aceptan {permitidas}.', 400)
 
+        # Lo que dice el navegador que va a mandar, que puede no venir. El tope
+        # de la petición completa (`MAX_CONTENT_LENGTH`) ya acota lo que puede
+        # llegar a escribirse antes de la comprobación de verdad, la de abajo.
+        anunciado = getattr(file_storage, 'content_length', 0) or 0
+        self._comprobar_cuota(session_id, anunciado)
+        self._comprobar_disco(anunciado or 1)
+
         file_id = new_id()
         stored_name = f'{file_id}{ext}'
         target = os.path.join(self.session_dir(session_id), stored_name)
         file_storage.save(target)
 
+        # Ahora sí se sabe lo que pesa: el navegador no siempre anuncia el
+        # tamaño. Si se pasa, se deshace la subida, que es mejor que dejar la
+        # sesión por encima de su cuota.
+        escrito = os.path.getsize(target)
+        if self.tamano_sesion(session_id) > config.SESSION_QUOTA_MB * 1024 * 1024:
+            os.unlink(target)
+            raise ApiError(
+                f'"{original}" no cabe: con él, tus archivos de esta sesión pasarían '
+                f'de los {config.SESSION_QUOTA_MB} MB. Borra lo que no necesites con '
+                '"Empezar de cero".', 413)
+
         return self._write_meta(session_id, FileRecord(
             id=file_id,
             name=original,
             stored_name=stored_name,
-            size=os.path.getsize(target),
+            size=escrito,
             ext=ext,
             generated=False,
         ))
@@ -145,6 +238,11 @@ class Storage:
         Devuelve la ruta donde escribir y el registro, todavía sin tamaño. Hay
         que llamar a ``commit_output`` cuando el archivo esté escrito.
         """
+        # No se sabe lo que va a pesar el resultado, así que lo que se comprueba
+        # aquí es que quede sitio; la cuota se comprueba al confirmarlo, cuando
+        # ya tiene tamaño.
+        self._comprobar_disco(1)
+
         file_id = new_id()
         name = nombre_seguro(name)
         ext = os.path.splitext(name)[1].lower()
@@ -158,6 +256,15 @@ class Storage:
         if not os.path.isfile(path):
             raise ApiError('La herramienta no generó ningún resultado.', 500)
         record.size = os.path.getsize(path)
+        tope = config.SESSION_QUOTA_MB * 1024 * 1024
+        if self.tamano_sesion(session_id) > tope:
+            # El resultado ya está escrito: se borra y se avisa, en vez de dejar
+            # la sesión pasada de cuota.
+            os.unlink(path)
+            raise ApiError(
+                f'El resultado no cabe: tus archivos de esta sesión pasarían de '
+                f'los {config.SESSION_QUOTA_MB} MB. Borra lo que no necesites con '
+                '"Empezar de cero".', 413)
         return self._write_meta(session_id, record)
 
     def rename(self, session_id: str, file_id: str, nombre: str) -> FileRecord:
@@ -213,6 +320,18 @@ class Storage:
             except OSError:
                 continue
         return borradas
+
+
+def _tamano_arbol(path: str) -> int:
+    """Lo que ocupa una carpeta de sesión, para saber cuánto se libera al borrarla."""
+    total = 0
+    for raiz, _, ficheros in os.walk(path):
+        for fichero in ficheros:
+            try:
+                total += os.path.getsize(os.path.join(raiz, fichero))
+            except OSError:
+                continue
+    return total
 
 
 def start_cleanup_thread(storage: Storage, interval: int, logger) -> None:

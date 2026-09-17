@@ -60,7 +60,7 @@ jobs:
         run: docker compose build
 
   backend:
-    name: Backend (arranca y responde)
+    name: Backend (arranca y pasa los tests)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -73,13 +73,19 @@ jobs:
           # ocrmypdf exige 3.11 o superior; la imagen usa 3.12.
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: backend/requirements-dev.txt
 
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements-dev.txt
 
-      # No hay tests de backend, pero que la aplicación levante y registre sus
-      # rutas descarta un import roto o un blueprint sin registrar, que es el
-      # error típico al añadir una herramienta.
+      # Los tests no tocan OCR, LibreOffice ni WeasyPrint: necesitan la imagen y
+      # son lentos. Cubren los límites, las cuotas, el reparto entre servicios y
+      # unir/dividir, que es donde un fallo se nota tarde.
+      - name: Tests
+        run: python -m pytest tests/ -q
+
+      # Que la aplicación levante y registre sus rutas descarta un import roto o
+      # un blueprint sin registrar, que es el error típico al añadir una
+      # herramienta.
       - name: La aplicación arranca y registra sus rutas
         run: |
           python -c "

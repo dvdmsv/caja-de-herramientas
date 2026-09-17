@@ -12,11 +12,18 @@ import fitz  # PyMuPDF
 from PIL import Image
 from flask import Blueprint, jsonify
 
+import config
 from api import current_session, params
+from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
 
 bp = Blueprint('comprimir_pdf', __name__, url_prefix='/api/tools')
+
+# Plazo de este trabajo, que ocurre **dentro** del proceso y no como programa
+# aparte: sin él, el único freno era el plazo de gunicorn, que mata al worker
+# entero y con él las peticiones que llevara en sus otros hilos.
+PLAZO_EN_PROCESO = config.entorno_entero('RASTER_TIMEOUT_SECONDS', 180)
 
 # Calidad JPEG y lado mayor admitido para las imágenes de dentro del PDF. Los
 # tres niveles recomprimen: uno que sólo limpiara la estructura no bajaría nada
@@ -33,6 +40,7 @@ MINIMO_LADO = 80
 
 
 @bp.post('/comprimir-pdf')
+@limites.con_plazo(PLAZO_EN_PROCESO, 'La compresión')
 def comprimir_pdf():
     session_id = current_session()
     datos = params.cuerpo()

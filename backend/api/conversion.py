@@ -27,6 +27,13 @@ from errors import ApiError
 
 # Cuántos de estos trabajos pueden correr a la vez **en cada worker**.
 #
+# En producción esto ya no reparte nada: el servicio `pesados` atiende cada
+# petición en un proceso desechable, y quien pone el tope es su número de
+# workers (`gunicorn.trabajos.conf.py`). Sigue aquí porque `python app.py`
+# registra todo en un proceso y ahí es lo único que evita que cuatro hilos
+# arranquen cuatro LibreOffice. **No lo confundas con una protección de
+# producción**: allí la protección son los límites del proceso.
+#
 # Ojo con esto, que se presta a error: el semáforo es un objeto de módulo, así
 # que cada proceso de gunicorn tiene el suyo. Los trabajos simultáneos de
 # verdad son `GUNICORN_WORKERS` × este número.

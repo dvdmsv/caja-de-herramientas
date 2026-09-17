@@ -73,11 +73,18 @@ from weasyprint import CSS, HTML
 from weasyprint.text.fonts import FontConfiguration
 from weasyprint.urls import URLFetcher
 
+import config
 from api import current_session, params
+from api import limites
 from errors import ApiError
 from storage import storage, cambiar_extension
 
 bp = Blueprint('markdown_a_pdf', __name__, url_prefix='/api/tools')
+
+# Plazo de este trabajo, que ocurre **dentro** del proceso y no como programa
+# aparte: sin él, el único freno era el plazo de gunicorn, que mata al worker
+# entero y con él las peticiones que llevara en sus otros hilos.
+PLAZO_EN_PROCESO = config.entorno_entero('MARKDOWN_TIMEOUT_SECONDS', 120)
 
 # WeasyPrint y fontTools cuentan cada paso y cada glifo recortado a nivel INFO:
 # decenas de líneas por documento que ahogarían el registro del servidor.
@@ -214,6 +221,7 @@ pre code {{ background: none; padding: 0; font-size: 1em; }}
 
 
 @bp.post('/markdown-a-pdf')
+@limites.con_plazo(PLAZO_EN_PROCESO, 'La maquetación')
 def markdown_a_pdf():
     session_id = current_session()
     datos = params.cuerpo()

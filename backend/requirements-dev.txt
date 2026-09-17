@@ -1,0 +1,4 @@
+# Sólo para desarrollar y para la CI: no entra en la imagen, que no debe cargar
+# con nada que no use en producción.
+-r requirements.txt
+pytest==8.3.5

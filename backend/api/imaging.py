@@ -6,8 +6,14 @@ opciones de guardado de cada formato.
 """
 from PIL import Image, ImageChops, ImageOps
 
+from api import limites
 from api.formatos import CON_CALIDAD, SIN_TRANSPARENCIA
 from errors import ApiError
+
+# Pillow trae su propio tope contra las "bombas de descompresión", pero por
+# defecto sólo **avisa** al pasar de 89 megapíxeles y no falla hasta el doble.
+# Aquí se fija el mismo tope que para el rasterizado, y se falla.
+Image.MAX_IMAGE_PIXELS = limites.MEGAPIXELES_MAXIMOS * 1_000_000
 
 # Fondo para las imágenes con transparencia que van a un formato sin alfa.
 FONDO = (255, 255, 255)
@@ -24,11 +30,17 @@ def abrir(ruta: str, nombre: str) -> Image.Image:
     """Abre una imagen aplicando la rotación que indique su EXIF."""
     try:
         imagen = Image.open(ruta)
+        limites.comprobar_lienzo(imagen.width, imagen.height, f'«{nombre}»')
         imagen.load()
         # Sin esto, las fotos de móvil salen giradas al recomprimirlas. Se hace
         # sobre la misma imagen para no dejar abierto el archivo original y para
         # conservar su `.format`, que indica en qué formato venía.
         ImageOps.exif_transpose(imagen, in_place=True)
+    except (ApiError, MemoryError):
+        # El tope de tamaño y el quedarse sin memoria ya tienen su respuesta
+        # (413): disfrazarlos de "no parece una imagen válida" mandaría a quien
+        # lo lee a buscar el problema donde no está.
+        raise
     except Exception as err:
         raise ApiError(f'No se ha podido leer "{nombre}": no parece una imagen válida.', 422) from err
     return imagen

@@ -9,11 +9,18 @@ import threading
 
 from flask import Blueprint, jsonify
 
+import config
 from api import current_session, params, pdf_estructura
+from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
 
 bp = Blueprint('a_markdown', __name__, url_prefix='/api/tools')
+
+# Plazo de este trabajo, que ocurre **dentro** del proceso y no como programa
+# aparte: sin él, el único freno era el plazo de gunicorn, que mata al worker
+# entero y con él las peticiones que llevara en sus otros hilos.
+PLAZO_EN_PROCESO = config.entorno_entero('MARKDOWN_TIMEOUT_SECONDS', 120)
 
 _convertidor = None
 _candado = threading.Lock()
@@ -45,6 +52,7 @@ MAXIMO_VISTA_PREVIA = 1024 * 1024
 
 
 @bp.post('/a-markdown')
+@limites.con_plazo(PLAZO_EN_PROCESO, 'La extracción del texto')
 def a_markdown():
     session_id = current_session()
     datos = params.cuerpo()
@@ -54,7 +62,9 @@ def a_markdown():
     convertidos = []
     for file_id in file_ids:
         record = storage.record_of(session_id, file_id)
-        convertidos.append((record, _convertir(storage.path_of(session_id, file_id), record.name)))
+        ruta = storage.path_of(session_id, file_id)
+        limites.comprobar_descomprimido(ruta, record.name)
+        convertidos.append((record, _convertir(ruta, record.name)))
 
     if unir and len(convertidos) > 1:
         # Cada documento bajo su propio título: quien lo lea, humano o modelo,

@@ -1,51 +1,100 @@
+# Tres servicios con la misma imagen y el mismo volumen, cada uno con su papel
+# (ver la cabecera de `backend/app.py`). Quién atiende qué lo decide nginx por la
+# ruta; ver `frontend/nginx.conf`.
+#
+# Por qué separados: un trabajo pesado que se pasa de memoria o de tiempo sólo
+# puede matar a su propio servicio. Las subidas y las descargas, que son lo que
+# hace que la web parezca viva, las atiende `web`, que no carga ninguna
+# biblioteca pesada.
+#
+# Los `mem_limit` **no son sólo una protección**: son la entrada del
+# autodimensionado. `config.py` le pregunta al cgroup cuánta memoria tiene y de
+# ahí salen los workers y el tope por trabajo. Súbelos y el servicio se ensancha
+# solo; bájalos y se estrecha.
+
+x-backend: &backend
+  restart: unless-stopped
+  build:
+    context: ./backend
+  image: merge-pdf-backend
+  volumes:
+    - ./backend/uploads:/app/uploads
+  networks:
+    - app-network
+  environment: &ajustes
+    FLASK_ENV: production
+    # Vacías si no las defines, y vacío significa "no dicho": manda el valor por
+    # defecto del código, que se calcula mirando el contenedor. Lo que quieras
+    # fijar, en el `.env`; está explicado en `.env.example`.
+    MAX_CONTENT_LENGTH_MB: ${MAX_CONTENT_LENGTH_MB:-}
+    SESSION_TTL_MINUTES: ${SESSION_TTL_MINUTES:-}
+    CLEANUP_INTERVAL_MINUTES: ${CLEANUP_INTERVAL_MINUTES:-}
+    SESSION_QUOTA_MB: ${SESSION_QUOTA_MB:-}
+    DISK_RESERVE_MB: ${DISK_RESERVE_MB:-}
+    MAX_IMAGE_MEGAPIXELS: ${MAX_IMAGE_MEGAPIXELS:-}
+    MAX_UNZIPPED_MB: ${MAX_UNZIPPED_MB:-}
+    REQUEST_MAX_AGE_SECONDS: ${REQUEST_MAX_AGE_SECONDS:-}
+    OCR_TIMEOUT_SECONDS: ${OCR_TIMEOUT_SECONDS:-}
+    OCR_JOBS: ${OCR_JOBS:-}
+    OCR_OPTIMIZE: ${OCR_OPTIMIZE:-}
+    PDF_TO_WORD_TIMEOUT_SECONDS: ${PDF_TO_WORD_TIMEOUT_SECONDS:-}
+    DOC_TO_PDF_TIMEOUT_SECONDS: ${DOC_TO_PDF_TIMEOUT_SECONDS:-}
+    MARKDOWN_TIMEOUT_SECONDS: ${MARKDOWN_TIMEOUT_SECONDS:-}
+    RASTER_TIMEOUT_SECONDS: ${RASTER_TIMEOUT_SECONDS:-}
+    TSA_URL: ${TSA_URL:-}
+    TSA_TIMEOUT_SECONDS: ${TSA_TIMEOUT_SECONDS:-}
+  healthcheck:
+    test: ["CMD", "python", "-c",
+           "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health').read()"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 20s
+
 services:
-  backend:
-    restart: unless-stopped
-    build:
-      context: ./backend
-    volumes:
-      - ./backend/uploads:/app/uploads
+  # Subidas, descargas, ZIP, renombrado y sesión. Barre las sesiones caducadas.
+  # No registra las herramientas: sin PyMuPDF ni pyHanko se queda en unos pocos MB.
+  web:
+    <<: *backend
     environment:
-      - FLASK_ENV=production
-      # Estas variables se pasan **vacías** si no las defines, y vacío significa
-      # "no dicho": entonces manda el valor por defecto del código, que para los
-      # workers y el OCR se calcula mirando los núcleos y la memoria que tenga
-      # esta máquina. Así no hay que escribir un `.env` para desplegar bien.
-      #
-      # Si aquí se pusieran valores fijos, pisarían ese cálculo. Lo que hay que
-      # tocar se toca en el `.env`, que está explicado en `.env.example`.
-      - MAX_CONTENT_LENGTH_MB=${MAX_CONTENT_LENGTH_MB:-}
-      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-}
-      - GUNICORN_THREADS=${GUNICORN_THREADS:-}
-      - GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-}
-      - MAX_CONCURRENT_CONVERSIONS=${MAX_CONCURRENT_CONVERSIONS:-}
-      - OCR_TIMEOUT_SECONDS=${OCR_TIMEOUT_SECONDS:-}
-      - OCR_JOBS=${OCR_JOBS:-}
-      - OCR_OPTIMIZE=${OCR_OPTIMIZE:-}
-      - PDF_TO_WORD_TIMEOUT_SECONDS=${PDF_TO_WORD_TIMEOUT_SECONDS:-}
-      - DOC_TO_PDF_TIMEOUT_SECONDS=${DOC_TO_PDF_TIMEOUT_SECONDS:-}
-      - CONVERSION_QUEUE_TIMEOUT_SECONDS=${CONVERSION_QUEUE_TIMEOUT_SECONDS:-}
-      - SESSION_TTL_MINUTES=${SESSION_TTL_MINUTES:-}
-      - CLEANUP_INTERVAL_MINUTES=${CLEANUP_INTERVAL_MINUTES:-}
-      - TSA_URL=${TSA_URL:-}
-      - TSA_TIMEOUT_SECONDS=${TSA_TIMEOUT_SECONDS:-}
-    # Un tope, no una reserva: si algo se desmadra muere este contenedor y lo
-    # reinicia Docker, en vez de que el kernel se ponga a matar procesos por toda
-    # la máquina y se lleve por delante a lo que haya al lado.
-    #
-    # 1,5 GB da margen de sobra: medido, el worker en reposo ronda los 300 MB y
-    # el trabajo más pesado añade unos 145 MB. Lo que puede sumar de verdad son
-    # varios workers y varias conversiones a la vez, y eso lo decides con
-    # `GUNICORN_WORKERS` y `MAX_CONCURRENT_CONVERSIONS`.
-    mem_limit: ${BACKEND_MEM_LIMIT:-1536m}
-    # Los dos topes son **la entrada del autodimensionado**, no sólo una
-    # protección: el backend le pregunta al cgroup qué tiene y se ajusta a lo que
-    # aquí le pongas, no a lo que tenga la máquina. Por eso van los dos por
-    # variable — dejar los núcleos escritos a fuego le mentía al cálculo en
-    # cuanto el servidor no tenía exactamente cuatro.
-    cpus: ${BACKEND_CPUS:-4.0}
-    networks:
-      - app-network
+      <<: *ajustes
+      SERVICIO: web
+      GUNICORN_WORKERS: ${WEB_WORKERS:-}
+      GUNICORN_THREADS: ${WEB_THREADS:-}
+      GUNICORN_TIMEOUT: ${WEB_TIMEOUT:-}
+    command: ["gunicorn", "-c", "gunicorn.conf.py", "app:app"]
+    mem_limit: ${WEB_MEM_LIMIT:-256m}
+    cpus: ${WEB_CPUS:-1.0}
+
+  # Vistas previas, inspecciones, formatos y QR: baratas y muy seguidas.
+  ligeros:
+    <<: *backend
+    environment:
+      <<: *ajustes
+      SERVICIO: ligeros
+      TRABAJOS_A_LA_VEZ: ${LIGEROS_TRABAJOS:-}
+      JOB_MEMORY_MB: ${LIGEROS_JOB_MEMORY_MB:-}
+      JOB_CPU_SECONDS: ${LIGEROS_JOB_CPU_SECONDS:-}
+      GUNICORN_TIMEOUT: ${LIGEROS_TIMEOUT:-}
+    command: ["gunicorn", "-c", "gunicorn.trabajos.conf.py", "app:app"]
+    mem_limit: ${LIGEROS_MEM_LIMIT:-640m}
+    cpus: ${LIGEROS_CPUS:-2.0}
+
+  # El trabajo de verdad: OCR, ofimática, rasterizado, firma, compresión.
+  # Cada petición, un proceso desechable con sus límites de memoria y CPU.
+  pesados:
+    <<: *backend
+    environment:
+      <<: *ajustes
+      SERVICIO: pesados
+      TRABAJOS_A_LA_VEZ: ${PESADOS_TRABAJOS:-}
+      JOB_MEMORY_MB: ${PESADOS_JOB_MEMORY_MB:-}
+      JOB_CPU_SECONDS: ${PESADOS_JOB_CPU_SECONDS:-}
+      JOB_OUTPUT_MB: ${PESADOS_JOB_OUTPUT_MB:-}
+      GUNICORN_TIMEOUT: ${PESADOS_TIMEOUT:-}
+    command: ["gunicorn", "-c", "gunicorn.trabajos.conf.py", "app:app"]
+    mem_limit: ${PESADOS_MEM_LIMIT:-1536m}
+    cpus: ${PESADOS_CPUS:-4.0}
 
   frontend:
     restart: unless-stopped
@@ -55,7 +104,9 @@ services:
     ports:
       - "8081:80"
     depends_on:
-      - backend
+      - web
+      - ligeros
+      - pesados
     networks:
       - app-network
 

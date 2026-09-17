@@ -6,12 +6,19 @@ import fitz  # PyMuPDF
 from PIL import Image
 from flask import Blueprint, jsonify
 
+import config
 from api import current_session, imaging, params
 from api.formatos import extension_de, salidas_de_imagen
+from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
 
 bp = Blueprint('pdf_a_imagen', __name__, url_prefix='/api/tools')
+
+# Plazo de este trabajo, que ocurre **dentro** del proceso y no como programa
+# aparte: sin él, el único freno era el plazo de gunicorn, que mata al worker
+# entero y con él las peticiones que llevara en sus otros hilos.
+PLAZO_EN_PROCESO = config.entorno_entero('RASTER_TIMEOUT_SECONDS', 180)
 
 # Resoluciones ofrecidas, en puntos por pulgada.
 RESOLUCIONES = {'pantalla': 96, 'normal': 150, 'alta': 300}
@@ -32,6 +39,7 @@ def formatos():
 
 
 @bp.post('/pdf-a-imagen')
+@limites.con_plazo(PLAZO_EN_PROCESO, 'El rasterizado')
 def pdf_a_imagen():
     session_id = current_session()
     datos = params.cuerpo()
@@ -78,6 +86,11 @@ def _guardar_pagina(pagina, ppp: int, destino: str, formato: str, calidad: int) 
     cada formato; PyMuPDF sólo sabría escribir unos pocos y con sus valores por
     defecto.
     """
+    # A 300 ppp una página de tamaño cartel son cientos de megapíxeles: se
+    # comprueba con la resolución pedida, no con el tamaño del archivo.
+    escala = ppp / 72
+    limites.comprobar_lienzo(pagina.rect.width * escala, pagina.rect.height * escala, 'La página')
+
     pixmap = pagina.get_pixmap(dpi=ppp, alpha=False)
     with Image.open(io.BytesIO(pixmap.tobytes('ppm'))) as imagen:
         imaging.guardar(imagen, destino, formato, calidad)

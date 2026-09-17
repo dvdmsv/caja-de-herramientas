@@ -7,12 +7,19 @@ import os
 
 from flask import Blueprint, jsonify
 
+import config
 from api import current_session, imaging, params
 from api.formatos import extension_de, extensiones_de_entrada
+from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
 
 bp = Blueprint('comprimir_imagen', __name__, url_prefix='/api/tools')
+
+# Plazo de este trabajo, que ocurre **dentro** del proceso y no como programa
+# aparte: sin él, el único freno era el plazo de gunicorn, que mata al worker
+# entero y con él las peticiones que llevara en sus otros hilos.
+PLAZO_EN_PROCESO = config.entorno_entero('RASTER_TIMEOUT_SECONDS', 180)
 
 # Formato de salida según el de entrada. Los que no admiten calidad se pasan a
 # JPEG, que es donde se nota la compresión.
@@ -28,6 +35,7 @@ LADO_MAXIMO_MINIMO, LADO_MAXIMO_MAXIMO = 320, 8000
 
 
 @bp.post('/comprimir-imagen')
+@limites.con_plazo(PLAZO_EN_PROCESO, 'La compresión')
 def comprimir_imagen():
     session_id = current_session()
     datos = params.cuerpo()

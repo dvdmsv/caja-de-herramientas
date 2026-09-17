@@ -17,6 +17,7 @@ import tempfile
 from flask import Blueprint, current_app, jsonify
 
 import config
+from api import limites
 from api import conversion, current_session, params
 from errors import ApiError
 from storage import storage, cambiar_extension
@@ -47,7 +48,10 @@ def documento_a_pdf():
             raise ApiError(
                 f'"{record.name}" no es un documento de texto. Se admiten '
                 f'{", ".join(sorted(EXTENSIONES_ADMITIDAS))}.', 400)
-        entradas.append((record, storage.path_of(session_id, file_id)))
+        ruta = storage.path_of(session_id, file_id)
+        # Un .docx o un .odt son un ZIP: lo que importa es lo que traen dentro.
+        limites.comprobar_descomprimido(ruta, record.name)
+        entradas.append((record, ruta))
 
     resultados = []
     with tempfile.TemporaryDirectory() as temporal:

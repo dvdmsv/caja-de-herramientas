@@ -6,7 +6,6 @@ y devuelven resultados que se descargan por aquí.
 import os
 import zipfile
 
-import fitz  # PyMuPDF
 from flask import Blueprint, jsonify, request, send_file
 
 from api import current_session, params
@@ -90,6 +89,12 @@ def page_count(file_id: str):
 
     ruta = storage.path_of(session_id, file_id)
     try:
+        # Importado aquí y no arriba: éste es el único sitio de todo el módulo que
+        # necesita PyMuPDF, y el servicio "web" —que es quien sirve este
+        # blueprint— no tiene por qué cargar 50 MB de biblioteca para atender
+        # subidas y descargas. Lo paga sólo quien cuenta páginas.
+        import fitz  # PyMuPDF
+
         with fitz.open(ruta) as documento:
             if documento.needs_pass:
                 raise ApiError(f'"{record.name}" está protegido con contraseña.', 422)

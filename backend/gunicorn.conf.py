@@ -37,6 +37,12 @@ timeout = ajustes.entorno_entero('GUNICORN_TIMEOUT', 300)
 
 graceful_timeout = 30
 
+# Registro de accesos por la salida estándar, que es de donde lo recoge Docker.
+# Sin esto no hay forma de saber qué ruta atendió cada servicio ni cuánto tardó,
+# que es lo primero que se busca cuando algo va lento.
+accesslog = '-'
+access_log_format = '%(h)s "%(r)s" %(s)s %(b)sB %(M)sms'
+
 # Reciclar workers: PyMuPDF y pyHanko no devuelven al sistema toda la memoria
 # que piden, así que un proceso muy usado se va hinchando. El desfase evita que
 # todos se reinicien a la vez y dejen un hueco sin nadie atendiendo.

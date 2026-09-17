@@ -17,7 +17,7 @@ import io
 import fitz  # PyMuPDF
 from flask import send_file
 
-from api import params
+from api import limites, params
 
 # Ancho de la vista previa en píxeles. Se ve bien en la caja donde va y no hay
 # que pagar por más: la página se pinta como mucho a unos 700 px de ancho.
@@ -34,6 +34,7 @@ def pagina_a_jpeg(documento, numero: int, ancho: int = ANCHO_VISTA) -> bytes:
     """Rasteriza una página, ya con lo que se le haya estampado."""
     pagina = documento[numero - 1]
     escala = ancho / pagina.rect.width if pagina.rect.width else 1
+    limites.comprobar_lienzo(pagina.rect.width * escala, pagina.rect.height * escala, 'La página')
     imagen = pagina.get_pixmap(matrix=fitz.Matrix(escala, escala), alpha=False)
     return imagen.tobytes('jpeg', jpg_quality=CALIDAD)
 

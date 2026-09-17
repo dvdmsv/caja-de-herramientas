@@ -99,6 +99,57 @@ def workers_recomendados() -> int:
     return max(1, min(nucleos(), memoria_mb() // MEMORIA_POR_WORKER_MB, MAXIMO_WORKERS))
 
 
+# --- servicios de trabajo (`ligeros` y `pesados`) --------------------------
+#
+# Los dos arrancan con `gunicorn.trabajos.conf.py`: el maestro carga las
+# bibliotecas una vez y cada petición la atiende un proceso hijo que muere al
+# acabar. El reparto de memoria del contenedor es, por tanto:
+#
+#     tope del contenedor  ≈  maestro  +  workers × memoria por trabajo
+#
+# Lo que se le reserva al maestro. Medido: unos 185 MB con PyMuPDF, Pillow y
+# WeasyPrint cargados; 256 deja aire para el crecimiento de la propia imagen.
+MEMORIA_MAESTRO_MB = 256
+
+# Perfil de cada servicio de trabajo. Los números son topes por **petición**, y
+# se aplican con `setrlimit` en el hijo, así que también los heredan LibreOffice,
+# Ghostscript y tesseract.
+PERFILES_TRABAJO = {
+    # Vistas previas, inspecciones y QR: cuestan poco y llegan seguidas (el
+    # deslizador de la marca de agua manda una cada 350 ms).
+    'ligeros': {'memoria_mb': 192, 'cpu_segundos': 30, 'maximo_workers': 3, 'plazo': 60},
+    # OCR, ofimática, rasterizado: un LibreOffice se come 350 MB y un OCR a
+    # cuatro núcleos 327, y pdf2docx arrastra OpenCV al importarse dentro del
+    # hijo, que ahí ya cuenta como memoria propia.
+    'pesados': {'memoria_mb': 512, 'cpu_segundos': None, 'maximo_workers': 2, 'plazo': None},
+}
+
+
+def workers_de_trabajo(papel: str) -> int:
+    """Cuántas peticiones a la vez aguanta este servicio.
+
+    Es el tope global de trabajo simultáneo: no hay cola dentro del proceso,
+    la cola es el socket. Sale de la memoria del contenedor, que `memoria_mb()`
+    lee del cgroup, así que basta cambiar el `mem_limit` para que se ajuste.
+    """
+    perfil = PERFILES_TRABAJO[papel]
+    caben = (memoria_mb() - MEMORIA_MAESTRO_MB) // perfil['memoria_mb']
+    return max(1, min(nucleos(), perfil['maximo_workers'], caben))
+
+
+def nucleos_por_trabajo() -> int:
+    """Núcleos que le tocan a **un** trabajo, no los del contenedor.
+
+    Importa para el OCR, que paraleliza por páginas: con dos trabajos a la vez
+    pidiendo los cuatro núcleos cada uno, los dos van más lentos que si se
+    reparten. Fuera de un servicio de trabajo (desarrollo) se usan todos.
+    """
+    papel = os.environ.get('SERVICIO', '').strip().lower()
+    if papel in PERFILES_TRABAJO:
+        return max(1, nucleos() // workers_de_trabajo(papel))
+    return nucleos()
+
+
 # Carpeta raíz donde vive el almacenamiento temporal de todas las sesiones.
 UPLOAD_ROOT = os.environ.get('UPLOAD_ROOT', 'uploads')
 
@@ -108,6 +159,21 @@ MAX_CONTENT_LENGTH = entorno_entero('MAX_CONTENT_LENGTH_MB', 200) * 1024 * 1024
 
 # Tiempo que sobreviven los archivos de una sesión sin actividad.
 SESSION_TTL_SECONDS = entorno_entero('SESSION_TTL_MINUTES', 120) * 60
+
+# Cuánto puede acumular una sola sesión. Con el tope de subida en 200 MB, esto
+# es lo que evita que alguien repita la subida veinte veces y se lleve el disco
+# por delante. Los resultados cuentan: un PDF a 300 ppp pesa mucho más que su
+# original.
+SESSION_QUOTA_MB = entorno_entero('SESSION_QUOTA_MB', 1024)
+
+# Espacio que nunca se toca. El volumen vive en el disco de la máquina, donde
+# hay más cosas: quedarse sin sitio no rompe sólo esta aplicación, rompe todo lo
+# que haya al lado. Al acercarse, se desalojan las sesiones más viejas.
+DISK_RESERVE_MB = entorno_entero('DISK_RESERVE_MB', 1024)
+
+# Una sesión con actividad reciente no se desaloja nunca, aunque haga falta
+# sitio: alguien está trabajando con ella.
+SESION_PROTEGIDA_SEGUNDOS = entorno_entero('SESSION_PROTECTED_MINUTES', 10) * 60
 
 # Cada cuánto se pasa el recolector de sesiones caducadas.
 CLEANUP_INTERVAL_SECONDS = entorno_entero('CLEANUP_INTERVAL_MINUTES', 15) * 60

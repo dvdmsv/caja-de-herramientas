@@ -17,13 +17,20 @@ import re
 import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
 
+import config
 from api import current_session, params
 from api.tipografia import (COLORES_TEXTO, CONTROLES, FAMILIAS, FUENTES, INTERLINEADO,
                             TAMANO_MAXIMO, TAMANO_MINIMO)
+from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
 
 bp = Blueprint('visor', __name__, url_prefix='/api/tools')
+
+# Plazo de este trabajo, que ocurre **dentro** del proceso y no como programa
+# aparte: sin él, el único freno era el plazo de gunicorn, que mata al worker
+# entero y con él las peticiones que llevara en sus otros hilos.
+PLAZO_EN_PROCESO = config.entorno_entero('RASTER_TIMEOUT_SECONDS', 180)
 
 GIROS = {0, 90, 180, 270}
 
@@ -51,6 +58,7 @@ MAXIMO_MARCAS = 2000
 
 
 @bp.post('/visor/guardar')
+@limites.con_plazo(PLAZO_EN_PROCESO, 'El guardado')
 def guardar():
     session_id = current_session()
     datos = params.cuerpo()
