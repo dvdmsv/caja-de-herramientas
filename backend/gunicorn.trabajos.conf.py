@@ -97,8 +97,8 @@ def post_fork(server, worker):
 
 def on_starting(server):
     server.log.info(
-        'Servicio "%s": %d núcleos, %d MB de tope -> %d trabajos a la vez, '
+        'Servicio "%s": %d núcleos, %d MB de tope -> %d %s a la vez, '
         '%d MB y %d s de CPU por trabajo, salida máxima %d MB.',
         PAPEL, ajustes.nucleos(), ajustes.memoria_mb(), workers,
-        MEMORIA_MB, CPU_SEGUNDOS, SALIDA_MB,
+        'trabajo' if workers == 1 else 'trabajos', MEMORIA_MB, CPU_SEGUNDOS, SALIDA_MB,
     )

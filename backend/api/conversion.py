@@ -80,7 +80,20 @@ def ejecutar(orden: list[str], tiempo_limite: int, programa: str,
         raise ApiError('El servidor está ocupado procesando otro documento. '
                        'Inténtalo de nuevo en un momento.', 503)
     try:
-        return subprocess.run(orden, capture_output=True, text=True, timeout=tiempo_limite)
+        resultado = subprocess.run(orden, capture_output=True, text=True, timeout=tiempo_limite)
+        if resultado.returncode < 0:
+            # Código negativo = lo mató una señal, no terminó mal. Lo normal es
+            # que se haya pasado del límite de memoria del worker, que hereda:
+            # medido, pdf2docx con 512 MB se cae con violación de segmento (-11)
+            # sin decir nada. Antes esto salía como "el archivo está dañado", que
+            # manda a buscar el problema al sitio equivocado.
+            current_app.logger.warning('%s murió por la señal %d.', programa,
+                                       -resultado.returncode)
+            raise ApiError(
+                f'{trabajo} se ha quedado sin memoria con este documento. '
+                'Prueba con uno más corto, o sube el tope de memoria por trabajo '
+                'del servidor.', 413)
+        return resultado
     except FileNotFoundError as err:  # falta el programa en la imagen
         current_app.logger.error('%s no está instalado: %s', programa, err)
         raise ApiError(no_disponible, 500) from err

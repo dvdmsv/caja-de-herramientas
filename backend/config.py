@@ -118,10 +118,13 @@ PERFILES_TRABAJO = {
     # Vistas previas, inspecciones y QR: cuestan poco y llegan seguidas (el
     # deslizador de la marca de agua manda una cada 350 ms).
     'ligeros': {'memoria_mb': 192, 'cpu_segundos': 30, 'maximo_workers': 3, 'plazo': 60},
-    # OCR, ofimática, rasterizado: un LibreOffice se come 350 MB y un OCR a
-    # cuatro núcleos 327, y pdf2docx arrastra OpenCV al importarse dentro del
-    # hijo, que ahí ya cuenta como memoria propia.
-    'pesados': {'memoria_mb': 512, 'cpu_segundos': None, 'maximo_workers': 2, 'plazo': None},
+    # OCR, ofimática, rasterizado. El tope lo marca el más tragón, y **no** es
+    # el que parece: medido en el contenedor con `ulimit -d`, LibreOffice
+    # convierte con 384 MB, pero pdf2docx (que arrastra OpenCV y numpy) se cae
+    # con violación de segmento a 512 y necesita 768. Los programas externos
+    # heredan este límite del worker que los lanza, así que quedarse corto no da
+    # un error de memoria: da un proceso muerto a mitad.
+    'pesados': {'memoria_mb': 768, 'cpu_segundos': None, 'maximo_workers': 2, 'plazo': None},
 }
 
 

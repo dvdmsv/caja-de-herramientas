@@ -160,3 +160,35 @@ def test_el_plazo_atraviesa_los_except_amplios(entorno):
         herramienta()
 
     assert fallo.value.status == 504
+
+
+def test_un_programa_muerto_por_señal_no_se_confunde_con_un_archivo_dañado(entorno, monkeypatch):
+    """Medido: pdf2docx con 512 MB de tope muere con violación de segmento (-11).
+
+    Los programas externos heredan el límite de memoria del worker, así que
+    quedarse corto no da un error de memoria: da un proceso muerto a mitad. Sin
+    traducirlo, el usuario leía «el archivo está dañado».
+    """
+    import subprocess
+
+    from errors import ApiError
+
+    entorno()
+    import importlib
+
+    import api.conversion
+    importlib.reload(api.conversion)
+
+    def muere(*_args, **_kwargs):
+        return subprocess.CompletedProcess(args=[], returncode=-11, stdout='', stderr='')
+
+    monkeypatch.setattr(subprocess, 'run', muere)
+
+    import flask
+    aplicacion = flask.Flask(__name__)
+    with aplicacion.app_context():
+        with pytest.raises(ApiError) as fallo:
+            api.conversion.ejecutar(['programa'], 10, 'programa', 'no disponible', 'La conversión')
+
+    assert fallo.value.status == 413
+    assert 'sin memoria' in fallo.value.message

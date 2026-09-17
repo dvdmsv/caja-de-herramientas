@@ -31,13 +31,24 @@ def entorno(tmp_path, monkeypatch):
         monkeypatch.setenv('UPLOAD_ROOT', str(tmp_path / 'uploads'))
         for nombre, valor in variables.items():
             monkeypatch.setenv(nombre, str(valor))
+
         import config
         importlib.reload(config)
-        import storage
-        importlib.reload(storage)
+
+        # `api.limites` guarda sus topes en constantes de módulo, así que hay
+        # que recargarlo para que lea la configuración nueva.
         import api.limites
         importlib.reload(api.limites)
-        return config, storage
+
+        # El almacén **no** se recarga: se reconfigura la instancia que ya
+        # existe. Recargar el módulo crearía otra, y las herramientas seguirían
+        # usando la de antes —guardan la referencia al importarse—, así que el
+        # test escribiría en una carpeta y la herramienta leería en otra.
+        import storage as modulo_storage
+        modulo_storage.storage.root = os.path.abspath(config.UPLOAD_ROOT)
+        modulo_storage.storage.ttl_seconds = config.SESSION_TTL_SECONDS
+        os.makedirs(modulo_storage.storage.root, exist_ok=True)
+        return config, modulo_storage
     return preparar
 
 

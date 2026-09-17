@@ -93,7 +93,9 @@ services:
       JOB_OUTPUT_MB: ${PESADOS_JOB_OUTPUT_MB:-}
       GUNICORN_TIMEOUT: ${PESADOS_TIMEOUT:-}
     command: ["gunicorn", "-c", "gunicorn.trabajos.conf.py", "app:app"]
-    mem_limit: ${PESADOS_MEM_LIMIT:-1536m}
+    # 2 GB para que quepan dos trabajos de 768 MB más el maestro. Con 1,5 GB
+    # sólo cabía uno, y antes de separar los servicios había dos a la vez.
+    mem_limit: ${PESADOS_MEM_LIMIT:-2048m}
     cpus: ${PESADOS_CPUS:-4.0}
 
   frontend:

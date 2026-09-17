@@ -6,9 +6,8 @@ rasterizar, así que el resultado conserva texto, fuentes y calidad.
 import os
 import re
 
+import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
-from pypdf import PdfReader, PdfWriter
-from pypdf.errors import PdfReadError
 
 from api import current_session, params
 from errors import ApiError
@@ -38,19 +37,14 @@ def dividir_pdf():
     origen = storage.path_of(session_id, file_ids[0])
 
     try:
-        lector = PdfReader(origen)
-    except PdfReadError as err:
-        raise ApiError(f'No se ha podido abrir el PDF: {err}', 422) from err
-
-    # El cifrado se mira antes de tocar las páginas: pypdf revienta al contarlas
-    # si el documento sigue cifrado, y el error que suelta no le dice nada a nadie.
-    if lector.is_encrypted:
-        raise ApiError('El PDF está protegido con contraseña. Quítasela primero.', 422)
-
-    try:
-        total = len(lector.pages)
-    except PdfReadError as err:
-        raise ApiError(f'No se ha podido abrir el PDF: {err}', 422) from err
+        with fitz.open(origen) as documento:
+            if documento.needs_pass:
+                raise ApiError('El PDF está protegido con contraseña. Quítasela primero.', 422)
+            total = documento.page_count
+    except ApiError:
+        raise
+    except Exception as err:
+        raise ApiError(f'No se ha podido abrir el PDF: puede estar dañado ({err}).', 422) from err
     if total == 0:
         raise ApiError('El PDF no tiene páginas.', 422)
 
@@ -64,9 +58,9 @@ def dividir_pdf():
     ancho = len(str(total))
 
     if modo == 'unico':
-        resultados = [_escribir(session_id, f'{base}-paginas.pdf', lector, numeros)]
+        resultados = [_escribir(session_id, f'{base}-paginas.pdf', origen, numeros)]
     else:
-        resultados = [_escribir(session_id, f'{base}-pagina-{n:0{ancho}d}.pdf', lector, [n])
+        resultados = [_escribir(session_id, f'{base}-pagina-{n:0{ancho}d}.pdf', origen, [n])
                       for n in numeros]
 
     return jsonify({'files': [r.to_json() for r in resultados]}), 201
@@ -109,12 +103,20 @@ def expandir_paginas(texto: str, total: int) -> list[int]:
     return unicas
 
 
-def _escribir(session_id: str, nombre: str, lector: PdfReader, numeros: list[int]):
+def _escribir(session_id: str, nombre: str, origen: str, numeros: list[int]):
+    """Escribe un PDF con las páginas pedidas, en el orden pedido.
+
+    Se usa `select`, que se queda con esas páginas y **reajusta el índice y los
+    destinos de los enlaces internos**. Copiar página a página, como se hacía
+    antes, dejaba el documento sin índice y con los enlaces apuntando a la
+    página equivocada.
+
+    Se vuelve a abrir el original en cada archivo porque `select` modifica el
+    documento en memoria: reutilizarlo dejaría el segundo recorte sobre el
+    primero.
+    """
     destino, salida = storage.reserve_output(session_id, nombre)
-    escritor = PdfWriter()
-    for numero in numeros:
-        escritor.add_page(lector.pages[numero - 1])
-    with open(destino, 'wb') as fichero:
-        escritor.write(fichero)
-    escritor.close()
+    with fitz.open(origen) as documento:
+        documento.select([n - 1 for n in numeros])
+        documento.save(destino, deflate=True, garbage=3)
     return storage.commit_output(session_id, salida)
