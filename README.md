@@ -6,8 +6,9 @@ El procesado ocurre en el servidor; el navegador sólo sube, ordena y descarga.
 - **Frontend**: Angular 22 (componentes independientes) + Bootstrap 5.
 - **Backend**: Flask con un blueprint por herramienta (PyMuPDF, Pillow, pypdf,
   markitdown, LibreOffice y segno hacen el trabajo).
-- **Despliegue**: Docker Compose, con nginx sirviendo el frontend y haciendo de
-  pasarela hacia el backend.
+- **Despliegue**: Docker Compose con **tres servicios** de backend —uno para
+  subidas y descargas, uno para lo barato y uno para el trabajo pesado— y nginx
+  sirviendo el frontend y repartiendo la API entre ellos.
 
 ![La portada: buscador, soltar un archivo y el catálogo por colores](docs/capturas/portada.png)
 
@@ -604,13 +605,14 @@ El más bajo de los dos es el que manda.
 ### Ajustar a la máquina que tengas
 
 **Normalmente no hay que ajustar nada.** Al arrancar, el backend le pregunta al
-cgroup cuántos núcleos y cuánta memoria tiene el contenedor y se dimensiona a
-eso, así que la misma imagen sale prudente en un VPS de 512 MB y aprovechada en
+cgroup cuántos núcleos y cuánta memoria tiene **su** contenedor y se dimensiona
+a eso, así que la misma imagen sale prudente en un VPS de 512 MB y aprovechada en
 una máquina holgada. Lo elegido queda dicho en el log:
 
 ```
-$ docker compose logs backend | grep "Máquina detectada"
-Máquina detectada: 4 núcleos, 1536 MB de memoria -> 2 workers, 4 hilos
+$ docker compose logs pesados | grep "trabajos a la vez"
+Servicio "pesados": 4 núcleos, 2048 MB de tope -> 2 trabajos a la vez,
+768 MB y 300 s de CPU por trabajo, salida máxima 512 MB
 ```
 
 Si quieres llevarle la contraria, cualquiera de estas variables manda sobre lo
@@ -622,19 +624,30 @@ acertado.
 
 | Variable | Por defecto | Qué significa subirla |
 |---|---|---|
-| `GUNICORN_WORKERS` | *se calcula* | Procesos que atienden peticiones. Los que quepan a 768 MB cada uno, sin pasar de los núcleos ni de 4 |
-| `GUNICORN_THREADS` | `4` | Peticiones a la vez por proceso. Bastan hilos porque PyMuPDF y Pillow sueltan el GIL |
-| `GUNICORN_TIMEOUT` | `300` | Plazo de una petición. Tiene que ser **mayor que todos** los plazos de abajo |
-| `MAX_CONCURRENT_CONVERSIONS` | `1` | Trabajos pesados simultáneos **por worker** — los reales son `GUNICORN_WORKERS` × ésta. Son los tres que arrancan un programa aparte (documento a PDF, PDF a Word y OCR) y comparten turno: un LibreOffice come entre 130 y 350 MB, y un OCR a cuatro núcleos, 327 MB |
-| `CONVERSION_QUEUE_TIMEOUT_SECONDS` | `45` | Cuánto espera una petición a que le toque el turno. **Se suma al plazo del trabajo**: con el OCR son 45 + 240 = 285 s, y `GUNICORN_TIMEOUT` son 300 |
-| `OCR_JOBS` | *se calcula* | Páginas que el OCR reconoce a la vez; por defecto, los núcleos que haya. **El ajuste que más se nota**: con 4 núcleos, 60 páginas pasan de 36 s a 21 s, a cambio de 150 MB más |
+| `PESADOS_MEM_LIMIT` | `2048m` | Tope del servicio pesado. **Es la entrada del cálculo**: con 768 MB por trabajo y 256 de maestro, 2 GB dan dos trabajos a la vez |
+| `LIGEROS_MEM_LIMIT` | `640m` | Lo mismo para las vistas previas y las inspecciones, que cuestan 192 MB cada una |
+| `WEB_MEM_LIMIT` | `256m` | Subidas y descargas. No carga bibliotecas pesadas: en reposo son 58 MB |
+| `PESADOS_TRABAJOS` / `LIGEROS_TRABAJOS` | *se calcula* | Cuántas peticiones a la vez. Es el tope de trabajo simultáneo: no hay cola dentro del proceso, la cola es el socket |
+| `PESADOS_JOB_MEMORY_MB` | `768` | Memoria por trabajo. Lo heredan los programas que lance: medido, pdf2docx se cae por debajo de 768 |
+| `PESADOS_JOB_CPU_SECONDS` | `300` | Segundos de CPU por trabajo. Protege del bucle infinito que no pide memoria |
+| `PESADOS_CPUS` | `4.0` | Núcleos del servicio. El OCR los reparte entre sus trabajos |
+| `MAX_IMAGE_MEGAPIXELS` | `40` | Tope de una imagen o de una página al rasterizarla. Una A4 a 600 ppp son 35 MP; un cartel de 5000×5000 puntos a 150 ppp, 109 |
+| `MAX_UNZIPPED_MB` | `400` | Lo que puede ocupar descomprimido un `.docx`, `.xlsx`, `.pptx` o `.epub` |
+| `SESSION_QUOTA_MB` | `1024` | Lo que puede acumular una sesión entre subidas y resultados |
+| `DISK_RESERVE_MB` | `1024` | Espacio que nunca se toca. Al acercarse, se desalojan las sesiones viejas |
+| `REQUEST_MAX_AGE_SECONDS` | `60` | Cuánto puede esperar una petición en la cola antes de descartarla con un 503 |
+| `RASTER_TIMEOUT_SECONDS` | `180` | Plazo de rasterizar, comprimir y extraer imágenes |
+| `MARKDOWN_TIMEOUT_SECONDS` | `120` | Plazo de pasar a Markdown y de maquetar desde Markdown |
+| `OCR_JOBS` | *se calcula* | Páginas que el OCR reconoce a la vez: los núcleos del servicio repartidos entre sus trabajos. **El ajuste que más se nota**: con 4 núcleos, 60 páginas pasan de 36 s a 21 s |
 | `OCR_OPTIMIZE` | `1` | Cuánto aprieta el PDF resultante, de 0 a 3. El 1 sale casi gratis: mismo tiempo y archivos hasta cuatro veces menores |
 | `OCR_TIMEOUT_SECONDS` | `240` | Plazo del OCR |
 | `PDF_TO_WORD_TIMEOUT_SECONDS` | `240` | Plazo al convertir a `.docx` |
 | `DOC_TO_PDF_TIMEOUT_SECONDS` | `180` | Plazo del lote hacia PDF |
-| `BACKEND_MEM_LIMIT` | `1536m` | Tope de memoria del contenedor. **Es la entrada del cálculo de arriba**: subirlo da más workers |
-| `BACKEND_CPUS` | `4.0` | Núcleos que se le dan al contenedor. La otra entrada del cálculo: el backend cree tener los que aquí se digan, no los de la máquina |
 | `MAX_CONTENT_LENGTH_MB` | `200` | Tamaño máximo de una petición. nginx tiene el suyo y manda el más bajo |
+
+`MAX_CONCURRENT_CONVERSIONS` y `CONVERSION_QUEUE_TIMEOUT_SECONDS` siguen ahí,
+pero **sólo afectan a `python app.py`**: en producción no hay turno dentro del
+proceso, el tope es el número de trabajos de `pesados`.
 
 **No hay límite de páginas ni de archivos en ninguna herramienta.** Lo que las
 acota es el tiempo, que es lo que de verdad protege: se mide que un OCR de 10
@@ -704,27 +717,65 @@ frontend/src/app/
 Gracias a esas piezas compartidas, cada herramienta ocupa entre 1 y 4 kB: sólo
 declara su `slug`, sus opciones y su plantilla.
 
-### Capacidad del backend
+### Capacidad: tres servicios y un proceso por trabajo
 
-La configuración por defecto está pensada para una máquina modesta, y todo se
-puede subir por variables de entorno (ver arriba):
+La misma imagen hace tres papeles, y quién atiende qué lo decide nginx por la
+ruta:
 
-- **Los workers que quepan, con cuatro hilos cada uno**, calculados al arrancar
-  a partir de lo que tenga el contenedor. Cada uno ronda los 300 MB con las
-  bibliotecas cargadas; con los topes de serie salen dos.
-- **Plazo de 300 s**, el mismo que espera nginx. Con los valores por defecto de
-  gunicorn (un proceso y 30 s) moría cualquier trabajo largo.
-- **markitdown se carga la primera vez que se usa**, no al arrancar. El backend
-  se queda en unos 75 MB y sólo sube a ~200 MB si alguien convierte a Markdown;
-  como los workers se reciclan cada 200 peticiones, esa memoria se devuelve
-  sola.
-- **Topes de 1,5 GB y 4 CPU** en `docker-compose.yml` (`BACKEND_MEM_LIMIT` y
-  `BACKEND_CPUS`), para que un trabajo desbocado mate su contenedor en vez de
-  tumbar la máquina entera, y subidas de hasta 200 MB por petición
-  (`MAX_CONTENT_LENGTH_MB`, con el mismo tope en nginx). Es un tope, no una
-  reserva: sólo se paga lo que se usa.
+| Servicio | Qué atiende | En reposo |
+|---|---|---|
+| `web` | subidas, descargas, ZIP, sesión | 58 MB |
+| `ligeros` | vistas previas, inspecciones, formatos, QR | 85 MB |
+| `pesados` | OCR, ofimática, rasterizado, firma, compresión | 82 MB |
 
-El porqué de cada opción está comentado en `backend/Dockerfile`.
+**Por qué separados.** Antes había un solo servicio con workers de varios hilos,
+y un trabajo que se pasaba de tiempo se llevaba por delante las peticiones que
+el worker tuviera en sus otros hilos; uno que se pasaba de memoria mataba el
+contenedor entero. Ahora el desastre se queda en su servicio: las descargas y la
+web siguen respondiendo.
+
+**Un proceso desechable por petición.** Los dos servicios de trabajo arrancan con
+`preload_app` y `max_requests=1`: el maestro carga las bibliotecas una vez y cada
+petición la atiende un hijo que muere al terminar, devolviendo toda su memoria
+—incluida la que PyMuPDF y pyHanko no sueltan—. A ese hijo se le ponen
+`RLIMIT_DATA`, `RLIMIT_CPU` y `RLIMIT_FSIZE`, que heredan también LibreOffice,
+Ghostscript y tesseract.
+
+Cuántos caben lo decide el tope de memoria del contenedor:
+
+```
+trabajos a la vez = (tope del contenedor − 256 MB de maestro) / memoria por trabajo
+```
+
+Con los valores de serie salen dos trabajos pesados a la vez, de 768 MB cada
+uno. Ese 768 no es un número redondo: medido con `ulimit -d` en el contenedor,
+LibreOffice convierte con 384 MB, pero pdf2docx —que arrastra OpenCV— se cae con
+violación de segmento por debajo de 768.
+
+Para ver con qué ha arrancado cada servicio:
+
+```bash
+docker compose logs pesados | grep "trabajos a la vez"
+```
+
+**Topes por trabajo**, porque el tamaño del archivo no dice lo que va a costar
+procesarlo:
+
+- **Megapíxeles** antes de rasterizar: un PDF de 200 kB puede tener una página
+  de tamaño cartel que a 150 ppp son 109 megapíxeles.
+- **Tamaño descomprimido** de los documentos que por dentro son un ZIP: un
+  `.docx` de 2 MB puede traer gigas.
+- **Plazo propio** de cada herramienta, por debajo del plazo del servicio.
+- **Cuota por sesión y reserva de disco**, con desalojo de las sesiones más
+  viejas —nunca de las activas— cuando aprieta el espacio.
+
+Quedarse sin memoria o sin disco se responde con un **413 que lo explica**, no
+con un 500. Incluye lo que dicen las bibliotecas nativas: MuPDF no lanza
+`MemoryError`, dice «realloc (78137500 bytes) failed».
+
+**`python app.py` no representa esto.** Registra los tres papeles en un proceso
+para poder desarrollar, y ahí no hay aislamiento ninguno entre una petición y la
+siguiente.
 
 ### Sesiones y archivos temporales
 
@@ -854,10 +905,18 @@ requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
 ## Pruebas
 
 ```bash
-cd frontend && npm test
+cd frontend && npm test                                    # 129 tests, Vitest
+cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 56 tests
 ```
 
-Son 103 tests con **Vitest** sobre jsdom. No hacen falta ni navegador ni
+Los del backend cubren lo que se nota tarde: los topes por trabajo (que el
+mensaje diga las medidas, que quedarse sin memoria sea un 413 y no un 500), las
+cuotas de disco y su desalojo, el aislamiento entre sesiones, el reparto entre
+los tres servicios y que unir y dividir conserven índice, enlaces internos y
+campos de formulario. No tocan OCR, LibreOffice ni WeasyPrint: son lentos y
+necesitan la imagen, así que eso se comprueba contra el contenedor.
+
+Los del frontend son 129 con **Vitest** sobre jsdom. No hacen falta ni navegador ni
 pantalla, así que corren igual en un portátil que en una integración continua, y
 tardan unos dos segundos.
 
@@ -879,11 +938,12 @@ Cada push y cada pull request pasan por
 que comprobaría alguien clonando el repositorio por primera vez:
 
 - `npm ci` desde el lockfile —falla si el lockfile y el `package.json` no
-  concuerdan—, compilación y los 103 tests.
+  concuerdan—, compilación y los 129 tests del frontend.
 - Que la salida sigue donde el `Dockerfile` la espera: `dist/merge-pdf/browser`,
   el worker de pdf.js como `.mjs` y `autoscript.js` publicado. Son tres cosas
   que **sólo se rompen en producción** y que ningún test detectaría.
-- `docker compose build` de las dos imágenes.
+- `docker compose build` de las imágenes.
+- Los 56 tests del backend con pytest.
 - Que el backend arranca y registra sus rutas, que descarta un import roto o un
   blueprint sin registrar.
 

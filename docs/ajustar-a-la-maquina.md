@@ -4,43 +4,48 @@ Guía de despliegue: qué tocar cuando esto va a correr en un VPS pequeño, en u
 servidor holgado o en algo intermedio. La referencia variable por variable está
 en [`.env.example`](../.env.example); aquí están las **recetas** y el porqué.
 
-**Si sólo lees un párrafo:** el backend no mira la máquina, mira **su
-contenedor**. Al arrancar le pregunta al cgroup cuántos núcleos y cuánta memoria
-tiene y se ajusta a eso. Como el `docker-compose.yml` le pone topes
-(`BACKEND_MEM_LIMIT` y `BACKEND_CPUS`), mudarse a un servidor el doble de grande
-**no cambia nada** hasta que subes esos dos números. Son la primera palanca.
+**Si sólo lees un párrafo:** son tres servicios, y cada uno mira **su propio
+contenedor**, no la máquina. Al arrancar le pregunta al cgroup cuántos núcleos y
+cuánta memoria tiene y se ajusta a eso. Como el `docker-compose.yml` le pone
+topes, mudarse a un servidor el doble de grande **no cambia nada** hasta que
+subes esos topes. Son la primera palanca.
 
 ---
 
+## Los tres servicios
+
+| Servicio | Qué atiende | Tope de serie | En reposo |
+|---|---|---|---|
+| `web` | subidas, descargas, ZIP, sesión | 256m | 58 MB |
+| `ligeros` | vistas previas, inspecciones, formatos, QR | 640m | 85 MB |
+| `pesados` | OCR, ofimática, rasterizado, firma, compresión | 2048m | 82 MB |
+
+`web` usa hilos, porque su trabajo es esperar al disco. Los otros dos atienden
+**cada petición en un proceso que muere al terminar**, con sus propios límites de
+memoria y de CPU: así un trabajo desbocado no se lleva por delante al de al
+lado, y la memoria vuelve entera aunque PyMuPDF no la suelte.
+
 ## Cómo decide el proyecto
 
-Al arrancar, `backend/config.py` calcula:
-
 ```
-workers = min( núcleos , memoria_MB / 768 , 4 )      # mínimo 1
+trabajos a la vez = min( núcleos , (tope_MB − 256 de maestro) / memoria_por_trabajo , tope del perfil )
 ```
 
-y cada worker atiende con **4 hilos**. Lo elegido queda dicho en el log, que es
-la primera cosa que mirar después de cualquier cambio:
+Con los valores de serie: `pesados` saca **2 trabajos de 768 MB** y `ligeros`,
+**2 de 192 MB**. Lo elegido queda dicho en el log, que es la primera cosa que
+mirar tras cualquier cambio:
 
 ```bash
-docker compose logs backend | grep "Máquina detectada"
-# Máquina detectada: 4 núcleos, 1536 MB de memoria -> 2 workers, 4 hilos
+docker compose logs pesados | grep "trabajos a la vez"
+# Servicio "pesados": 4 núcleos, 2048 MB de tope -> 2 trabajos a la vez,
+# 768 MB y 300 s de CPU por trabajo, salida máxima 512 MB.
 ```
 
-Los tres números de la fórmula:
-
-- **768 MB por worker.** No es lo que ocupa el worker —unos 300 MB con las
-  bibliotecas cargadas— sino eso más el programa pesado que puede estar
-  lanzando: un LibreOffice come entre 130 y 350 MB, y un OCR a cuatro núcleos,
-  327 MB. El presupuesto cubre **uno** de esos por worker, y quien garantiza que
-  no haya dos es el turno de `api/conversion.py`.
-- **Los núcleos**, porque más procesos que núcleos sólo añade cambios de
-  contexto.
-- **El techo de 4**, que no lo pone la memoria: lo pone que esto es una
-  herramienta de trabajo y no un servicio con miles de visitas. Pasado ese
-  punto la concurrencia ya la dan los hilos. En una máquina grande hay que
-  saltárselo **a mano**, y es una decisión consciente.
+Los 768 MB por trabajo no son un número redondo. Medido con `ulimit -d` dentro
+del contenedor: LibreOffice convierte con 384 MB, pero **pdf2docx necesita 768**
+—arrastra OpenCV y numpy— y por debajo se cae con violación de segmento. Los
+programas externos heredan el límite del proceso que los lanza, así que quedarse
+corto no da un error de memoria: da un proceso muerto a mitad.
 
 ---
 
@@ -50,126 +55,75 @@ Un VPS mínimo, o esto compartiendo servidor con otras cosas.
 
 ```bash
 # .env
-BACKEND_MEM_LIMIT=768m      # con 2 GB de máquina: 1536m
-BACKEND_CPUS=1.0            # los que tenga de verdad
+WEB_MEM_LIMIT=192m
+LIGEROS_MEM_LIMIT=448m        # 1 vista previa a la vez
+PESADOS_MEM_LIMIT=1024m       # 1 trabajo pesado a la vez
+WEB_CPUS=0.5
+LIGEROS_CPUS=0.5
+PESADOS_CPUS=1.0
 OCR_JOBS=1
 MAX_CONTENT_LENGTH_MB=50
+SESSION_QUOTA_MB=256
 ```
 
-Sale **1 worker con 4 hilos**: atiende varias peticiones a la vez y sólo una
-pesada, que es justo lo que cabe.
-
-`OCR_JOBS=1` no es opcional aquí. Por defecto son los núcleos que haya, y cuatro
-procesos de Tesseract en un núcleo se estorban entre ellos y pasan de 180 a
-327 MB para ir *más lento*. Con un núcleo, uno.
-
-`MAX_CONTENT_LENGTH_MB=50` es por el disco, no por la memoria: los archivos
-subidos viven dos horas en `backend/uploads/` y nadie impide a un usuario llenar
-lo que haya. Acuérdate de bajar también el `client_max_body_size` de
-`frontend/nginx.conf`, que manda el más bajo de los dos.
-
-Si además usas «Documento a Markdown», sube la memoria a `1g`: markitdown se
-carga la primera vez que se usa y añade unos 125 MB al worker hasta que se
-recicla.
-
-**Lo que no hay que hacer:** subir `GUNICORN_WORKERS` «por si acaso». Dos
-workers en 768 MB no caben, y el resultado no es lentitud sino que el cgroup
-mata el contenedor a mitad de un trabajo.
-
----
+Sale **un trabajo pesado a la vez**, que es justo lo que cabe. El resto de la
+web sigue respondiendo mientras ese trabajo ocupa su proceso.
 
 ## Receta 2 · Máquina normal (4 núcleos, 4–8 GB)
 
-El caso corriente: un VPS decente dedicado a esto.
+Lo que trae el proyecto de serie. No hace falta `.env`.
 
-```bash
-# .env
-BACKEND_MEM_LIMIT=3g
-BACKEND_CPUS=4.0
-```
-
-Y ya está. Salen **4 workers × 4 hilos**, y con ellos 4 trabajos pesados
-simultáneos, que es lo que da de sí la máquina. `OCR_JOBS` se calcula solo y
-acierta.
-
-Con 8 GB puedes subir `BACKEND_MEM_LIMIT` a `4g` para tener más colchón, pero no
-saldrán más workers: el techo de 4 ya está tocando.
-
----
+Si además la máquina es sólo para esto, la palanca es `PESADOS_MEM_LIMIT`: con
+`2816m` salen tres trabajos pesados a la vez en lugar de dos.
 
 ## Receta 3 · Máquina potente (8+ núcleos, 16+ GB)
 
-Aquí el autodimensionado se queda corto a propósito y hay que decirle que no.
-
 ```bash
 # .env
-BACKEND_MEM_LIMIT=6g
-BACKEND_CPUS=8.0
-GUNICORN_WORKERS=6
-OCR_JOBS=2
+WEB_MEM_LIMIT=512m
+WEB_THREADS=8
+LIGEROS_MEM_LIMIT=1536m       # 3 vistas previas (tope del perfil)
+PESADOS_MEM_LIMIT=4096m       # 4 trabajos pesados
+LIGEROS_CPUS=4.0
+PESADOS_CPUS=8.0
+MAX_CONTENT_LENGTH_MB=500     # sube también client_max_body_size en nginx.conf
+SESSION_QUOTA_MB=4096
+DISK_RESERVE_MB=4096
 ```
 
-Seis workers a 768 MB son 4,6 GB; los 6 GB dejan margen para los picos. Con eso
-hay **6 trabajos pesados a la vez** sin tocar `MAX_CONCURRENT_CONVERSIONS`.
-
-`OCR_JOBS=2` puede sorprender en una máquina grande, y es el ajuste que más se
-malentiende: multiplica. Seis workers, cada uno con un OCR de cuatro trabajos,
-son 24 procesos de Tesseract peleándose por 8 núcleos. La cuenta sana:
-
-```
-OCR_JOBS ≈ núcleos / (GUNICORN_WORKERS × MAX_CONCURRENT_CONVERSIONS)
-```
-
-Si eres el único usuario y lo que quieres es que **tu** OCR acabe cuanto antes,
-haz lo contrario: `GUNICORN_WORKERS=2` y `OCR_JOBS=8`. Menos trabajos a la vez,
-cada uno más rápido. Es latencia contra rendimiento total, y no hay una
-respuesta correcta sin saber cuál te importa.
-
-**Lo que no hay que hacer:** subir `MAX_CONCURRENT_CONVERSIONS`. El semáforo
-vive en cada proceso, así que ya se multiplica por los workers: ponerlo en 2 con
-6 workers son 12 LibreOffice simultáneos, unos 4 GB sólo en eso.
+`ligeros` no pasa de 3 trabajos y `pesados` de 4 por perfil: si quieres más,
+están en `PERFILES_TRABAJO`, en `backend/config.py`, con el porqué al lado.
 
 ---
 
 ## Ajustar por uso, no sólo por hierro
 
-Dos servidores iguales quieren ajustes distintos según qué se use:
+Dos máquinas iguales quieren ajustes distintos según lo que se use.
 
 | Si lo que más usas es… | Sube | Baja |
 |---|---|---|
-| OCR de escaneados largos | `OCR_JOBS`, `OCR_TIMEOUT_SECONDS` | workers, si hace falta memoria |
-| Word → PDF en lotes | `GUNICORN_WORKERS`, `DOC_TO_PDF_TIMEOUT_SECONDS` | — |
-| El visor, unir, comprimir, firmar | `GUNICORN_THREADS` | `BACKEND_MEM_LIMIT`: sin ofimática ni OCR, 300 MB por worker sobran |
-| Varias personas a la vez | `GUNICORN_WORKERS` | `OCR_JOBS` |
-
-El cuarto caso es el que más gente confunde con «necesito más máquina». Si nadie
-usa OCR ni ofimática, el consumo real es el del worker y los 768 MB de
-presupuesto son pura reserva.
+| OCR de escaneados largos | `OCR_JOBS`, `OCR_TIMEOUT_SECONDS`, `PESADOS_TIMEOUT` | — |
+| Word → PDF en lotes | `PESADOS_MEM_LIMIT` (más trabajos a la vez) | `OCR_JOBS` |
+| El visor, unir, comprimir, firmar | `WEB_THREADS`, `LIGEROS_MEM_LIMIT` | `PESADOS_MEM_LIMIT`: sin ofimática, 512 MB por trabajo sobran |
+| Vistas previas (deslizadores) | `LIGEROS_MEM_LIMIT`, `LIGEROS_CPUS` | — |
+| Varias personas a la vez | `PESADOS_MEM_LIMIT`, `WEB_THREADS` | `OCR_JOBS`, para que un OCR no se coma todos los núcleos |
 
 ---
 
 ## Las dos cuentas que hay que hacer a mano
 
-**Memoria.**
+**Memoria de un servicio de trabajo.**
 
 ```
-memoria ≈ workers × ( 300 MB + MAX_CONCURRENT_CONVERSIONS × 350 MB )
+memoria ≈ 256 MB de maestro + trabajos_a_la_vez × memoria_por_trabajo
 ```
 
-Con los valores por defecto: 1 worker son 650 MB, 2 son 1,3 GB, 6 son 3,9 GB.
-Deja por encima un margen del 20–30 % para los picos y para markitdown.
+Con los valores de serie, `pesados` en su peor momento son 256 + 2 × 768 ≈
+1,8 GB, y su tope está en 2 GB. Es un tope, no una reserva: en reposo son 82 MB.
 
-**Trabajos pesados a la vez.**
-
-```
-simultáneos = GUNICORN_WORKERS × MAX_CONCURRENT_CONVERSIONS
-```
-
-Son los tres que arrancan un programa aparte: «Documento a PDF» (LibreOffice),
-«PDF a Word» (pdf2docx) y «PDF con OCR» (ocrmypdf). Comparten un único turno
-porque lo que se reparte es la memoria, y a la memoria le da igual quién se la
-coma. A quien llega y lo encuentra ocupado se le dice que vuelva en un momento
-en vez de dejarle esperando.
+**Suma de los tres, más el frontend.** Los topes de serie suman 256 + 640 + 2048
++ 256 = 3,2 GB. Si la máquina tiene menos, o hay vecinos, baja `PESADOS_MEM_LIMIT`
+primero: es el único que puede crecer de verdad.
 
 ---
 
@@ -178,31 +132,42 @@ en vez de dejarle esperando.
 Un trabajo largo pasa por cuatro relojes, y **el más corto es el que manda**:
 
 ```
-plazo de la herramienta  (OCR 240 s, PDF a Word 240 s, Documento a PDF 180 s)
-          + espera del turno  (CONVERSION_QUEUE_TIMEOUT_SECONDS, 45 s)
-          <  GUNICORN_TIMEOUT  (300 s)
+plazo de la herramienta  (OCR 240 s, PDF a Word 240 s, rasterizar 180 s, Markdown 120 s)
+          <  plazo del servicio  (PESADOS_TIMEOUT, 300 s)
           <  proxy_read_timeout / proxy_send_timeout de nginx  (300 s)
           <  el proxy inverso que pongas delante para el TLS
 ```
 
-Hoy el más apurado es el OCR: 45 + 240 = 285 contra 300. **Si subes
-`OCR_TIMEOUT_SECONDS` tienes que subir también `GUNICORN_TIMEOUT` y los dos
-tiempos de `frontend/nginx.conf`**, o nginx cortará la respuesta antes y el
-usuario verá un error feo en lugar de uno explicado.
+Hoy el más apurado es el OCR: 240 contra 300. **Si subes `OCR_TIMEOUT_SECONDS`
+tienes que subir también `PESADOS_TIMEOUT` y los dos tiempos de
+`frontend/nginx.conf`**, o nginx cortará la respuesta antes y el usuario verá un
+error feo en lugar de uno explicado.
+
+Hay un quinto reloj que no es un plazo sino un descarte: `REQUEST_MAX_AGE_SECONDS`
+(60 s). Una petición que ha esperado más que eso en la cola se responde con un
+503 sin empezar a trabajar, porque quien la mandó casi seguro que ya no está.
 
 ---
 
 ## Trampas conocidas
 
+- **Los límites los heredan los programas externos.** `PESADOS_JOB_MEMORY_MB`
+  acota también a LibreOffice, Ghostscript, tesseract y pdf2docx. Si bajas ese
+  número, lo primero que se rompe es «PDF a Word», y se rompe con un proceso
+  muerto, no con un error de memoria.
 - **El autodimensionado sólo entiende cgroup v2** (`/sys/fs/cgroup/cpu.max` y
   `memory.max`). En un anfitrión con cgroup v1 —Docker antiguo, algún VPS— no
-  encuentra esos archivos y cae a los núcleos y la memoria del anfitrión, que
-  con un `mem_limit` puesto es mentira y sobredimensiona. Compruébalo con la
-  línea «Máquina detectada» del log: si dice más de lo que le has puesto al
-  contenedor, fija `GUNICORN_WORKERS` y `OCR_JOBS` a mano.
+  encuentra esos archivos y cae a los núcleos y la memoria del anfitrión, que con
+  un tope puesto es mentira y sobredimensiona. Compruébalo con la línea del log:
+  si dice más de lo que le has puesto al contenedor, fija `PESADOS_TRABAJOS`,
+  `LIGEROS_TRABAJOS` y `OCR_JOBS` a mano.
 - **El tamaño de subida vive en tres sitios** y manda el más bajo:
   `MAX_CONTENT_LENGTH_MB`, el `client_max_body_size` de `frontend/nginx.conf`
   (200M) y el del proxy inverso, si lo hay.
+- **Al añadir una ruta auxiliar barata hay que añadirla al reparto de nginx**, o
+  la atenderá `pesados` y hará cola detrás de un OCR. Y ojo con el orden: un
+  prefijo con `^~` gana a las expresiones regulares aunque éstas se declaren
+  antes, y por eso `/api/tools/` es un prefijo normal.
 - **Una variable mal escrita no avisa.** Un valor que no sea un número sí (lo
   dice por el log y sigue con el de por defecto), pero un nombre mal tecleado
   simplemente no se aplica. Para comprobarlo:
@@ -210,24 +175,33 @@ usuario verá un error feo en lugar de uno explicado.
 - **Los cambios del `.env` no necesitan reconstruir la imagen**, sólo
   `docker compose up -d`. El `--build` es sólo cuando cambia el código o las
   dependencias.
+- **`python app.py` no representa esto.** Registra los tres papeles en un solo
+  proceso para poder desarrollar: ahí no hay aislamiento, y el semáforo de
+  `api/conversion.py` —que en producción no reparte nada— es lo único que evita
+  que cuatro hilos arranquen cuatro LibreOffice.
 
 ---
 
 ## Cómo saber si has acertado
 
-**Te has quedado corto** si aparece cola: peticiones que tardan y algún 503
-«El servidor está ocupado procesando otro documento». Faltan workers, y para eso
-memoria.
-
-**Te has pasado** si el contenedor muere y Docker lo reinicia. Se ve así:
-
 ```bash
-docker compose logs backend | grep -iE "killed|restart"
-docker stats --no-stream        # el consumo acercándose al mem_limit
+# Con qué ha arrancado cada servicio
+docker compose logs web ligeros pesados | grep -E "trabajos a la vez|Máquina detectada"
+
+# Qué está consumiendo de verdad
+docker stats --no-stream
+
+# Quién atiende cada ruta
+docker compose logs pesados | grep "POST /api/tools"
 ```
 
-La prueba honesta antes de dar un despliegue por bueno es un **OCR de unas 60
-páginas mientras miras `docker stats`**: es la operación más lenta y más golosa
-de toda la aplicación, así que si eso cabe, cabe todo. Y si tienes varios
-usuarios, lánzalo dos veces a la vez, que es cuando se ve si las cuentas de
-arriba salen.
+Señales de que te has quedado corto:
+
+- **429 al usar dos pestañas**: `limit_conn` de nginx, tres trabajos por IP.
+- **503 «el servidor está saturado»**: la cola tarda más de
+  `REQUEST_MAX_AGE_SECONDS`. Sube `PESADOS_MEM_LIMIT` para tener más trabajos.
+- **413 «se ha quedado sin memoria»** en «PDF a Word»: sube
+  `PESADOS_JOB_MEMORY_MB` (y el tope del contenedor, o cabrán menos trabajos).
+- **413 con medidas** («la página mide 10416×10416 píxeles»): eso no es la
+  máquina, es el documento. Si de verdad quieres rasterizar carteles, sube
+  `MAX_IMAGE_MEGAPIXELS` **y** la memoria por trabajo.
