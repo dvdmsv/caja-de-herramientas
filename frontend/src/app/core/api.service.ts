@@ -11,6 +11,12 @@ export interface ArchivoServidor {
 }
 
 /** Comparación de peso antes y después, cuando la herramienta la aporta. */
+/** Lo que ocupa la sesión en el servidor, en bytes, y su tope. */
+export interface UsoSesion {
+  usado: number;
+  tope: number;
+}
+
 export interface ResumenTamano {
   antes: number;
   despues: number;
@@ -300,6 +306,11 @@ export class ApiService {
   }
 
   /** Borra todos los archivos de esta sesión. */
+  /** Cuánto ocupa la sesión y cuánto le cabe, para poder enseñarlo. */
+  usoDeLaSesion(): Observable<UsoSesion> {
+    return this.http.get<UsoSesion>('/api/session/uso');
+  }
+
   limpiarSesion(): Observable<void> {
     return this.http.delete<void>('/api/session');
   }

@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 
 import { ApiService, ArchivoServidor, ResumenTamano, VistaPrevia } from '../core/api.service';
+import { UsoService } from '../core/uso.service';
 import { ArchivoEnCola } from './file-queue/file-queue.component';
 import { buscarPorSlug } from '../core/tools';
 import { sinAhorro } from './ahorro';
@@ -16,6 +17,7 @@ import { queElegir } from './tipos-archivo';
  */
 export abstract class PaginaHerramienta {
   protected readonly api = inject(ApiService);
+  private readonly usoSesion = inject(UsoService);
 
   archivos: ArchivoEnCola[] = [];
   resultados: ArchivoServidor[] = [];
@@ -126,6 +128,8 @@ export abstract class PaginaHerramienta {
         this.resultados = resultado.files;
         this.resumen = resultado.resumen ?? null;
         this.vistaPrevia = resultado.vista_previa ?? null;
+        // Los resultados también ocupan sitio, y es justo lo que sorprende.
+        this.usoSesion.refrescar();
         if (sinAhorro(this.resumen)) {
           avisoInfo('Ya estaba optimizado: te dejamos el original.');
         } else {
@@ -145,6 +149,7 @@ export abstract class PaginaHerramienta {
         this.archivos = [];
         this.olvidarResultado();
         this.progreso = -1;
+        this.usoSesion.olvidar();
       },
       error: err => avisoError(mensajeDeError(err, 'No se han podido borrar los archivos.')),
     });
@@ -181,6 +186,7 @@ export abstract class PaginaHerramienta {
           }
         });
         this.progreso = -1;
+        this.usoSesion.refrescar();
         this.alTerminarSubida();
         alTerminar?.();
       },

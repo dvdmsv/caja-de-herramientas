@@ -49,7 +49,7 @@ jobs:
           test -f dist/merge-pdf/browser/assets/autofirma/autoscript.js
 
   imagenes:
-    name: Imágenes de Docker
+    name: Imágenes y pasada por las herramientas
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +58,26 @@ jobs:
       # LibreOffice y Tesseract, y el frontend compila con `npm ci` dentro.
       - name: Construir backend y frontend
         run: docker compose build
+
+      # Y levantarla es lo único que prueba lo que los tests no pueden: OCR,
+      # LibreOffice, WeasyPrint y los tres servicios repartiéndose el trabajo.
+      - name: Levantar la pila completa
+        run: |
+          docker compose up -d
+          for i in $(seq 1 60); do
+            sanos=$(docker compose ps --format '{{.Service}} {{.Health}}' | grep -c healthy || true)
+            [ "$sanos" = "3" ] && break
+            sleep 5
+          done
+          docker compose ps --format '  {{.Service}}: {{.Status}}'
+          [ "$sanos" = "3" ] || { docker compose logs --tail 40; exit 1; }
+
+      - name: Pasada por todas las herramientas
+        run: python3 scripts/barrido.py
+
+      - name: Recoger
+        if: always()
+        run: docker compose down -v
 
   backend:
     name: Backend (arranca y pasa los tests)

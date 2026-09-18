@@ -12,10 +12,10 @@ def test_cuota_de_sesion(almacen):
     from errors import ApiError
 
     s = almacen(SESSION_QUOTA_MB=1)
-    s.save_upload(SESION, subida(b'x' * 700_000, 'uno.pdf'))
+    s.save_upload(SESION, subida(b'x' * 700_000, 'uno.txt'))
 
     with pytest.raises(ApiError) as fallo:
-        s.save_upload(SESION, subida(b'x' * 700_000, 'dos.pdf'))
+        s.save_upload(SESION, subida(b'x' * 700_000, 'dos.txt'))
 
     assert fallo.value.status == 413
     assert '1 MB' in fallo.value.message
@@ -26,9 +26,9 @@ def test_cuota_de_sesion(almacen):
 def test_la_cuota_es_por_sesion(almacen):
     """Lo que ocupa uno no le quita sitio a otro."""
     s = almacen(SESSION_QUOTA_MB=1)
-    s.save_upload(SESION, subida(b'x' * 700_000, 'uno.pdf'))
+    s.save_upload(SESION, subida(b'x' * 700_000, 'uno.txt'))
     otra = 'b' * 32
-    registro = s.save_upload(otra, subida(b'x' * 700_000, 'uno.pdf'))
+    registro = s.save_upload(otra, subida(b'x' * 700_000, 'uno.txt'))
     assert registro.size == 700_000
 
 
@@ -53,11 +53,11 @@ def test_reserva_global_desaloja_las_sesiones_viejas(almacen, monkeypatch):
     s = almacen(SESSION_QUOTA_MB=100, DISK_RESERVE_MB=1, SESSION_PROTECTED_MINUTES=10)
 
     vieja = 'c' * 32
-    s.save_upload(vieja, subida(b'x' * 100_000, 'vieja.pdf'))
+    s.save_upload(vieja, subida(b'x' * 100_000, 'vieja.txt'))
     os.utime(s.session_dir(vieja, create=False), (time.time() - 3600,) * 2)
 
     activa = 'd' * 32
-    s.save_upload(activa, subida(b'x' * 100_000, 'activa.pdf'))
+    s.save_upload(activa, subida(b'x' * 100_000, 'activa.txt'))
 
     # El disco parece lleno hasta que se libere algo.
     monkeypatch.setattr(type(s), 'espacio_libre', lambda self: 0)
@@ -103,7 +103,7 @@ def test_no_se_puede_salir_de_la_sesion_con_el_id_de_archivo(almacen):
 def test_el_nombre_del_archivo_no_decide_donde_se_escribe(almacen):
     """El binario se guarda como `<id><ext>`, así que el nombre no puede escapar."""
     s = almacen()
-    registro = s.save_upload(SESION, subida(b'%PDF-1.4', '../../fuera.pdf'))
+    registro = s.save_upload(SESION, subida(b'%PDF-1.4\n', '../../fuera.pdf'))
     assert '/' not in registro.stored_name
     assert os.path.dirname(os.path.realpath(
         os.path.join(s.session_dir(SESION, create=False), registro.stored_name))) \

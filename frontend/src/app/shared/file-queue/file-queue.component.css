@@ -65,3 +65,16 @@
   /* Con muchos formatos, que parta por donde haga falta antes que desbordar. */
   overflow-wrap: anywhere;
 }
+
+/* Lo que ocupa la sesión: un dato de cortesía, en voz baja. */
+.uso {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.uso--apurado {
+  color: var(--bs-warning-text-emphasis);
+  font-weight: 600;
+}

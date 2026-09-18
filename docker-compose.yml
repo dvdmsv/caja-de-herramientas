@@ -43,6 +43,15 @@ x-backend: &backend
     RASTER_TIMEOUT_SECONDS: ${RASTER_TIMEOUT_SECONDS:-}
     TSA_URL: ${TSA_URL:-}
     TSA_TIMEOUT_SECONDS: ${TSA_TIMEOUT_SECONDS:-}
+  # Sin esto, el registro de accesos crece hasta llenar el disco de la máquina:
+  # el driver `json-file` de serie no tiene tope ninguno. Tres archivos de 10 MB
+  # por servicio son varios días de historial y un techo de 120 MB en total.
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
   healthcheck:
     test: ["CMD", "python", "-c",
            "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health').read()"]
@@ -102,6 +111,11 @@ services:
     restart: unless-stopped
     build:
       context: ./frontend
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     mem_limit: 256m
     ports:
       - "8081:80"

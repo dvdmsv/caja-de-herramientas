@@ -72,3 +72,14 @@
     }
   </ul>
 }
+
+@if (uso | async; as ocupacion) {
+  @if (ocupacion.usado > 0) {
+    <p class="uso" [class.uso--apurado]="apurado(ocupacion)">
+      Ocupas {{ ocupacion.usado | peso }} de {{ ocupacion.tope | peso }} en esta sesión.
+      @if (apurado(ocupacion)) {
+        <span>Con «Empezar de cero» se libera todo.</span>
+      }
+    </p>
+  }
+}

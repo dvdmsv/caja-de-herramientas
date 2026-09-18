@@ -64,8 +64,13 @@ def almacen(entorno):
 SESION = 'a' * 32
 
 
-def subida(contenido: bytes, nombre: str = 'documento.pdf'):
-    """Un archivo como el que llega de un formulario."""
+def subida(contenido: bytes, nombre: str = 'documento.txt'):
+    """Un archivo como el que llega de un formulario.
+
+    Por defecto `.txt`, que no tiene firma: así las pruebas que van de otra cosa
+    —cuotas, rutas— no tienen que fabricar un PDF válido. Para probar formatos
+    está `test_contenido.py`.
+    """
     import io
 
     from werkzeug.datastructures import FileStorage

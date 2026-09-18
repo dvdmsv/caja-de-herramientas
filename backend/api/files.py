@@ -8,6 +8,7 @@ import zipfile
 
 from flask import Blueprint, jsonify, request, send_file
 
+import config
 from api import current_session, params
 from api.formatos import EXTENSIONES_DOCUMENTO, EXTENSIONES_OFIMATICA, extensiones_de_entrada
 from errors import ApiError
@@ -126,6 +127,20 @@ def delete_file(file_id: str):
         except OSError:
             pass
     return '', 204
+
+
+@bp.get('/session/uso')
+def uso_de_la_sesion():
+    """Cuánto ocupa la sesión y cuánto le cabe.
+
+    Lo pregunta la cola de archivos para poder enseñarlo. Sin esto, quien llega
+    al tope recibe un 413 correcto pero a ciegas: no sabe cuánto lleva
+    acumulado ni que los resultados también cuentan.
+    """
+    session_id = current_session()
+    tope = config.SESSION_QUOTA_MB * 1024 * 1024
+    usado = storage.tamano_sesion(session_id)
+    return jsonify({'usado': usado, 'tope': tope})
 
 
 @bp.post('/session/keepalive')

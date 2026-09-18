@@ -18,6 +18,7 @@ import uuid
 from dataclasses import dataclass, asdict
 
 import config
+import contenido
 from errors import ApiError
 
 # Un identificador válido es exactamente un uuid4 en hexadecimal sin guiones.
@@ -211,6 +212,15 @@ class Storage:
         stored_name = f'{file_id}{ext}'
         target = os.path.join(self.session_dir(session_id), stored_name)
         file_storage.save(target)
+
+        # Lo que dice ser por la extensión, ¿lo es por dentro? Se mira ahora y no
+        # en cada herramienta: así el aviso llega al subirlo, no tres pantallas
+        # después con un «no se ha podido abrir».
+        try:
+            contenido.comprobar(target, original, ext)
+        except ApiError:
+            os.unlink(target)
+            raise
 
         # Ahora sí se sabe lo que pesa: el navegador no siempre anuncia el
         # tamaño. Si se pasa, se deshace la subida, que es mejor que dejar la

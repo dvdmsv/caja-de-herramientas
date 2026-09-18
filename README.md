@@ -767,7 +767,13 @@ procesarlo:
   `.docx` de 2 MB puede traer gigas.
 - **Plazo propio** de cada herramienta, por debajo del plazo del servicio.
 - **Cuota por sesión y reserva de disco**, con desalojo de las sesiones más
-  viejas —nunca de las activas— cuando aprieta el espacio.
+  viejas —nunca de las activas— cuando aprieta el espacio. Lo que llevas
+  ocupado se ve bajo la lista de archivos, y a partir de tres cuartos avisa.
+- **El contenido tiene que corresponderse con la extensión.** Un JPEG llamado
+  `.pdf`, o un `.docx` que por dentro es una hoja de cálculo, se rechazan **al
+  subirlos**, diciendo qué parecen ser. No es seguridad —aquí nada se ejecuta—:
+  es que el aviso llegue antes y no como un «no se ha podido abrir» tres
+  pantallas después.
 
 Quedarse sin memoria o sin disco se responde con un **413 que lo explica**, no
 con un 500. Incluye lo que dicen las bibliotecas nativas: MuPDF no lanza
@@ -906,10 +912,20 @@ requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
 
 ```bash
 cd frontend && npm test                                    # 129 tests, Vitest
-cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 56 tests
+cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 76 tests
+
+docker compose up -d --build && python3 scripts/barrido.py # las 23 herramientas, de verdad
 ```
 
-Los del backend cubren lo que se nota tarde: los topes por trabajo (que el
+`scripts/barrido.py` llama a la API como lo haría el navegador y recorre todas
+las herramientas, incluidas las que los tests no pueden tocar: OCR, LibreOffice
+y WeasyPrint. Comprueba además lo que **tiene** que fallar —una página de
+tamaño cartel, un JPEG disfrazado de PDF— y que la sesión sabe lo que ocupa. Si
+la máquina donde lo lanzas no tiene PyMuPDF, fabrica los archivos de prueba
+dentro de la propia imagen. Contra otra máquina:
+`BASE=http://servidor:8081 python3 scripts/barrido.py`.
+
+Los 76 del backend cubren lo que se nota tarde: los topes por trabajo (que el
 mensaje diga las medidas, que quedarse sin memoria sea un 413 y no un 500), las
 cuotas de disco y su desalojo, el aislamiento entre sesiones, el reparto entre
 los tres servicios y que unir y dividir conserven índice, enlaces internos y
@@ -943,7 +959,9 @@ que comprobaría alguien clonando el repositorio por primera vez:
   el worker de pdf.js como `.mjs` y `autoscript.js` publicado. Son tres cosas
   que **sólo se rompen en producción** y que ningún test detectaría.
 - `docker compose build` de las imágenes.
-- Los 56 tests del backend con pytest.
+- Los 76 tests del backend con pytest.
+- La pila completa levantada y `scripts/barrido.py` contra ella: es lo único
+  que prueba OCR, LibreOffice y WeasyPrint de verdad.
 - Que el backend arranca y registra sus rutas, que descarta un import roto o un
   blueprint sin registrar.
 

@@ -2,6 +2,10 @@ import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-
 
 import { Component, EventEmitter, Input, OnInit, Output, ViewChild, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
 
+import { AsyncPipe } from '@angular/common';
+
+import { UsoSesion } from '../../core/api.service';
+import { UsoService } from '../../core/uso.service';
 import { PesoPipe } from '../peso.pipe';
 import { avisoInfo } from '../notify';
 import { destinosPara } from '../../core/tools';
@@ -31,7 +35,7 @@ export function aCola(archivos: File[]): ArchivoEnCola[] {
  */
 @Component({
   selector: 'app-file-queue',
-  imports: [DragDropModule, PesoPipe],
+  imports: [AsyncPipe, DragDropModule, PesoPipe],
   templateUrl: './file-queue.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './file-queue.component.css',
@@ -60,6 +64,14 @@ export class FileQueueComponent implements OnInit, ColaReceptora {
   arrastrando = false;
 
   private readonly marco = inject(MARCO_HERRAMIENTA, { optional: true });
+
+  /** Lo que ocupa la sesión; lo actualizan las páginas al subir o al terminar. */
+  readonly uso = inject(UsoService).uso;
+
+  /** A partir de tres cuartos conviene avisar, no cuando ya no cabe nada. */
+  apurado(ocupacion: UsoSesion): boolean {
+    return ocupacion.usado >= ocupacion.tope * 0.75;
+  }
 
   ngOnInit(): void {
     this.marco?.registrarCola(this);
