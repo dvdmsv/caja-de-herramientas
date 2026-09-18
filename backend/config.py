@@ -114,6 +114,11 @@ MEMORIA_MAESTRO_MB = 256
 # Perfil de cada servicio de trabajo. Los números son topes por **petición**, y
 # se aplican con `setrlimit` en el hijo, así que también los heredan LibreOffice,
 # Ghostscript y tesseract.
+#
+# `maximo_workers` es un tope de sensatez, no la palanca: quien decide cuántos
+# trabajos caben es la memoria del contenedor, y por eso está holgado. Existe
+# para que un `mem_limit` puesto con el dedo gordo no levante veinte procesos
+# pesados en una máquina de cuatro núcleos.
 PERFILES_TRABAJO = {
     # Vistas previas, inspecciones y QR: cuestan poco y llegan seguidas (el
     # deslizador de la marca de agua manda una cada 350 ms).
@@ -124,7 +129,7 @@ PERFILES_TRABAJO = {
     # con violación de segmento a 512 y necesita 768. Los programas externos
     # heredan este límite del worker que los lanza, así que quedarse corto no da
     # un error de memoria: da un proceso muerto a mitad.
-    'pesados': {'memoria_mb': 768, 'cpu_segundos': None, 'maximo_workers': 2, 'plazo': None},
+    'pesados': {'memoria_mb': 768, 'cpu_segundos': None, 'maximo_workers': 4, 'plazo': None},
 }
 
 

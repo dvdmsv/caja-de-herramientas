@@ -966,6 +966,14 @@ que comprobaría alguien clonando el repositorio por primera vez:
 - Que el backend arranca y registra sus rutas, que descarta un import roto o un
   blueprint sin registrar.
 
+## Lo que falta
+
+Lo que se sabe que no está hecho —vigilancia de dependencias, accesibilidad
+comprobada en cada push y una red para el visor—, con lo que costaría cada cosa
+y lo que compraría, está en
+[`docs/trabajo-futuro.md`](docs/trabajo-futuro.md). Ahí van también las que se
+decidió **no** hacer y por qué, para no volver a discutirlas sin motivo nuevo.
+
 ## Licencia
 
 **AGPL-3.0.** El texto completo está en [`LICENSE`](LICENSE).

@@ -91,8 +91,11 @@ SESSION_QUOTA_MB=4096
 DISK_RESERVE_MB=4096
 ```
 
-`ligeros` no pasa de 3 trabajos y `pesados` de 4 por perfil: si quieres más,
-están en `PERFILES_TRABAJO`, en `backend/config.py`, con el porqué al lado.
+`ligeros` no pasa de 3 trabajos y `pesados` de 4 por perfil. Ese tope es de
+sensatez, no la palanca —quien decide es la memoria del contenedor—: está para
+que un `mem_limit` puesto con el dedo gordo no levante veinte procesos pesados en
+una máquina de cuatro núcleos. Si necesitas más, están en `PERFILES_TRABAJO`, en
+`backend/config.py`, con el porqué al lado.
 
 ---
 
