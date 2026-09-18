@@ -912,7 +912,7 @@ requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
 ## Pruebas
 
 ```bash
-cd frontend && npm test                                    # 129 tests, Vitest
+cd frontend && npm test                                    # 136 tests, Vitest
 cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 76 tests
 
 docker compose up -d --build && python3 scripts/barrido.py # las 23 herramientas, de verdad
@@ -933,7 +933,7 @@ los tres servicios y que unir y dividir conserven índice, enlaces internos y
 campos de formulario. No tocan OCR, LibreOffice ni WeasyPrint: son lentos y
 necesitan la imagen, así que eso se comprueba contra el contenedor.
 
-Los del frontend son 129 con **Vitest** sobre jsdom. No hacen falta ni navegador ni
+Los del frontend son 136 con **Vitest** sobre jsdom. No hacen falta ni navegador ni
 pantalla, así que corren igual en un portátil que en una integración continua, y
 tardan unos dos segundos.
 
@@ -955,7 +955,7 @@ Cada push y cada pull request pasan por
 que comprobaría alguien clonando el repositorio por primera vez:
 
 - `npm ci` desde el lockfile —falla si el lockfile y el `package.json` no
-  concuerdan—, compilación y los 129 tests del frontend.
+  concuerdan—, compilación y los 136 tests del frontend.
 - Que la salida sigue donde el `Dockerfile` la espera: `dist/merge-pdf/browser`,
   el worker de pdf.js como `.mjs` y `autoscript.js` publicado. Son tres cosas
   que **sólo se rompen en producción** y que ningún test detectaría.

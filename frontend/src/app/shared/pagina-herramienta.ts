@@ -6,6 +6,7 @@ import { ArchivoEnCola } from './file-queue/file-queue.component';
 import { buscarPorSlug } from '../core/tools';
 import { sinAhorro } from './ahorro';
 import { avisoError, avisoExito, avisoInfo, mensajeDeError } from './notify';
+import { repartirSubida } from './subida';
 import { queElegir } from './tipos-archivo';
 
 /**
@@ -138,7 +139,7 @@ export abstract class PaginaHerramienta {
       },
       error: err => {
         this.procesando = false;
-        avisoError(mensajeDeError(err, 'No se ha podido completar la operación.'));
+        avisar(err, 'No se ha podido completar la operación.');
       },
     });
   }
@@ -178,27 +179,22 @@ export abstract class PaginaHerramienta {
           this.progreso = estado.porcentaje;
           return;
         }
-        // El servidor puede no admitir alguno y admitir el resto, así que los
-        // admitidos casan por posición **descontando** los rechazados.
-        const rechazados = new Set(estado.rechazados.map(rechazado => rechazado.indice));
-        let siguiente = 0;
-        items.forEach((item, i) => {
-          if (rechazados.has(i)) {
-            return;
-          }
-          const archivo = estado.archivos[siguiente++];
-          if (archivo) {
-            item.id = archivo.id;
-            item.estado = 'subido';
-          }
+        // El servidor puede admitir unos y rechazar otros; quién se queda con
+        // cada identificador lo decide `repartirSubida`, que está aparte y
+        // probada: desalinear esto no da ningún error, da el documento
+        // equivocado.
+        const reparto = repartirSubida(items, estado.archivos, estado.rechazados);
+        reparto.admitidos.forEach(({ item, id }) => {
+          item.id = id;
+          item.estado = 'subido';
         });
 
-        if (estado.rechazados.length > 0) {
+        if (reparto.descartados.length > 0) {
           // Fuera de la cola: dejarlos ahí en rojo invita a reintentar algo que
           // va a volver a fallar, porque el problema es el archivo.
-          const fuera = estado.rechazados.map(rechazado => items[rechazado.indice]);
+          const fuera = reparto.descartados.map(descartado => descartado.item);
           this.archivos = this.archivos.filter(archivo => !fuera.includes(archivo));
-          avisoInfo(estado.rechazados.map(rechazado => rechazado.error).join(' '));
+          avisoInfo(reparto.descartados.map(descartado => descartado.error).join(' '));
         }
         this.progreso = -1;
         this.usoSesion.refrescar();
@@ -209,16 +205,32 @@ export abstract class PaginaHerramienta {
         items.forEach(item => (item.estado = 'error'));
         this.progreso = -1;
         const codigo = (err as { status?: number })?.status;
-        const texto = mensajeDeError(err, 'No se han podido subir los archivos.');
-        // Un 400 o un 413 son cosa del archivo o de la cuota: tienen arreglo y
-        // se dicen sin interrumpir. Lo demás sí es un fallo que parar a leer.
+        // Un archivo que no vale o que no cabe sale de la cola: reintentarlo
+        // volvería a fallar igual.
         if (codigo === 400 || codigo === 413) {
           this.archivos = this.archivos.filter(archivo => !items.includes(archivo));
-          avisoInfo(texto);
-        } else {
-          avisoError(texto);
         }
+        avisar(err, 'No se han podido subir los archivos.');
       },
     });
+  }
+}
+
+/**
+ * Cuenta un error como lo que es.
+ *
+ * La pregunta que decide el tono: **¿esto se arregla esperando?** Si el servidor
+ * dice que hay cola (429) o que está saturado (503), no ha fallado nada: en un
+ * minuto funciona, y parar al usuario con un diálogo que tiene que cerrar sobra.
+ * Que el documento sea demasiado grande (413) o tarde demasiado (504) sí es algo
+ * que hay que leer y decidir, y lo demás es un fallo de verdad.
+ */
+function avisar(err: unknown, respaldo: string): void {
+  const codigo = (err as { status?: number })?.status;
+  const texto = mensajeDeError(err, respaldo);
+  if (codigo === 429 || codigo === 503) {
+    avisoInfo(texto);
+  } else {
+    avisoError(texto);
   }
 }
