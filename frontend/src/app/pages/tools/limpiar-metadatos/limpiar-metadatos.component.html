@@ -32,8 +32,9 @@
       }
       @if (!sinRastro) {
         <p class="small text-body-secondary px-3 pt-3 mb-0">
-          Marcado es lo que se va a borrar. Desmarca lo que quieras conservar: puedes
-          tirar la ubicación de una foto y quedarte con la fecha.
+          Marcado es lo que se va a borrar; desmarca lo que quieras conservar. Y lo que
+          esté mal puedes escribirlo bien encima: puedes tirar la ubicación de una foto,
+          quedarte con la fecha y corregir el autor de paso.
         </p>
       }
       <ul class="list-group list-group-flush">
@@ -51,14 +52,39 @@
                 </div>
               }
             </div>
-            @if (archivo.campos.length === 0) {
+            @if (vacio(archivo)) {
               <p class="small text-body-secondary mb-0 mt-1">
-                Sin metadatos.
+                Sin metadatos. Puedes escribir los que quieras.
               </p>
             }
-            @if (archivo.campos.length > 0) {
-              <div class="mt-2">
-                @for (campo of archivo.campos; track campo) {
+            <div class="mt-2">
+              @for (campo of archivo.campos; track campo) {
+                @if (campo.editable) {
+                  <div class="row g-2 align-items-center mb-2">
+                    <label class="col-12 col-sm-4 col-form-label col-form-label-sm
+                      text-body-secondary py-0" [for]="'v-' + clave(archivo, campo)">
+                      {{ campo.etiqueta }}
+                    </label>
+                    <div class="col">
+                      <input type="text" class="form-control form-control-sm"
+                        [id]="'v-' + clave(archivo, campo)" [value]="valor(archivo, campo)"
+                        [disabled]="ocupado || esta(archivo, campo)"
+                        [placeholder]="esta(archivo, campo) ? 'se va a borrar' : 'vacío'"
+                        (input)="escribir(archivo, campo, $event)">
+                    </div>
+                    @if (borrable(campo)) {
+                      <div class="col-auto">
+                        <div class="form-check mb-0">
+                          <input class="form-check-input" type="checkbox"
+                            [id]="clave(archivo, campo)" [checked]="esta(archivo, campo)"
+                            [disabled]="ocupado" (change)="alternar(archivo, campo)">
+                          <label class="form-check-label small text-body-secondary"
+                            [for]="clave(archivo, campo)">borrar</label>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                } @else {
                   <div class="form-check">
                     <input class="form-check-input" type="checkbox" [id]="clave(archivo, campo)"
                       [checked]="esta(archivo, campo)" [disabled]="ocupado"
@@ -73,11 +99,13 @@
                     </label>
                   </div>
                 }
+              }
+              @if (!vacio(archivo)) {
                 <p class="small text-body-secondary mb-0 mt-2">
-                  {{ cuantas(archivo) }} de {{ archivo.campos.length }} marcados para borrar.
+                  {{ cuantas(archivo) }} de {{ cuantasBorrables(archivo) }} marcados para borrar.
                 </p>
-              </div>
-            }
+              }
+            </div>
           </li>
         }
       </ul>
@@ -99,17 +127,16 @@
     </div>
   }
 
-  <app-tool-controls [pagina]="pagina" accion="Borrar lo marcado" icono="bi-incognito">
+  <app-tool-controls [pagina]="pagina" accion="Aplicar los cambios" icono="bi-incognito">
   </app-tool-controls>
 
-  @if (informe.length > 0 && !sinRastro && marcadas.size === 0) {
-    <p class="text-body-secondary small mt-2 mb-0"
-      >
-      No has marcado nada, así que no hay nada que borrar.
+  @if (informe.length > 0 && marcadas.size === 0 && !hayCambios) {
+    <p class="text-body-secondary small mt-2 mb-0">
+      No has marcado nada para borrar ni has cambiado ningún valor.
     </p>
   }
 
-  <app-result-list [archivos]="resultados" [resumen]="resumen" nombreZip="sin-metadatos.zip">
+  <app-result-list [archivos]="resultados" [resumen]="resumen" nombreZip="metadatos.zip">
   </app-result-list>
 
 </app-tool-page>

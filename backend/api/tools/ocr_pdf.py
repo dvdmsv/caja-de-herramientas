@@ -23,7 +23,7 @@ import fitz  # PyMuPDF
 from flask import Blueprint, current_app, jsonify
 
 import config
-from api import conversion, current_session, params
+from api import conversion, current_session, params, progreso
 from errors import ApiError
 from storage import storage, nombre_seguro
 
@@ -71,6 +71,16 @@ ERRORES = {
 }
 
 
+# Lo que se le dice a quien espera que va a tardar. Aquí no hay pasos que
+# contar: ocrmypdf es una sola llamada que termina o no, así que el porcentaje lo
+# anima el navegador con este número y se queda al 95 % hasta que hay respuesta.
+#
+# Sale de la medición de arriba —60 páginas en 36 s con un trabajo, 21 s con
+# cuatro—, redondeado a lo alto: más vale que la barra vaya algo por detrás del
+# trabajo que al contrario.
+SEGUNDOS_POR_PAGINA = 0.7
+
+
 @bp.post('/ocr-pdf')
 def ocr_pdf():
     session_id = current_session()
@@ -98,7 +108,8 @@ def ocr_pdf():
         raise ApiError('El PDF no tiene páginas.', 422)
     base = os.path.splitext(nombre_seguro(record.name))[0]
     destino, salida = storage.reserve_output(session_id, f'{base}-con-texto.pdf')
-    _reconocer(origen, destino, idioma, rehacer)
+    with progreso.estimando('Reconociendo el texto', paginas * SEGUNDOS_POR_PAGINA):
+        _reconocer(origen, destino, idioma, rehacer)
 
     return jsonify({'files': [storage.commit_output(session_id, salida).to_json()]}), 201
 

@@ -2,6 +2,8 @@ import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, filter, map } from 'rxjs';
 
+import { EstadoTrabajo } from '../shared/progreso';
+
 /** Archivo tal y como lo describe el servidor. */
 export interface ArchivoServidor {
   id: string;
@@ -31,13 +33,21 @@ export interface VistaPrevia {
 
 /** Un dato que un archivo lleva dentro sin que su dueño lo sepa. */
 export interface CampoMetadato {
-  /** Con la que se le dice al servidor que lo borre. */
+  /** Con la que se le dice al servidor que lo borre o lo cambie. */
   clave: string;
   etiqueta: string;
+  /** Recortado para enseñarlo de un vistazo. */
   valor: string;
+  /** El valor entero, que es lo que se edita; vacío si el campo no lleva nada. */
+  texto: string;
+  /**
+   * Si se puede escribir encima. Los bloques enteros —XMP, IPTC, la ubicación,
+   * los datos técnicos de la cámara— sólo se conservan o se tiran.
+   */
+  editable: boolean;
 }
 
-/** Lo que "Limpiar metadatos" ha encontrado en un archivo. */
+/** Lo que "Editar metadatos" ha encontrado en un archivo. */
 export interface MetadatosArchivo {
   /** Id del archivo en el servidor, para casar el informe con la selección. */
   id: string;
@@ -104,6 +114,24 @@ export interface Resultado {
   files: ArchivoServidor[];
   resumen?: ResumenTamano;
   vista_previa?: VistaPrevia;
+  /** Sólo la manda "Comparar PDF": el recuento de páginas de su informe. */
+  comparacion?: ResumenComparacion;
+}
+
+/** Lo que contesta la consulta de progreso; `null` es «aún no ha empezado». */
+export interface EstadoTrabajoRespuesta {
+  estado: EstadoTrabajo | null;
+}
+
+/** Lo que ha salido de comparar dos documentos, para contarlo en pantalla. */
+export interface ResumenComparacion {
+  identicos: boolean;
+  iguales: number;
+  cambiadas: number;
+  anadidas: number;
+  quitadas: number;
+  /** Cuántos párrafos cambian de uno a otro. */
+  diferencias: number;
 }
 
 /** Formato de imagen ofrecido por el servidor. */
@@ -158,8 +186,30 @@ export class ApiService {
   }
 
   /** Ejecuta una herramienta del servidor sobre archivos ya subidos. */
-  ejecutar(slug: string, cuerpo: unknown): Observable<Resultado> {
-    return this.http.post<Resultado>(`/api/tools/${slug}`, cuerpo);
+  ejecutar(slug: string, cuerpo: unknown, trabajo?: string): Observable<Resultado> {
+    // El identificador del trabajo va en una cabecera y no en el cuerpo: así
+    // las veinticinco herramientas siguen recibiendo exactamente sus opciones.
+    const opciones = trabajo ? { headers: { 'X-Trabajo-Id': trabajo } } : {};
+    return this.http.post<Resultado>(`/api/tools/${slug}`, cuerpo, opciones);
+  }
+
+  /**
+   * Por dónde va el trabajo que está en marcha.
+   *
+   * Lo contesta el servicio `web`, que está libre; preguntárselo al que trabaja
+   * sería hacer cola detrás de aquello por lo que se pregunta. `null` significa
+   * que aún no ha empezado: está esperando turno.
+   */
+  progresoDelTrabajo(trabajo: string): Observable<EstadoTrabajoRespuesta> {
+    return this.http.get<EstadoTrabajoRespuesta>(`/api/progreso/${trabajo}`);
+  }
+
+  /**
+   * Pide parar el trabajo. No mata nada: deja una marca que el propio trabajo
+   * mira entre paso y paso, y que responde con un 409.
+   */
+  cancelarTrabajo(trabajo: string): Observable<void> {
+    return this.http.post<void>(`/api/progreso/${trabajo}/cancelar`, {});
   }
 
   /** Empaqueta varios resultados en un ZIP y devuelve el archivo creado. */
@@ -275,7 +325,7 @@ export class ApiService {
   /**
    * Qué metadatos llevan dentro unos archivos, sin tocarlos.
    *
-   * Es la primera mitad de "Limpiar metadatos": primero se enseña lo que hay y
+   * Es la primera mitad de "Editar metadatos": primero se enseña lo que hay y
    * luego el usuario decide qué se borra.
    */
   inspeccionarMetadatos(ids: string[]): Observable<MetadatosArchivo[]> {

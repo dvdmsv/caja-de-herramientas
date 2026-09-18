@@ -135,7 +135,8 @@ primero: es el único que puede crecer de verdad.
 Un trabajo largo pasa por cuatro relojes, y **el más corto es el que manda**:
 
 ```
-plazo de la herramienta  (OCR 240 s, PDF a Word 240 s, rasterizar 180 s, Markdown 120 s)
+plazo de la herramienta  (OCR 240 s, PDF a Word 240 s, rasterizar 180 s,
+                          comparar 180 s, Markdown 120 s)
           <  plazo del servicio  (PESADOS_TIMEOUT, 300 s)
           <  proxy_read_timeout / proxy_send_timeout de nginx  (300 s)
           <  el proxy inverso que pongas delante para el TLS

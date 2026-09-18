@@ -7,7 +7,7 @@ from PIL import Image
 from flask import Blueprint, jsonify
 
 import config
-from api import current_session, imaging, params
+from api import current_session, imaging, params, progreso
 from api.formatos import extension_de, salidas_de_imagen
 from api import limites
 from errors import ApiError
@@ -70,7 +70,8 @@ def pdf_a_imagen():
         ancho = len(str(documento.page_count))
         resultados = []
 
-        for numero, pagina in enumerate(documento, start=1):
+        for numero, pagina in progreso.contando(enumerate(documento, start=1),
+                                                documento.page_count, 'Convirtiendo páginas'):
             nombre = f'{base}-pagina-{numero:0{ancho}d}{extension}'
             destino, salida = storage.reserve_output(session_id, nombre)
             _guardar_pagina(pagina, ppp, destino, formato, calidad)

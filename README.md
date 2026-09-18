@@ -40,11 +40,13 @@ Pensada para usarse, no sólo para funcionar:
 | Dividir PDF | Saca páginas sueltas o rangos | `1-3, 7, 10-`, un archivo o uno por página |
 | Organizar PDF | Reordena, gira y elimina páginas | arrastre, giro de 90° y borrado |
 | Proteger PDF | Pone o quita la contraseña de apertura | cifrado AES-256 |
+| Comparar PDF | Dice en qué se diferencian dos versiones de un documento | informe en PDF, con las páginas recuadradas |
+| Aplanar PDF | Fija los formularios y las anotaciones dentro de la página | campos, anotaciones, varios documentos de una vez |
 | PDF con OCR | Reconoce el texto de un escaneado | español, inglés o ambos |
 | Firmar documento | Coloca tu firma sobre un PDF o una imagen | posición libre, tamaño, giro, página |
 | Firmar con certificado | Firma un PDF con tu certificado digital | con el certificado del equipo (AutoFirma) o un `.p12`, visible o invisible, sello de tiempo |
 | Comprobar firmas | Dice quién firmó un PDF y si lo han tocado después | ninguna: se comprueba al subirlo |
-| Comprimir PDF | Recomprime las imágenes del documento | suave, media, fuerte |
+| Comprimir PDF | Recomprime las imágenes del documento y lo optimiza para la web | ninguna, suave, media, fuerte; optimizar para verlo en la web |
 | Comprimir imagen | Baja el peso de varias imágenes a la vez | calidad y tamaño máximo |
 | Convertir imagen | Cambia de formato | JPG, PNG, WebP, TIFF, BMP, PDF |
 | Imagen a PDF | Reúne varias imágenes en un PDF | tamaño de página, orientación, margen y calidad |
@@ -52,12 +54,31 @@ Pensada para usarse, no sólo para funcionar:
 | Documento a PDF | Pasa Word, ODT, RTF o texto plano a PDF | varios documentos de una vez |
 | PDF a Word | Saca un `.docx` editable de un PDF | varios documentos de una vez |
 | Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo, margen y respetar los saltos de línea |
-| Limpiar metadatos | Enseña lo que tus archivos cuentan de ti y borra lo que elijas | campo a campo, limpieza a fondo |
+| Editar metadatos | Enseña lo que tus archivos cuentan de ti, y lo corriges o lo borras | campo a campo, valores editables, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
 | Numerar páginas | Numera el documento | posición, formato, desde qué página, con vista previa |
 | Extraer imágenes | Saca las imágenes que lleva dentro un PDF | tamaño mínimo y formato |
 | Generar QR | Códigos QR de un enlace, tu wifi o tu contacto | PNG o SVG |
 | Crear certificado | Genera un certificado propio para firmar | validez, tamaño de clave, contraseña |
+
+**Mientras el servidor trabaja se ve por dónde va**, y se puede parar. La barra
+dice la etapa («Convirtiendo páginas»), lo hecho de lo que hay («7 de 40») y lo
+que lleva, con un botón de «Cancelar» al lado. Antes de que empiece dice
+**«Esperando turno»**, que es información de verdad: con dos trabajos pesados a
+la vez, una petición puede pasar un rato en la cola y no había forma de saber si
+eso era lo que estaba pasando.
+
+No se anuncia lo que falta, sólo lo que lleva: un «quedan 20 s» que luego son
+dos minutos es peor que no decir nada. Donde no hay pasos que contar —el OCR,
+LibreOffice, pdf2docx son una sola llamada a un programa externo— el servidor
+dice cuánto calcula que va a tardar y la barra se mueve con eso, pero **se para
+al 95 %** hasta que la respuesta llega: una barra clavada en el 100 % miente más
+que una clavada en el 95.
+
+Cancelar no es cosmético: el trabajo se para de verdad en el siguiente paso —o
+se le mata el programa externo— y el worker queda libre para el siguiente. Lo
+que ya se hubiera producido antes de cancelar se queda en la sesión, ocupando su
+cuota, y caduca con ella o se tira con «Empezar de cero».
 
 Cualquier resultado se puede ver antes de descargarlo, con el ojo que hay junto
 a su nombre: se abre encima de la página y se cierra con `Esc`. Los PDF los
@@ -74,7 +95,10 @@ sigue siendo un PDF por mucho que se le cambie el nombre.
 Las herramientas de imagen aceptan varios archivos y ofrecen descargar todo en un
 ZIP, cuyo nombre también se puede cambiar. "Comprimir PDF" nunca devuelve un archivo más pesado que el original: si la
 compresión no mejora nada (porque el PDF ya venía optimizado), entrega el
-original.
+original. Esa red de seguridad se levanta al pedir "optimizar para verlo en la
+web": linearizar reordena el archivo para que un visor enseñe la primera página
+sin haberlo descargado entero, y eso cuesta unos kilobytes; devolver el original
+sería deshacer justo lo que se ha pedido.
 
 Los formatos de destino no están escritos a mano: se le preguntan a Pillow en el
 arranque, así que la interfaz nunca ofrece uno que después falle al guardar.
@@ -102,10 +126,10 @@ va a escribir el archivo, así que lo que se ve es lo que sale.
 
 ![Marca de agua](docs/capturas/marca-de-agua.png)
 
-**Limpiar metadatos.** Primero enseña lo que tus archivos cuentan de ti, campo a
-campo, y tú eliges qué se borra.
+**Editar metadatos.** Primero enseña lo que tus archivos cuentan de ti, campo a
+campo, y tú eliges qué se borra y qué se corrige.
 
-![Limpiar metadatos](docs/capturas/limpiar-metadatos.png)
+![Editar metadatos](docs/capturas/limpiar-metadatos.png)
 
 **El visor**, que ocupa la pantalla entera y está pensado para sesiones largas.
 
@@ -417,7 +441,7 @@ servidor y uno con una imagen en `http://` no le pide nada a nadie —comprobado
 con un servidor a la escucha—. Se incrustan sólo las imágenes que el propio
 archivo trae dentro.
 
-"Limpiar metadatos" es la que mejor explica por qué existe esta aplicación. Un
+"Editar metadatos" es la que mejor explica por qué existe esta aplicación. Un
 PDF lleva dentro quién lo escribió y con qué programa; una foto de móvil lleva el
 modelo de la cámara, la fecha exacta y, muy a menudo, **las coordenadas del sitio
 donde se hizo**. Todo eso viaja cada vez que se manda un archivo.
@@ -433,9 +457,24 @@ Lo que no se enseña de una en una —exposición, resolución y demás tecnicis
 se agrupa en un "Otros datos de la cámara (N campos)" con su propia casilla: si
 no apareciera, se borraría sin que nadie lo hubiera visto.
 
+Borrar no es lo único que se puede hacer: cada dato viene en una caja de texto y
+se puede **escribir encima**, corregir el autor de un PDF que salió con el nombre
+de otro o ponerle por fin un título. De un PDF se enseñan siempre sus ocho campos
+aunque estén vacíos —son un juego fijo y corto, así que se puede rellenar el que
+falta—; de una foto, sólo lo que lleva, porque inventarle un "número de serie" a
+una cámara no significa nada. Borrar y cambiar el mismo dato a la vez es un
+error: no hay forma de adivinar cuál de las dos cosas se quería, y la interfaz
+atenúa la caja en cuanto se marca la casilla.
+
+Las fechas se escriben como se leen (`31/12/2026 09:30`) y se guardan en la
+sintaxis del PDF. Y como el EXIF declara sus campos como ASCII —Pillow cambiaría
+"José" por "Jos?"—, el texto se escribe en UTF-8, que es lo que hace exiftool y
+lo que entiende cualquier lector de hoy.
+
 En los JPEG los metadatos se quitan **sin recomprimir la imagen**. Si se borra
-todo el EXIF se omite su segmento; si se conserva una parte, se reconstruye el
-segmento con lo que queda y los datos comprimidos se copian tal cual. Medido: el
+todo el EXIF se omite su segmento; si se conserva o se corrige una parte, se
+reconstruye el segmento con lo que queda y los datos comprimidos se copian tal
+cual. Medido: el
 bloque de imagen del archivo limpio es **idéntico byte a byte** al del original,
 así que limpiar nunca cuesta calidad. Con "limpieza a fondo" los PDF pierden
 además el JavaScript incrustado, los adjuntos, el texto oculto y las miniaturas;
@@ -485,6 +524,50 @@ suma el de la página. Medido rasterizando el resultado, la marca cae centrada a
 el número queda a 44 pt del borde en los dos. La marca de agua se gira con
 `morph` alrededor **del centro del texto**: girándola alrededor del inicio de la
 línea base —que es lo que sitúa `insert_text`— se va a la esquina.
+
+"Comparar PDF" contesta a "¿y esto en qué se diferencia de lo que firmamos?".
+Devuelve un PDF: el resumen, lo que cambia en el texto párrafo a párrafo y las
+páginas afectadas con **lo cambiado recuadrado**.
+
+Las dos mitades hacen falta. El texto dice qué frase se ha tocado, pero una
+firma, un sello o un logotipo nuevo no cambian ni una letra: eso sólo se ve. Por
+eso una página que por texto es idéntica **asciende a "cambiada"** si los píxeles
+no coinciden.
+
+Las páginas se emparejan por lo que dicen y no por su número (`difflib`): quien
+mete una hoja en medio no ha cambiado todo lo que va detrás, sólo lo ha
+desplazado, y decir lo contrario haría el informe inservible. Lo visual se mide
+con un umbral por píxel —por debajo están el antialiasing y el ruido del
+rasterizado, que si no marcarían la página entera— y las filas con algo se
+agrupan en bandas, que son los recuadros. Las páginas del informe viajan
+incrustadas como `data:`, que es lo único que el maquetador acepta, y ese límite
+es justo la protección que ya tenía "Markdown a PDF".
+
+"Aplanar PDF" es lo contrario de una herramienta que protege: no cifra nada.
+Dibuja los campos de formulario y las anotaciones **dentro** de la página y los
+borra como objetos, así que lo que se ve pasa a ser lo que hay y nadie puede
+reescribirlo con un lector normal. No tiene vuelta atrás y la página lo avisa
+antes, no después.
+
+**La barra de progreso viaja por el disco**, y no es un capricho: en producción
+cada trabajo se atiende en un proceso que **muere con la petición**, y quien
+contesta «¿cómo vas?» es otro contenedor (`web`). No hay memoria compartida
+donde dejar el dato, pero sí un volumen compartido, que es donde ya viven los
+archivos de la sesión. Así que quien trabaja escribe un archivito de doscientos
+bytes en `uploads/<sesión>/.trabajos/` y `web` lo lee.
+
+De ahí salen dos cosas gratis. Una, que preguntar no hace cola detrás de los
+trabajos: si la consulta colgara de `/api/tools/` la atendería el servicio que
+está ocupado justamente con lo que se pregunta, y además cuenta para el límite
+de tres trabajos por IP de nginx. Y dos, que **el archivo que aún no existe
+significa «todavía en la cola»**.
+
+Cancelar es el mismo canal al revés: `web` deja una marca y el trabajo la mira
+entre paso y paso —un `stat`, más barato que cualquier página—. Para los tres
+programas externos no hay «entre pasos», así que se les espera a latidos de
+medio segundo y, si hay que parar, se les mata; ese cambio es también lo que
+permite que un OCR de cuatro minutos deje de ocupar un worker en cuanto alguien
+se arrepiente.
 
 "Extraer imágenes" saca los bytes tal y como están en el archivo, sin
 recomprimir. Descarta las que no llegan a un tamaño mínimo porque un PDF de
@@ -856,6 +939,16 @@ storage import storage` y, si validas algo a mano, `from errors import ApiError`
 
 Y añádelo a la lista `BLUEPRINTS` de `backend/api/tools/__init__.py`.
 
+Si tu herramienta recorre páginas o archivos, envuelve ese bucle y te sale la
+barra de progreso y el botón de cancelar sin tocar nada más:
+
+```python
+from api import progreso
+
+for record, ruta in progreso.contando(entradas, len(entradas), 'Convirtiendo'):
+    ...
+```
+
 **2. Catálogo** — añade su entrada en `frontend/src/app/core/tools.ts` con
 `disponible: true`, qué archivos admite en `acepta` (`'.pdf'`, `'image/*'`…),
 si trabaja con `varios` y unas `palabras` para el buscador. De `acepta` salen el
@@ -912,10 +1005,10 @@ requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
 ## Pruebas
 
 ```bash
-cd frontend && npm test                                    # 136 tests, Vitest
-cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 76 tests
+cd frontend && npm test                                    # 143 tests, Vitest
+cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 139 tests
 
-docker compose up -d --build && python3 scripts/barrido.py # las 23 herramientas, de verdad
+docker compose up -d --build && python3 scripts/barrido.py # las 25 herramientas, de verdad
 ```
 
 `scripts/barrido.py` llama a la API como lo haría el navegador y recorre todas
@@ -955,12 +1048,12 @@ Cada push y cada pull request pasan por
 que comprobaría alguien clonando el repositorio por primera vez:
 
 - `npm ci` desde el lockfile —falla si el lockfile y el `package.json` no
-  concuerdan—, compilación y los 136 tests del frontend.
+  concuerdan—, compilación y los 143 tests del frontend.
 - Que la salida sigue donde el `Dockerfile` la espera: `dist/merge-pdf/browser`,
   el worker de pdf.js como `.mjs` y `autoscript.js` publicado. Son tres cosas
   que **sólo se rompen en producción** y que ningún test detectaría.
 - `docker compose build` de las imágenes.
-- Los 76 tests del backend con pytest.
+- Los 139 tests del backend con pytest.
 - La pila completa levantada y `scripts/barrido.py` contra ella: es lo único
   que prueba OCR, LibreOffice y WeasyPrint de verdad.
 - Que el backend arranca y registra sus rutas, que descarta un import roto o un

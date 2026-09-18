@@ -13,7 +13,7 @@ from PIL import Image
 from flask import Blueprint, jsonify
 
 import config
-from api import current_session, params
+from api import current_session, params, progreso
 from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -25,10 +25,13 @@ bp = Blueprint('comprimir_pdf', __name__, url_prefix='/api/tools')
 # entero y con él las peticiones que llevara en sus otros hilos.
 PLAZO_EN_PROCESO = config.entorno_entero('RASTER_TIMEOUT_SECONDS', 180)
 
-# Calidad JPEG y lado mayor admitido para las imágenes de dentro del PDF. Los
-# tres niveles recomprimen: uno que sólo limpiara la estructura no bajaría nada
-# en un PDF normal, porque el peso está en las imágenes.
+# Calidad JPEG y lado mayor admitido para las imágenes de dentro del PDF.
+#
+# `ninguno` no toca las imágenes: limpiar la estructura casi no baja nada en un
+# PDF normal, porque el peso está en las imágenes. Existe para quien sólo quiere
+# optimizar el archivo para la web sin degradar sus fotos.
 NIVELES = {
+    'ninguno': None,
     'suave': {'calidad': 85, 'lado_maximo': 2200},
     'media': {'calidad': 70, 'lado_maximo': 1600},
     'fuerte': {'calidad': 45, 'lado_maximo': 1100},
@@ -46,6 +49,9 @@ def comprimir_pdf():
     datos = params.cuerpo()
     file_ids = params.ids(datos, minimo=1, mensaje='Selecciona un PDF.')
     nivel = params.opcion(datos, 'nivel', NIVELES, 'media')
+    # Linearizar: reordena el archivo para que un visor pueda enseñar la primera
+    # página sin haberlo descargado entero. No cambia lo que se ve.
+    para_web = params.booleano(datos, 'web', False)
 
     record = storage.record_of(session_id, file_ids[0])
     if record.ext != '.pdf':
@@ -63,14 +69,23 @@ def comprimir_pdf():
     with documento:
         if documento.needs_pass:
             raise ApiError('El PDF está protegido con contraseña.', 422)
-        _recomprimir_imagenes(documento, **NIVELES[nivel])
+        if NIVELES[nivel]:
+            _recomprimir_imagenes(documento, **NIVELES[nivel])
+        # Limpiar la estructura y escribirlo entero no es despreciable en un
+        # PDF grande, y no se puede contar: se dice al menos qué está pasando.
+        progreso.fase('Guardando el documento', cancelable=False)
         documento.save(destino, garbage=4, deflate=True, deflate_images=True,
-                       deflate_fonts=True, clean=True)
+                       deflate_fonts=True, clean=True, linear=para_web)
 
     # Si el "comprimido" pesa más (pasa con PDF ya optimizados), se entrega el
     # original: nadie quiere descargar una versión peor de su archivo.
+    #
+    # Salvo que se haya pedido optimizar para la web: ahí el archivo puede
+    # engordar unos kilobytes a propósito —la tabla que permite empezar a leer
+    # sin descargarlo entero ocupa—, y devolver el original sería deshacer en
+    # silencio justo lo que se ha pedido.
     tamano_original = os.path.getsize(origen)
-    if os.path.getsize(destino) >= tamano_original:
+    if not para_web and os.path.getsize(destino) >= tamano_original:
         shutil.copyfile(origen, destino)
 
     resultado = storage.commit_output(session_id, salida)
@@ -84,7 +99,8 @@ def _recomprimir_imagenes(documento, calidad: int, lado_maximo: int) -> None:
     """Sustituye las imágenes del PDF por versiones JPEG más ligeras."""
     procesados: set[int] = set()
 
-    for pagina in documento:
+    for pagina in progreso.contando(documento, documento.page_count,
+                                    'Recomprimiendo imágenes'):
         for informacion in pagina.get_images(full=True):
             xref = informacion[0]
             if xref in procesados:

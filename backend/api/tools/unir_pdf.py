@@ -2,7 +2,7 @@
 import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
 
-from api import current_session, params
+from api import current_session, params, progreso
 from errors import ApiError
 from storage import storage
 
@@ -32,7 +32,7 @@ def unir_pdf():
         # y campos, pero el índice es del documento, no de sus páginas, así que
         # se va acumulando con las páginas desplazadas.
         indice = []
-        for nombre, ruta in rutas:
+        for nombre, ruta in progreso.contando(rutas, len(rutas), 'Uniendo documentos'):
             with _abrir(nombre, ruta) as origen:
                 desplazamiento = salida.page_count
                 # `widgets=True` conserva los campos de formulario, y es el

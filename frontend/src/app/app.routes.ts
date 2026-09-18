@@ -114,6 +114,20 @@ export const routes: Routes = [
         .then(m => m.NumerarPaginasComponent),
   },
   {
+    path: 'herramientas/comparar-pdf',
+    title: 'Comparar PDF',
+    loadComponent: () =>
+      import('./pages/tools/comparar-pdf/comparar-pdf.component')
+        .then(m => m.CompararPdfComponent),
+  },
+  {
+    path: 'herramientas/aplanar-pdf',
+    title: 'Aplanar PDF',
+    loadComponent: () =>
+      import('./pages/tools/aplanar-pdf/aplanar-pdf.component')
+        .then(m => m.AplanarPdfComponent),
+  },
+  {
     path: 'herramientas/extraer-imagenes',
     title: 'Extraer imágenes',
     loadComponent: () =>
@@ -122,7 +136,7 @@ export const routes: Routes = [
   },
   {
     path: 'herramientas/limpiar-metadatos',
-    title: 'Limpiar metadatos',
+    title: 'Editar metadatos',
     loadComponent: () =>
       import('./pages/tools/limpiar-metadatos/limpiar-metadatos.component')
         .then(m => m.LimpiarMetadatosComponent),

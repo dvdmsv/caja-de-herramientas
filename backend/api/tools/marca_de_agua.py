@@ -19,7 +19,7 @@ import fitz  # PyMuPDF
 from PIL import Image
 from flask import Blueprint, jsonify
 
-from api import current_session, imaging, params, vista_previa
+from api import current_session, imaging, params, progreso, vista_previa
 from api.tipografia import COLORES_TEXTO, FAMILIAS, TAMANO_MAXIMO, TAMANO_MINIMO, fuente, limpiar
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -187,7 +187,7 @@ def _aplicar(documento, marca, modo, opacidad, giro, mosaico, encima, solo=None)
 
     paginas = [documento[solo - 1]] if solo else list(documento)
     xref = 0
-    for pagina in paginas:
+    for pagina in progreso.contando(paginas, len(paginas), 'Estampando páginas'):
         # En mosaico el cuerpo se recorta a lo que quepa en la celda, y se
         # calcula por página porque un documento puede mezclar tamaños.
         tamano = (_tamano_en_celda(pagina, marca, giro)
