@@ -18,7 +18,7 @@ from flask import Blueprint, current_app, jsonify
 
 import config
 from api import limites
-from api import conversion, current_session, params
+from api import conversion, current_session, params, progreso
 from errors import ApiError
 from storage import storage, cambiar_extension
 
@@ -31,6 +31,14 @@ EXTENSIONES_ADMITIDAS = {'.docx', '.doc', '.odt', '.rtf', '.txt'}
 #
 # De sobra para el lote entero, contando el arranque de LibreOffice.
 TIEMPO_LIMITE = config.entorno_entero('DOC_TO_PDF_TIMEOUT_SECONDS', 180)
+
+
+# Lo que se le dice a quien espera que va a tardar. El arranque de LibreOffice
+# es un coste fijo que se paga aunque el documento sea una línea —por eso el lote
+# entero va en una sola llamada—, y convertir cada documento, una fracción.
+# Pendiente de medirlo en el contenedor; mientras, la barra va por detrás.
+ARRANQUE = 6.0
+SEGUNDOS_POR_DOCUMENTO = 1.5
 
 
 @bp.post('/documento-a-pdf')
@@ -55,7 +63,9 @@ def documento_a_pdf():
 
     resultados = []
     with tempfile.TemporaryDirectory() as temporal:
-        _convertir([origen for _, origen in entradas], temporal)
+        with progreso.estimando('Convirtiendo con LibreOffice',
+                                ARRANQUE + len(entradas) * SEGUNDOS_POR_DOCUMENTO):
+            _convertir([origen for _, origen in entradas], temporal)
 
         for record, origen in entradas:
             # LibreOffice nombra la salida como el archivo de entrada, que en

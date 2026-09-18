@@ -15,7 +15,7 @@ import fitz  # PyMuPDF
 from flask import Blueprint, current_app, jsonify
 
 import config
-from api import conversion, current_session, params
+from api import conversion, current_session, params, progreso
 from errors import ApiError
 from storage import storage, cambiar_extension
 
@@ -28,6 +28,13 @@ bp = Blueprint('pdf_a_word', __name__, url_prefix='/api/tools')
 # Por debajo del plazo de gunicorn, para contestar con un error entendible en vez
 # de que nos corten la respuesta. Si se sube, hay que subir `GUNICORN_TIMEOUT`.
 TIEMPO_LIMITE = config.entorno_entero('PDF_TO_WORD_TIMEOUT_SECONDS', 240)
+
+
+# Lo que se le dice a quien espera que va a tardar, por página del lote.
+# pdf2docx reconstruye la maquetación con OpenCV, que es lo más caro que hace
+# esta aplicación por página. Pendiente de medirlo en el contenedor con un
+# documento de referencia; mientras, la barra va deliberadamente por detrás.
+SEGUNDOS_POR_PAGINA = 1.5
 
 
 @bp.post('/pdf-a-word')
@@ -49,11 +56,14 @@ def pdf_a_word():
         entradas.append((record, origen))
 
     resultados = []
-    for record, origen in entradas:
-        destino, salida = storage.reserve_output(
-            session_id, cambiar_extension(record.name, '.docx'))
-        _convertir(origen, destino, record.name)
-        resultados.append(storage.commit_output(session_id, salida).to_json())
+    # Se cuenta por tiempo y no por archivos: lo que manda es el número de
+    # páginas del lote, que ya está sumado ahí arriba y antes se tiraba.
+    with progreso.estimando('Reconstruyendo el documento', paginas * SEGUNDOS_POR_PAGINA):
+        for record, origen in entradas:
+            destino, salida = storage.reserve_output(
+                session_id, cambiar_extension(record.name, '.docx'))
+            _convertir(origen, destino, record.name)
+            resultados.append(storage.commit_output(session_id, salida).to_json())
 
     return jsonify({'files': resultados}), 201
 

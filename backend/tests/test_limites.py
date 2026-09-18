@@ -162,33 +162,99 @@ def test_el_plazo_atraviesa_los_except_amplios(entorno):
     assert fallo.value.status == 504
 
 
-def test_un_programa_muerto_por_señal_no_se_confunde_con_un_archivo_dañado(entorno, monkeypatch):
+@pytest.fixture
+def conversion(entorno):
+    """`api.conversion` recargado y con contexto de aplicación, que usa el log."""
+    import contextlib
+    import importlib
+
+    import flask
+
+    entorno()
+    import api.conversion
+    importlib.reload(api.conversion)
+
+    @contextlib.contextmanager
+    def preparar():
+        with flask.Flask(__name__).app_context():
+            yield api.conversion
+
+    return preparar
+
+
+def test_un_programa_muerto_por_señal_no_se_confunde_con_un_archivo_dañado(conversion):
     """Medido: pdf2docx con 512 MB de tope muere con violación de segmento (-11).
 
     Los programas externos heredan el límite de memoria del worker, así que
     quedarse corto no da un error de memoria: da un proceso muerto a mitad. Sin
     traducirlo, el usuario leía «el archivo está dañado».
-    """
-    import subprocess
 
+    Se usa un proceso que se mata de verdad y no un `CompletedProcess` de
+    mentira: lo que hay que comprobar es que el código negativo llega, y eso
+    depende de cómo se espere al proceso.
+    """
     from errors import ApiError
 
-    entorno()
-    import importlib
-
-    import api.conversion
-    importlib.reload(api.conversion)
-
-    def muere(*_args, **_kwargs):
-        return subprocess.CompletedProcess(args=[], returncode=-11, stdout='', stderr='')
-
-    monkeypatch.setattr(subprocess, 'run', muere)
-
-    import flask
-    aplicacion = flask.Flask(__name__)
-    with aplicacion.app_context():
+    with conversion() as modulo:
         with pytest.raises(ApiError) as fallo:
-            api.conversion.ejecutar(['programa'], 10, 'programa', 'no disponible', 'La conversión')
+            modulo.ejecutar(['sh', '-c', 'kill -9 $$'], 10, 'programa', 'no disponible')
 
     assert fallo.value.status == 413
     assert 'sin memoria' in fallo.value.message
+
+
+def test_un_programa_que_no_esta_instalado_se_explica(conversion):
+    from errors import ApiError
+
+    with conversion() as modulo:
+        with pytest.raises(ApiError) as fallo:
+            modulo.ejecutar(['no-existe-este-programa'], 10, 'programa', 'no disponible')
+
+    assert fallo.value.status == 500
+    assert fallo.value.message == 'no disponible'
+
+
+def test_un_programa_que_se_pasa_del_plazo_se_corta(conversion):
+    """El plazo se lleva a mano porque la espera va a latidos: si se sumaran los
+    latidos en vez de mirar el reloj, el plazo se alargaría solo."""
+    import time
+
+    from errors import ApiError
+
+    with conversion() as modulo:
+        empezado = time.monotonic()
+        with pytest.raises(ApiError) as fallo:
+            modulo.ejecutar(['sleep', '30'], 1, 'programa', 'no disponible', 'La conversión')
+        tardado = time.monotonic() - empezado
+
+    assert fallo.value.status == 504
+    assert '1 segundo' in fallo.value.message
+    assert tardado < 5, 'se ha esperado mucho más que el plazo'
+
+
+def test_cancelar_mata_el_programa(conversion):
+    """Sin esto, cancelar un OCR de cuatro minutos no haría nada: el worker
+    seguiría bloqueado en el subproceso hasta el final."""
+    import time
+
+    from api.progreso import Cancelado
+
+    with conversion() as modulo:
+        empezado = time.monotonic()
+        with pytest.raises(Cancelado):
+            modulo.ejecutar(['sleep', '30'], 30, 'programa', 'no disponible',
+                            vigilante=lambda: True)
+        tardado = time.monotonic() - empezado
+
+    assert tardado < 5, 'el programa tenía que morir en el primer latido'
+
+
+def test_un_programa_que_termina_bien_devuelve_su_salida(conversion):
+    """La salida se lee entre latidos, así que reintentar no puede perderla."""
+    with conversion() as modulo:
+        resultado = modulo.ejecutar(['sh', '-c', 'sleep 1.2; echo hola; echo ay >&2'],
+                                    10, 'programa', 'no disponible')
+
+    assert resultado.returncode == 0
+    assert resultado.stdout.strip() == 'hola'
+    assert resultado.stderr.strip() == 'ay'

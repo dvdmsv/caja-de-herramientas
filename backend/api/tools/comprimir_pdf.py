@@ -13,7 +13,7 @@ from PIL import Image
 from flask import Blueprint, jsonify
 
 import config
-from api import current_session, params
+from api import current_session, params, progreso
 from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -71,6 +71,9 @@ def comprimir_pdf():
             raise ApiError('El PDF está protegido con contraseña.', 422)
         if NIVELES[nivel]:
             _recomprimir_imagenes(documento, **NIVELES[nivel])
+        # Limpiar la estructura y escribirlo entero no es despreciable en un
+        # PDF grande, y no se puede contar: se dice al menos qué está pasando.
+        progreso.fase('Guardando el documento', cancelable=False)
         documento.save(destino, garbage=4, deflate=True, deflate_images=True,
                        deflate_fonts=True, clean=True, linear=para_web)
 
@@ -96,7 +99,8 @@ def _recomprimir_imagenes(documento, calidad: int, lado_maximo: int) -> None:
     """Sustituye las imágenes del PDF por versiones JPEG más ligeras."""
     procesados: set[int] = set()
 
-    for pagina in documento:
+    for pagina in progreso.contando(documento, documento.page_count,
+                                    'Recomprimiendo imágenes'):
         for informacion in pagina.get_images(full=True):
             xref = informacion[0]
             if xref in procesados:

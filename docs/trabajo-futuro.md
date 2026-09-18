@@ -16,8 +16,8 @@ pip (backend), Docker (las imágenes base) y las propias acciones de GitHub.
 Cuando sale una versión nueva, abre un pull request.
 
 **Por qué aquí funciona bien.** La CI ya levanta la pila completa y le pasa
-`scripts/barrido.py`, así que ese pull request no se cree nada: pasa los 136
-tests del frontend, los 120 del backend y las 25 herramientas **de verdad**, con
+`scripts/barrido.py`, así que ese pull request no se cree nada: pasa los 143
+tests del frontend, los 139 del backend y las 25 herramientas **de verdad**, con
 OCR, LibreOffice y WeasyPrint. Si una versión de PyMuPDF rompiera pdf2docx —que
 es justo lo que pasó al subir de la 1.24 a la 1.25— el barrido lo caza antes de
 llegar a `master`.
@@ -84,6 +84,26 @@ a relojes.
 aplicación. Sólo merece la pena si se va a seguir tocando el visor.
 
 ---
+
+## 4. Cabos sueltos del progreso
+
+Dos, los dos conocidos y acotados:
+
+- **Progreso real por página en los tres programas externos.** Hoy el OCR,
+  LibreOffice y pdf2docx enseñan un porcentaje **estimado** por tiempo. Los dos
+  primeros escriben una línea por página o por documento en su salida, así que
+  se podría contar de verdad: con `Popen` ya puesto en `api/conversion.py`, es
+  sólo leer la tubería y parsear. No se hizo porque esos formatos de salida no
+  están documentados y cambian entre versiones. **Coste:** una tarde, con una
+  prueba por programa. **Compra:** que la barra del OCR —el trabajo más largo—
+  diga la verdad en vez de una estimación.
+- **Lo que deja un trabajo cancelado.** Una herramienta que confirma resultados
+  dentro del bucle (`pdf-a-imagen`, `dividir-pdf`) deja en la sesión las páginas
+  que ya había escrito: no se devuelven, pero ocupan cuota hasta que la sesión
+  caduca o se pulsa «Empezar de cero». Borrarlas exigiría que el almacén supiera
+  de trabajos —hoy no se conocen— o que `progreso` apuntara los identificadores
+  confirmados. **Coste:** poco, pero es acoplar dos módulos que hoy no se
+  hablan. **Compra:** que cancelar no deje nada detrás.
 
 ## Pendiente fuera del repositorio
 

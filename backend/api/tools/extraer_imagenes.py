@@ -17,7 +17,7 @@ from PIL import Image
 from flask import Blueprint, jsonify
 
 import config
-from api import current_session, imaging, params
+from api import current_session, imaging, params, progreso
 from api.formatos import extension_de
 from api import limites
 from errors import ApiError
@@ -75,7 +75,8 @@ def extraer_imagenes():
     base = os.path.splitext(nombre_seguro(record.name))[0]
     ancho = len(str(len(encontradas)))
     resultados = []
-    for numero, imagen in enumerate(encontradas, start=1):
+    for numero, imagen in progreso.contando(enumerate(encontradas, start=1),
+                                            len(encontradas), 'Guardando imágenes'):
         extension = f'.{imagen["ext"]}' if formato == 'original' else extension_de(formato)
         destino, salida = storage.reserve_output(
             session_id, f'{base}-imagen-{numero:0{ancho}d}{extension}')

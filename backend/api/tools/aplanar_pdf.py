@@ -14,7 +14,7 @@ import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
 
 import config
-from api import current_session, params
+from api import current_session, params, progreso
 from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -41,7 +41,7 @@ def aplanar_pdf():
 
     resultados = []
 
-    for file_id in file_ids:
+    for file_id in progreso.contando(file_ids, len(file_ids), 'Aplanando documentos'):
         record = storage.record_of(session_id, file_id)
         if record.ext != '.pdf':
             raise ApiError(f'"{record.name}" no es un PDF.', 400)

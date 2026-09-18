@@ -7,6 +7,34 @@
   </div>
 }
 
+@if (pagina.procesando) {
+  <div class="mt-3">
+    <div class="d-flex flex-wrap align-items-center gap-2 small">
+      <span class="fw-semibold">{{ pagina.avanceTrabajo.etapa }}</span>
+      <span class="text-body-secondary">{{ pagina.avanceTrabajo.detalle }}</span>
+      @if (pagina.trabajo?.cancelable && !pagina.cancelando) {
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+          (click)="pagina.cancelar()">
+          <i class="bi bi-x-circle me-1"></i>Cancelar
+        </button>
+      }
+      @if (pagina.cancelando) {
+        <span class="text-body-secondary ms-auto">Cancelando…</span>
+      }
+    </div>
+    <div class="progress mt-1" role="progressbar" aria-label="Progreso del trabajo"
+      [attr.aria-valuenow]="pagina.avanceTrabajo.indeterminado ? null : pagina.avanceTrabajo.porcentaje"
+      aria-valuemin="0" aria-valuemax="100" style="height: 1.25rem">
+      <div class="progress-bar progress-bar-striped progress-bar-animated"
+        [style.width.%]="pagina.avanceTrabajo.indeterminado ? 100 : pagina.avanceTrabajo.porcentaje">
+        @if (!pagina.avanceTrabajo.indeterminado) {
+          {{ pagina.avanceTrabajo.porcentaje }}%
+        }
+      </div>
+    </div>
+  </div>
+}
+
 <div class="d-flex flex-wrap gap-2 mt-4">
   <button type="button" class="btn btn-primary" [disabled]="!pagina.listo" (click)="pagina.ejecutar()"
     [attr.aria-describedby]="pagina.motivoBloqueo ? 'motivo-bloqueo' : null">

@@ -3,7 +3,7 @@ import os
 
 from flask import Blueprint, jsonify
 
-from api import current_session, imaging, params
+from api import current_session, imaging, params, progreso
 from api.formatos import extension_de, extensiones_de_entrada, salidas_disponibles
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -31,7 +31,7 @@ def convertir_imagen():
     extension = extension_de(formato)
 
     resultados = []
-    for file_id in file_ids:
+    for file_id in progreso.contando(file_ids, len(file_ids), 'Convirtiendo imágenes'):
         record = storage.record_of(session_id, file_id)
         if record.ext not in extensiones_de_entrada():
             pista = ' Usa la herramienta de PDF a imagen.' if record.ext == '.pdf' else ''

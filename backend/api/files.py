@@ -9,7 +9,7 @@ import zipfile
 from flask import Blueprint, jsonify, request, send_file
 
 import config
-from api import current_session, params
+from api import current_session, params, progreso
 from api.formatos import EXTENSIONES_DOCUMENTO, EXTENSIONES_OFIMATICA, extensiones_de_entrada
 from errors import ApiError
 from storage import storage
@@ -160,6 +160,32 @@ def uso_de_la_sesion():
     tope = config.SESSION_QUOTA_MB * 1024 * 1024
     usado = storage.tamano_sesion(session_id)
     return jsonify({'usado': usado, 'tope': tope})
+
+
+@bp.get('/progreso/<trabajo>')
+def progreso_del_trabajo(trabajo: str):
+    """Por dónde va el trabajo que está en marcha en este momento.
+
+    Lo sirve `web` y no el servicio que trabaja, y eso es lo único que hace que
+    sirva de algo: los workers de `pesados` están todos ocupados justamente con
+    aquello por lo que se pregunta, así que esta consulta haría cola detrás. Por
+    la misma razón cuelga de `/api/` y no de `/api/tools/`, que además tiene
+    límite de tres conexiones por IP.
+
+    `null` significa «aún no ha empezado», que es información: está en la cola.
+    """
+    return jsonify({'estado': progreso.leer(current_session(), trabajo)})
+
+
+@bp.post('/progreso/<trabajo>/cancelar')
+def cancelar_el_trabajo(trabajo: str):
+    """Deja la marca que el trabajador mira entre paso y paso.
+
+    No mata nada por su cuenta: quien para es el propio trabajo cuando la ve, y
+    así no hay que ir a buscar procesos ajenos desde otro contenedor.
+    """
+    progreso.marcar_cancelacion(current_session(), trabajo)
+    return '', 204
 
 
 @bp.post('/session/keepalive')

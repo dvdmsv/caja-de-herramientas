@@ -74,7 +74,7 @@ from weasyprint.text.fonts import FontConfiguration
 from weasyprint.urls import URLFetcher
 
 import config
-from api import current_session, params
+from api import current_session, params, progreso
 from api import limites
 from errors import ApiError
 from storage import storage, cambiar_extension
@@ -250,7 +250,8 @@ def markdown_a_pdf():
         entradas.append((record, storage.path_of(session_id, file_id)))
 
     resultados = []
-    for record, ruta in entradas:
+    for record, ruta in progreso.contando(entradas, len(entradas),
+                                         'Maquetando documentos'):
         pdf = generar(_leer(ruta, record.name), record.name, **opciones)
         destino, salida = storage.reserve_output(
             session_id, cambiar_extension(record.name, '.pdf'))

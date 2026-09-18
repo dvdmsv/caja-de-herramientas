@@ -8,7 +8,7 @@ import os
 from flask import Blueprint, jsonify
 
 import config
-from api import current_session, imaging, params
+from api import current_session, imaging, params, progreso
 from api.formatos import extension_de, extensiones_de_entrada
 from api import limites
 from errors import ApiError
@@ -47,7 +47,7 @@ def comprimir_imagen():
 
     resultados, antes, despues = [], 0, 0
 
-    for file_id in file_ids:
+    for file_id in progreso.contando(file_ids, len(file_ids), 'Comprimiendo imágenes'):
         record = storage.record_of(session_id, file_id)
         if record.ext not in extensiones_de_entrada():
             pista = ' Usa la herramienta de comprimir PDF.' if record.ext == '.pdf' else ''

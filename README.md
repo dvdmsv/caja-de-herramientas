@@ -61,6 +61,25 @@ Pensada para usarse, no sólo para funcionar:
 | Generar QR | Códigos QR de un enlace, tu wifi o tu contacto | PNG o SVG |
 | Crear certificado | Genera un certificado propio para firmar | validez, tamaño de clave, contraseña |
 
+**Mientras el servidor trabaja se ve por dónde va**, y se puede parar. La barra
+dice la etapa («Convirtiendo páginas»), lo hecho de lo que hay («7 de 40») y lo
+que lleva, con un botón de «Cancelar» al lado. Antes de que empiece dice
+**«Esperando turno»**, que es información de verdad: con dos trabajos pesados a
+la vez, una petición puede pasar un rato en la cola y no había forma de saber si
+eso era lo que estaba pasando.
+
+No se anuncia lo que falta, sólo lo que lleva: un «quedan 20 s» que luego son
+dos minutos es peor que no decir nada. Donde no hay pasos que contar —el OCR,
+LibreOffice, pdf2docx son una sola llamada a un programa externo— el servidor
+dice cuánto calcula que va a tardar y la barra se mueve con eso, pero **se para
+al 95 %** hasta que la respuesta llega: una barra clavada en el 100 % miente más
+que una clavada en el 95.
+
+Cancelar no es cosmético: el trabajo se para de verdad en el siguiente paso —o
+se le mata el programa externo— y el worker queda libre para el siguiente. Lo
+que ya se hubiera producido antes de cancelar se queda en la sesión, ocupando su
+cuota, y caduca con ella o se tira con «Empezar de cero».
+
 Cualquier resultado se puede ver antes de descargarlo, con el ojo que hay junto
 a su nombre: se abre encima de la página y se cierra con `Esc`. Los PDF los
 enseña el visor del propio navegador, así que no cuesta ni un kilobyte de
@@ -530,6 +549,26 @@ borra como objetos, así que lo que se ve pasa a ser lo que hay y nadie puede
 reescribirlo con un lector normal. No tiene vuelta atrás y la página lo avisa
 antes, no después.
 
+**La barra de progreso viaja por el disco**, y no es un capricho: en producción
+cada trabajo se atiende en un proceso que **muere con la petición**, y quien
+contesta «¿cómo vas?» es otro contenedor (`web`). No hay memoria compartida
+donde dejar el dato, pero sí un volumen compartido, que es donde ya viven los
+archivos de la sesión. Así que quien trabaja escribe un archivito de doscientos
+bytes en `uploads/<sesión>/.trabajos/` y `web` lo lee.
+
+De ahí salen dos cosas gratis. Una, que preguntar no hace cola detrás de los
+trabajos: si la consulta colgara de `/api/tools/` la atendería el servicio que
+está ocupado justamente con lo que se pregunta, y además cuenta para el límite
+de tres trabajos por IP de nginx. Y dos, que **el archivo que aún no existe
+significa «todavía en la cola»**.
+
+Cancelar es el mismo canal al revés: `web` deja una marca y el trabajo la mira
+entre paso y paso —un `stat`, más barato que cualquier página—. Para los tres
+programas externos no hay «entre pasos», así que se les espera a latidos de
+medio segundo y, si hay que parar, se les mata; ese cambio es también lo que
+permite que un OCR de cuatro minutos deje de ocupar un worker en cuanto alguien
+se arrepiente.
+
 "Extraer imágenes" saca los bytes tal y como están en el archivo, sin
 recomprimir. Descarta las que no llegan a un tamaño mínimo porque un PDF de
 texto corriente lleva docenas de fragmentos diminutos —viñetas, filetes de las
@@ -900,6 +939,16 @@ storage import storage` y, si validas algo a mano, `from errors import ApiError`
 
 Y añádelo a la lista `BLUEPRINTS` de `backend/api/tools/__init__.py`.
 
+Si tu herramienta recorre páginas o archivos, envuelve ese bucle y te sale la
+barra de progreso y el botón de cancelar sin tocar nada más:
+
+```python
+from api import progreso
+
+for record, ruta in progreso.contando(entradas, len(entradas), 'Convirtiendo'):
+    ...
+```
+
 **2. Catálogo** — añade su entrada en `frontend/src/app/core/tools.ts` con
 `disponible: true`, qué archivos admite en `acepta` (`'.pdf'`, `'image/*'`…),
 si trabaja con `varios` y unas `palabras` para el buscador. De `acepta` salen el
@@ -956,8 +1005,8 @@ requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
 ## Pruebas
 
 ```bash
-cd frontend && npm test                                    # 136 tests, Vitest
-cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 76 tests
+cd frontend && npm test                                    # 143 tests, Vitest
+cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 139 tests
 
 docker compose up -d --build && python3 scripts/barrido.py # las 25 herramientas, de verdad
 ```
@@ -999,12 +1048,12 @@ Cada push y cada pull request pasan por
 que comprobaría alguien clonando el repositorio por primera vez:
 
 - `npm ci` desde el lockfile —falla si el lockfile y el `package.json` no
-  concuerdan—, compilación y los 136 tests del frontend.
+  concuerdan—, compilación y los 143 tests del frontend.
 - Que la salida sigue donde el `Dockerfile` la espera: `dist/merge-pdf/browser`,
   el worker de pdf.js como `.mjs` y `autoscript.js` publicado. Son tres cosas
   que **sólo se rompen en producción** y que ningún test detectaría.
 - `docker compose build` de las imágenes.
-- Los 76 tests del backend con pytest.
+- Los 139 tests del backend con pytest.
 - La pila completa levantada y `scripts/barrido.py` contra ella: es lo único
   que prueba OCR, LibreOffice y WeasyPrint de verdad.
 - Que el backend arranca y registra sus rutas, que descarta un import roto o un

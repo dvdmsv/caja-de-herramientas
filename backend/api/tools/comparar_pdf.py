@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw
 from flask import Blueprint, jsonify
 
 import config
-from api import comparacion, current_session, limites, params, pdf_estructura
+from api import comparacion, current_session, limites, params, pdf_estructura, progreso
 from api.tools import markdown_a_pdf
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -73,12 +73,14 @@ def comparar_pdf():
                                       [pagina.get_text() for pagina in despues])
         parejas, imagenes = _mirar_paginas(antes, despues, parejas, con_imagenes)
 
+    progreso.fase('Comparando el texto', cancelable=False)
     diferencias = comparacion.diferencias_de_texto(pdf_estructura.pdf_a_markdown(rutas[0]),
                                                    pdf_estructura.pdf_a_markdown(rutas[1]))
     cuentas = _cuentas(parejas)
     identicos = not diferencias and cuentas[comparacion.CAMBIADA] == 0 \
         and cuentas[comparacion.ANADIDA] == 0 and cuentas[comparacion.QUITADA] == 0
 
+    progreso.fase('Maquetando el informe', cancelable=False)
     texto = _informe(registros, parejas, cuentas, diferencias, imagenes, identicos)
     pdf = markdown_a_pdf.generar(texto, 'la comparación', saltos=False)
 
@@ -119,7 +121,8 @@ def _mirar_paginas(antes, despues, parejas: list, con_imagenes: bool) -> tuple[l
     """
     corregidas, imagenes = [], {}
 
-    for indice, pareja in enumerate(parejas):
+    for indice, pareja in progreso.contando(enumerate(parejas), len(parejas),
+                                            'Comparando páginas'):
         zonas: list = []
         if pareja.a is not None and pareja.b is not None:
             imagen_a = _rasterizar(antes[pareja.a])

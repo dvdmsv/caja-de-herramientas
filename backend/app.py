@@ -80,8 +80,15 @@ def create_app(servicio: str | None = None) -> Flask:
     if papel in ('todo', 'ligeros', 'pesados'):
         # Importado aquí dentro: `web` no debe cargar las herramientas ni lo que
         # arrastran. Con el import arriba, las cargaría igual sin usarlas.
-        from api import tools
+        from api import progreso, tools
         tools.register(app)
+
+        @app.teardown_request
+        def cerrar_el_progreso(_error=None):
+            # En un solo sitio y no en cada herramienta: da igual cómo acabe la
+            # petición —bien, con error, por plazo o cancelada—, su parte de
+            # progreso no puede quedarse en el disco diciendo que sigue viva.
+            progreso.terminar()
 
     @app.get('/api/health')
     def health():

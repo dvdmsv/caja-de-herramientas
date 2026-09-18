@@ -2,6 +2,8 @@ import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, filter, map } from 'rxjs';
 
+import { EstadoTrabajo } from '../shared/progreso';
+
 /** Archivo tal y como lo describe el servidor. */
 export interface ArchivoServidor {
   id: string;
@@ -116,6 +118,11 @@ export interface Resultado {
   comparacion?: ResumenComparacion;
 }
 
+/** Lo que contesta la consulta de progreso; `null` es «aún no ha empezado». */
+export interface EstadoTrabajoRespuesta {
+  estado: EstadoTrabajo | null;
+}
+
 /** Lo que ha salido de comparar dos documentos, para contarlo en pantalla. */
 export interface ResumenComparacion {
   identicos: boolean;
@@ -179,8 +186,30 @@ export class ApiService {
   }
 
   /** Ejecuta una herramienta del servidor sobre archivos ya subidos. */
-  ejecutar(slug: string, cuerpo: unknown): Observable<Resultado> {
-    return this.http.post<Resultado>(`/api/tools/${slug}`, cuerpo);
+  ejecutar(slug: string, cuerpo: unknown, trabajo?: string): Observable<Resultado> {
+    // El identificador del trabajo va en una cabecera y no en el cuerpo: así
+    // las veinticinco herramientas siguen recibiendo exactamente sus opciones.
+    const opciones = trabajo ? { headers: { 'X-Trabajo-Id': trabajo } } : {};
+    return this.http.post<Resultado>(`/api/tools/${slug}`, cuerpo, opciones);
+  }
+
+  /**
+   * Por dónde va el trabajo que está en marcha.
+   *
+   * Lo contesta el servicio `web`, que está libre; preguntárselo al que trabaja
+   * sería hacer cola detrás de aquello por lo que se pregunta. `null` significa
+   * que aún no ha empezado: está esperando turno.
+   */
+  progresoDelTrabajo(trabajo: string): Observable<EstadoTrabajoRespuesta> {
+    return this.http.get<EstadoTrabajoRespuesta>(`/api/progreso/${trabajo}`);
+  }
+
+  /**
+   * Pide parar el trabajo. No mata nada: deja una marca que el propio trabajo
+   * mira entre paso y paso, y que responde con un 409.
+   */
+  cancelarTrabajo(trabajo: string): Observable<void> {
+    return this.http.post<void>(`/api/progreso/${trabajo}/cancelar`, {});
   }
 
   /** Empaqueta varios resultados en un ZIP y devuelve el archivo creado. */

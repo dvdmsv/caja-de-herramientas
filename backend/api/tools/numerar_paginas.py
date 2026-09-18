@@ -13,7 +13,7 @@ import os
 import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
 
-from api import current_session, params, vista_previa
+from api import current_session, params, progreso, vista_previa
 from api.tipografia import COLORES_TEXTO, FAMILIAS, TAMANO_MAXIMO, TAMANO_MINIMO, fuente
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -129,7 +129,8 @@ def _numerar(origen: str, destino: str, nombre: str, ajustes: dict) -> None:
             raise ApiError(f'"{nombre}" tiene {documento.page_count} páginas y has pedido '
                            f'empezar a numerar en la {ajustes["desde"]}.', 400)
 
-        for indice, pagina in enumerate(documento, start=1):
+        for indice, pagina in progreso.contando(enumerate(documento, start=1),
+                                                documento.page_count, 'Numerando páginas'):
             texto = _texto_de_pagina(indice, documento.page_count, ajustes)
             if texto is not None:
                 _escribir(pagina, texto, ajustes)

@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 
+import { nuevoId } from './ids';
+
 const CLAVE = 'toolbox.session';
 
 /**
@@ -15,7 +17,7 @@ export class SessionService {
 
   /** Descarta el id actual y empieza de cero (los archivos del servidor quedan huérfanos y caducan solos). */
   renovar(): string {
-    const nuevo = this.generarId();
+    const nuevo = nuevoId();
     this.guardar(nuevo);
     return nuevo;
   }
@@ -25,20 +27,9 @@ export class SessionService {
     if (guardado && /^[0-9a-f]{32}$/.test(guardado)) {
       return guardado;
     }
-    const nuevo = this.generarId();
+    const nuevo = nuevoId();
     this.guardar(nuevo);
     return nuevo;
-  }
-
-  /** uuid v4 sin guiones: el formato exacto que valida el backend. */
-  private generarId(): string {
-    // randomUUID sólo existe en contextos seguros (https o localhost).
-    if (typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID().replace(/-/g, '');
-    }
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   }
 
   private leer(): string | null {

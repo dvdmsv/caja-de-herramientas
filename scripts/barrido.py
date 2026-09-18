@@ -22,6 +22,8 @@ import json
 import os
 import sys
 import tempfile
+import threading
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -128,6 +130,16 @@ def _fabricar(carpeta):
     documento.save(f'{carpeta}/memoria.pdf', deflate=True)
     documento.close()
 
+    # Un documento largo, para poder mirar el progreso de un trabajo mientras
+    # corre: con cuatro páginas todo termina antes de la primera consulta.
+    largo = fitz.open()
+    for numero in range(30):
+        pagina = largo.new_page()
+        pagina.insert_text((72, 100), f'Página {numero + 1} de treinta', fontsize=16)
+        pagina.draw_circle((300, 400), 150, color=(0.2, 0.3, 0.8), fill=(0.9, 0.9, 1))
+    largo.save(f'{carpeta}/largo.pdf', deflate=True)
+    largo.close()
+
     # Una página de tamaño cartel: a 150 ppp se pasa del tope de megapíxeles.
     cartel = fitz.open()
     cartel.new_page(width=5000, height=5000).insert_text((100, 100), 'cartel', fontsize=48)
@@ -152,6 +164,7 @@ def main():
     carpeta = tempfile.mkdtemp(prefix='barrido-')
     material(carpeta)
     pdf, pdf2 = subir(f'{carpeta}/memoria.pdf'), subir(f'{carpeta}/memoria.pdf')
+    largo = subir(f'{carpeta}/largo.pdf')
     cartel = subir(f'{carpeta}/cartel.pdf')
     foto = subir(f'{carpeta}/foto.jpg')
     txt = subir(f'{carpeta}/texto.txt')
@@ -225,6 +238,9 @@ def main():
               codigo == 400 and 'JPEG' in texto_del_error(cuerpo),
               f'{codigo} {texto_del_error(cuerpo)[:80]}')
 
+    print('\n=== Progreso y cancelación ===')
+    progreso_y_cancelacion(largo)
+
     print('\n=== Cuota ===')
     codigo, cuerpo = peticion('GET', '/api/session/uso')
     datos = json.loads(cuerpo) if codigo == 200 else {}
@@ -239,6 +255,65 @@ def main():
         return 1
     print('Todo responde.')
     return 0
+
+
+def progreso_y_cancelacion(largo):
+    """Lo único que prueba la cadena entera, y sólo se puede probar en marcha.
+
+    El progreso lo escribe `pesados` en el volumen y lo lee `web`: si el volumen
+    no estuviera compartido, si nginx mandara `/api/progreso` al servicio que
+    trabaja —que está ocupado justo con lo que se pregunta— o si el registro no
+    se borrara al acabar, todo lo demás seguiría pasando y esto no.
+    """
+    trabajo = uuid.uuid4().hex
+    resultado = {}
+
+    def trabajar():
+        resultado['codigo'], resultado['cuerpo'] = peticion(
+            'POST', '/api/tools/pdf-a-imagen',
+            {'file_ids': [largo], 'formato': 'PNG', 'ppp': 200},
+            cabeceras={'X-Trabajo-Id': trabajo})
+
+    hilo = threading.Thread(target=trabajar)
+    hilo.start()
+
+    partes = []
+    while hilo.is_alive() and len(partes) < 200:
+        codigo, cuerpo = peticion('GET', f'/api/progreso/{trabajo}')
+        if codigo == 200:
+            estado = json.loads(cuerpo).get('estado')
+            if estado:
+                partes.append(estado)
+        time.sleep(0.1)
+    hilo.join()
+
+    comprobar('el trabajo termina bien mientras se le pregunta', resultado.get('codigo') == 201,
+              f"{resultado.get('codigo')}")
+    comprobar('otro servicio ve por dónde va el trabajo', bool(partes),
+              f"{len(partes)} partes, última etapa: {partes[-1]['etapa'] if partes else '—'}")
+    if partes:
+        avanzados = [p for p in partes if p.get('hechos', 0) > 0]
+        comprobar('el parte cuenta pasos de verdad', bool(avanzados),
+                  f"{partes[-1].get('hechos')} de {partes[-1].get('total')}")
+        comprobar('el parte avanza mientras dura', avanzados[-1]['hechos'] > avanzados[0]['hechos']
+                  if len(avanzados) > 1 else False,
+                  ' → '.join(str(p['hechos']) for p in partes))
+
+    codigo, cuerpo = peticion('GET', f'/api/progreso/{trabajo}')
+    comprobar('al terminar no queda rastro del trabajo',
+              codigo == 200 and json.loads(cuerpo).get('estado') is None)
+
+    # Y ahora el mismo trabajo, pero cancelado antes de empezar: tiene que
+    # contestar 409 en vez de ponerse a rasterizar trescientas páginas.
+    otro = uuid.uuid4().hex
+    codigo, _ = peticion('POST', f'/api/progreso/{otro}/cancelar')
+    comprobar('se puede pedir la cancelación', codigo == 204, str(codigo))
+    empezado = time.monotonic()
+    codigo, cuerpo = peticion('POST', '/api/tools/pdf-a-imagen',
+                              {'file_ids': [largo], 'formato': 'PNG', 'ppp': 300},
+                              cabeceras={'X-Trabajo-Id': otro})
+    comprobar('un trabajo cancelado se para y lo dice', codigo == 409,
+              f'{codigo} en {time.monotonic() - empezado:.1f} s')
 
 
 if __name__ == '__main__':

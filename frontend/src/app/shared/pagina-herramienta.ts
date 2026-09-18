@@ -4,10 +4,22 @@ import { ApiService, ArchivoServidor, Resultado, ResumenTamano, VistaPrevia } fr
 import { UsoService } from '../core/uso.service';
 import { ArchivoEnCola } from './file-queue/file-queue.component';
 import { buscarPorSlug } from '../core/tools';
+import { nuevoId } from '../core/ids';
 import { sinAhorro } from './ahorro';
 import { avisoError, avisoExito, avisoInfo, mensajeDeError } from './notify';
+import { AvanceTrabajo, avance, EstadoTrabajo } from './progreso';
 import { repartirSubida } from './subida';
 import { queElegir } from './tipos-archivo';
+
+/** Cada cuánto se pregunta por dónde va el trabajo. */
+const INTERVALO_SONDEO = 1000;
+
+/**
+ * Tope de preguntas de un mismo trabajo: algo más que el plazo más largo del
+ * servidor (300 s de gunicorn), para que la última palabra sea siempre la
+ * respuesta y no este reloj.
+ */
+const VUELTAS_MAXIMAS = 330;
 
 /**
  * Comportamiento común a todas las páginas de herramienta: subir en cuanto se
@@ -29,6 +41,15 @@ export abstract class PaginaHerramienta {
   /** -1 cuando no hay ninguna subida en marcha. */
   progreso = -1;
   procesando = false;
+
+  /** El último parte del trabajo; `null` mientras espera turno. */
+  trabajo: EstadoTrabajo | null = null;
+  cancelando = false;
+
+  private trabajoId = '';
+  /** Cuándo se vio empezar la etapa actual, por el reloj de aquí. */
+  private vistoEn = 0;
+  private sondeo?: ReturnType<typeof setInterval>;
 
   /** Identificador de la herramienta en el servidor y en el catálogo. */
   protected abstract readonly slug: string;
@@ -62,6 +83,18 @@ export abstract class PaginaHerramienta {
   /** Para pasarse a `app-tool-controls` desde la plantilla. */
   get pagina(): PaginaHerramienta {
     return this;
+  }
+
+  /**
+   * Cómo se pinta el trabajo en marcha.
+   *
+   * El tiempo se mide con el reloj **de aquí** desde que se vio empezar la
+   * etapa, y no con el `desde` del servidor: los dos relojes no tienen por qué
+   * coincidir, y una diferencia de unos segundos dejaría la barra descolocada
+   * desde el primer momento.
+   */
+  get avanceTrabajo(): AvanceTrabajo {
+    return avance(this.trabajo, Date.now() - this.vistoEn);
   }
 
   get ocupado(): boolean {
@@ -129,8 +162,15 @@ export abstract class PaginaHerramienta {
     // El orden de la lista es el orden con el que trabaja el servidor.
     const ids = this.archivos.map(archivo => archivo.id!).filter(Boolean);
 
-    this.api.ejecutar(this.slug, { file_ids: ids, ...this.opciones() }).subscribe({
+    this.trabajoId = nuevoId();
+    this.trabajo = null;
+    this.cancelando = false;
+    this.vistoEn = Date.now();
+    this.arrancarSondeo();
+
+    this.api.ejecutar(this.slug, { file_ids: ids, ...this.opciones() }, this.trabajoId).subscribe({
       next: resultado => {
+        this.pararSondeo();
         this.procesando = false;
         this.resultados = resultado.files;
         this.resumen = resultado.resumen ?? null;
@@ -145,10 +185,68 @@ export abstract class PaginaHerramienta {
         }
       },
       error: err => {
+        this.pararSondeo();
         this.procesando = false;
+        if ((err as { status?: number })?.status === 409) {
+          // Lo ha parado quien mira: no es un fallo y no se cuenta como tal.
+          avisoInfo('Trabajo cancelado.');
+          return;
+        }
+        this.cancelando = false;
         avisar(err, 'No se ha podido completar la operación.');
       },
     });
+  }
+
+  /** Pide parar el trabajo; lo para el propio trabajo, no esta llamada. */
+  cancelar(): void {
+    if (!this.procesando || this.cancelando || !this.trabajoId) {
+      return;
+    }
+    this.cancelando = true;
+    this.api.cancelarTrabajo(this.trabajoId).subscribe({
+      error: err => {
+        this.cancelando = false;
+        avisoError(mensajeDeError(err, 'No se ha podido cancelar el trabajo.'));
+      },
+    });
+  }
+
+  /**
+   * Pregunta cada segundo por dónde va, mientras dura.
+   *
+   * Con `setInterval` y no con rxjs, como el keepalive del visor. El tope de
+   * vueltas es una red de seguridad para el caso de que la respuesta no llegue
+   * nunca —una pestaña que se queda abierta, un corte de red—: sin él, la
+   * pregunta se repetiría para siempre.
+   */
+  private arrancarSondeo(): void {
+    this.pararSondeo();
+    let vueltas = 0;
+    this.sondeo = setInterval(() => {
+      if (++vueltas > VUELTAS_MAXIMAS || !this.procesando) {
+        this.pararSondeo();
+        return;
+      }
+      this.api.progresoDelTrabajo(this.trabajoId).subscribe({
+        next: ({ estado }) => {
+          // Cada etapa cuenta su propio tiempo: el servidor cambia `desde` al
+          // empezar el trabajo, así que es lo que dice si esto es nuevo.
+          if (estado && estado.desde !== this.trabajo?.desde) {
+            this.vistoEn = Date.now();
+          }
+          this.trabajo = estado;
+        },
+        // Si una consulta falla no se dice nada: es un dato de cortesía y la
+        // herramienta sigue su curso.
+        error: () => {},
+      });
+    }, INTERVALO_SONDEO);
+  }
+
+  protected pararSondeo(): void {
+    clearInterval(this.sondeo);
+    this.sondeo = undefined;
   }
 
   empezarDeCero(): void {
@@ -164,6 +262,7 @@ export abstract class PaginaHerramienta {
   }
 
   private olvidarResultado(): void {
+    this.trabajo = null;
     this.resultados = [];
     this.resumen = null;
     this.vistaPrevia = null;

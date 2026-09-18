@@ -14,7 +14,7 @@ import fitz  # PyMuPDF
 from PIL import Image
 from flask import Blueprint, jsonify
 
-from api import current_session, imaging, params
+from api import current_session, imaging, params, progreso
 from errors import ApiError
 from storage import storage, nombre_seguro
 
@@ -71,7 +71,7 @@ def imagen_a_pdf():
 
     documento = fitz.open()
     with documento:
-        for record, ruta in entradas:
+        for record, ruta in progreso.contando(entradas, len(entradas), 'Componiendo páginas'):
             with imaging.abrir(ruta, record.name) as imagen:
                 _anadir_pagina(documento, imagen, tamano, orientacion, margen, calidad)
 

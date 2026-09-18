@@ -35,7 +35,7 @@ from PIL import Image
 from PIL.ExifTags import GPSTAGS, TAGS
 from flask import Blueprint, jsonify
 
-from api import current_session, imaging, params
+from api import current_session, imaging, params, progreso
 from api.formatos import extension_de, extensiones_de_entrada, salidas_disponibles
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -134,7 +134,8 @@ def limpiar_metadatos():
     cambios = _leer_cambios(datos, entradas, seleccion)
 
     resultados = []
-    for record, origen in entradas:
+    for record, origen in progreso.contando(entradas, len(entradas),
+                                                'Reescribiendo los archivos'):
         marcadas = seleccion.get(record.id, set())
         nuevos = cambios.get(record.id, {})
         base = os.path.splitext(nombre_seguro(record.name))[0]

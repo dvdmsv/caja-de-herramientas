@@ -9,7 +9,7 @@ import re
 import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
 
-from api import current_session, params
+from api import current_session, params, progreso
 from errors import ApiError
 from storage import storage, nombre_seguro
 
@@ -61,7 +61,7 @@ def dividir_pdf():
         resultados = [_escribir(session_id, f'{base}-paginas.pdf', origen, numeros)]
     else:
         resultados = [_escribir(session_id, f'{base}-pagina-{n:0{ancho}d}.pdf', origen, [n])
-                      for n in numeros]
+                      for n in progreso.contando(numeros, len(numeros), 'Escribiendo archivos')]
 
     return jsonify({'files': [r.to_json() for r in resultados]}), 201
 

@@ -10,7 +10,7 @@ import threading
 from flask import Blueprint, jsonify
 
 import config
-from api import current_session, params, pdf_estructura
+from api import current_session, params, pdf_estructura, progreso
 from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -60,7 +60,8 @@ def a_markdown():
     unir = params.booleano(datos, 'unir', False)
 
     convertidos = []
-    for file_id in file_ids:
+    for file_id in progreso.contando(file_ids, len(file_ids),
+                                       'Extrayendo el contenido'):
         record = storage.record_of(session_id, file_id)
         ruta = storage.path_of(session_id, file_id)
         limites.comprobar_descomprimido(ruta, record.name)
