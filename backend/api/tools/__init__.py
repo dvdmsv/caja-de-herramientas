@@ -4,11 +4,12 @@ Para añadir una herramienta nueva: crea un módulo en esta carpeta que exponga 
 Blueprint llamado ``bp`` con ``url_prefix='/api/tools'`` e inclúyelo en la lista
 de abajo. No hay que tocar nada más ni en el arranque ni en nginx.
 """
-from api.tools import (a_markdown, comprimir_imagen, comprimir_pdf, comprobar_firmas,
-                       convertir_imagen, crear_certificado, dividir_pdf, documento_a_pdf,
-                       extraer_imagenes, firmar, firmar_certificado, generar_qr, imagen_a_pdf,
-                       limpiar_metadatos, marca_de_agua, markdown_a_pdf, numerar_paginas, ocr_pdf,
-                       organizar_pdf, pdf_a_imagen, pdf_a_word, proteger_pdf, unir_pdf, visor)
+from api.tools import (a_markdown, aplanar_pdf, comprimir_imagen, comprimir_pdf,
+                       comprobar_firmas, convertir_imagen, crear_certificado, dividir_pdf,
+                       documento_a_pdf, extraer_imagenes, firmar, firmar_certificado, generar_qr,
+                       imagen_a_pdf, limpiar_metadatos, marca_de_agua, markdown_a_pdf,
+                       numerar_paginas, ocr_pdf, organizar_pdf, pdf_a_imagen, pdf_a_word,
+                       proteger_pdf, unir_pdf, visor)
 
 BLUEPRINTS = [
     unir_pdf.bp,
@@ -25,6 +26,7 @@ BLUEPRINTS = [
     dividir_pdf.bp,
     organizar_pdf.bp,
     proteger_pdf.bp,
+    aplanar_pdf.bp,
     ocr_pdf.bp,
     marca_de_agua.bp,
     numerar_paginas.bp,

@@ -1,0 +1,59 @@
+<app-tool-page slug="aplanar-pdf">
+
+  <app-file-queue
+    [items]="archivos"
+    [multiple]="true"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra los PDF que quieras dejar fijos"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarLista()">
+  </app-file-queue>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Qué se fija en la página</legend>
+
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" id="aplanar-campos"
+        [checked]="campos" [disabled]="ocupado" (change)="cambiar('campos', $event)">
+      <label class="form-check-label" for="aplanar-campos">
+        Campos de formulario
+        <small class="d-block text-body-secondary">
+          Lo escrito se queda como texto de la página y deja de poder rellenarse.
+        </small>
+      </label>
+    </div>
+
+    <div class="form-check mt-2">
+      <input type="checkbox" class="form-check-input" id="aplanar-anotaciones"
+        [checked]="anotaciones" [disabled]="ocupado" (change)="cambiar('anotaciones', $event)">
+      <label class="form-check-label" for="aplanar-anotaciones">
+        Anotaciones, subrayados y notas
+        <small class="d-block text-body-secondary">
+          Se dibujan dentro de la página; el sello visible de una firma también.
+        </small>
+      </label>
+    </div>
+
+    @if (nadaQueAplanar) {
+      <p class="form-text text-warning-emphasis mb-0">
+        Marca al menos una de las dos: si no, no hay nada que aplanar.
+      </p>
+    }
+  </fieldset>
+
+  <div class="alert alert-warning d-flex gap-2 mt-4">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Esto no tiene vuelta atrás.</strong>
+      El archivo que sale ya no lleva campos rellenables ni subrayados que se puedan quitar:
+      lo que se veía forma ahora parte de la página. Guarda el original si vas a necesitarlo.
+      Y si el PDF está firmado, aplanarlo invalida la firma, porque reescribe el documento.
+    </div>
+  </div>
+
+  <app-tool-controls [pagina]="pagina" accion="Aplanar PDF" icono="bi-layers">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados" [resumen]="resumen"></app-result-list>
+
+</app-tool-page>

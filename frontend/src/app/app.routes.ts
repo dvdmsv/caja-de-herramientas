@@ -114,6 +114,13 @@ export const routes: Routes = [
         .then(m => m.NumerarPaginasComponent),
   },
   {
+    path: 'herramientas/aplanar-pdf',
+    title: 'Aplanar PDF',
+    loadComponent: () =>
+      import('./pages/tools/aplanar-pdf/aplanar-pdf.component')
+        .then(m => m.AplanarPdfComponent),
+  },
+  {
     path: 'herramientas/extraer-imagenes',
     title: 'Extraer imágenes',
     loadComponent: () =>

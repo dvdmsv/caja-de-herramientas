@@ -168,6 +168,8 @@ def main():
     prueba('pdf-a-imagen/formatos', '/api/tools/pdf-a-imagen/formatos', metodo='GET')
     prueba('comprimir-pdf', '/api/tools/comprimir-pdf',
            {'file_ids': [pdf], 'nivel': 'media', 'web': True})
+    prueba('aplanar-pdf', '/api/tools/aplanar-pdf',
+           {'file_ids': [pdf], 'campos': True, 'anotaciones': True})
     prueba('proteger-pdf', '/api/tools/proteger-pdf',
            {'file_ids': [pdf], 'accion': 'proteger', 'password': 'clave1234', 'password_actual': ''})
     prueba('numerar-paginas', '/api/tools/numerar-paginas', {'file_ids': [pdf]})

@@ -40,6 +40,7 @@ Pensada para usarse, no sólo para funcionar:
 | Dividir PDF | Saca páginas sueltas o rangos | `1-3, 7, 10-`, un archivo o uno por página |
 | Organizar PDF | Reordena, gira y elimina páginas | arrastre, giro de 90° y borrado |
 | Proteger PDF | Pone o quita la contraseña de apertura | cifrado AES-256 |
+| Aplanar PDF | Fija los formularios y las anotaciones dentro de la página | campos, anotaciones, varios documentos de una vez |
 | PDF con OCR | Reconoce el texto de un escaneado | español, inglés o ambos |
 | Firmar documento | Coloca tu firma sobre un PDF o una imagen | posición libre, tamaño, giro, página |
 | Firmar con certificado | Firma un PDF con tu certificado digital | con el certificado del equipo (AutoFirma) o un `.p12`, visible o invisible, sello de tiempo |
@@ -918,7 +919,7 @@ requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
 cd frontend && npm test                                    # 136 tests, Vitest
 cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 76 tests
 
-docker compose up -d --build && python3 scripts/barrido.py # las 23 herramientas, de verdad
+docker compose up -d --build && python3 scripts/barrido.py # las 24 herramientas, de verdad
 ```
 
 `scripts/barrido.py` llama a la API como lo haría el navegador y recorre todas

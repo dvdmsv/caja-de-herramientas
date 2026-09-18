@@ -158,6 +158,17 @@ export const HERRAMIENTAS: Herramienta[] = [
     disponible: true,
   },
   {
+    slug: 'aplanar-pdf',
+    nombre: 'Aplanar PDF',
+    descripcion: 'Fija los formularios y las anotaciones para que nadie los cambie.',
+    icono: 'bi-layers',
+    categoria: 'PDF',
+    acepta: '.pdf',
+    varios: true,
+    palabras: ['flatten', 'fijar', 'formulario', 'campos', 'anotaciones', 'no editable'],
+    disponible: true,
+  },
+  {
     slug: 'ocr-pdf',
     nombre: 'PDF con OCR',
     descripcion: 'Reconoce el texto de un escaneado para poder buscarlo y copiarlo.',
