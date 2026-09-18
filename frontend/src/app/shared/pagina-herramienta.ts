@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 
-import { ApiService, ArchivoServidor, ResumenTamano, VistaPrevia } from '../core/api.service';
+import { ApiService, ArchivoServidor, Resultado, ResumenTamano, VistaPrevia } from '../core/api.service';
 import { UsoService } from '../core/uso.service';
 import { ArchivoEnCola } from './file-queue/file-queue.component';
 import { buscarPorSlug } from '../core/tools';
@@ -47,6 +47,12 @@ export abstract class PaginaHerramienta {
    * acabe bien, también en los reintentos.
    */
   protected alTerminarSubida(): void {}
+
+  /**
+   * Gancho para quien necesite algo más de la respuesta que los archivos
+   * —"Comparar PDF" saca de ahí su recuento—. Se llama sólo si ha ido bien.
+   */
+  protected alTerminar(_resultado: Resultado): void {}
 
   /** Texto del aviso cuando termina bien. */
   protected get mensajeExito(): string {
@@ -129,6 +135,7 @@ export abstract class PaginaHerramienta {
         this.resultados = resultado.files;
         this.resumen = resultado.resumen ?? null;
         this.vistaPrevia = resultado.vista_previa ?? null;
+        this.alTerminar(resultado);
         // Los resultados también ocupan sitio, y es justo lo que sorprende.
         this.usoSesion.refrescar();
         if (sinAhorro(this.resumen)) {

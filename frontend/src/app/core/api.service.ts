@@ -112,6 +112,19 @@ export interface Resultado {
   files: ArchivoServidor[];
   resumen?: ResumenTamano;
   vista_previa?: VistaPrevia;
+  /** Sólo la manda "Comparar PDF": el recuento de páginas de su informe. */
+  comparacion?: ResumenComparacion;
+}
+
+/** Lo que ha salido de comparar dos documentos, para contarlo en pantalla. */
+export interface ResumenComparacion {
+  identicos: boolean;
+  iguales: number;
+  cambiadas: number;
+  anadidas: number;
+  quitadas: number;
+  /** Cuántos párrafos cambian de uno a otro. */
+  diferencias: number;
 }
 
 /** Formato de imagen ofrecido por el servidor. */

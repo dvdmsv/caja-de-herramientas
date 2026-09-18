@@ -168,6 +168,7 @@ def main():
     prueba('pdf-a-imagen/formatos', '/api/tools/pdf-a-imagen/formatos', metodo='GET')
     prueba('comprimir-pdf', '/api/tools/comprimir-pdf',
            {'file_ids': [pdf], 'nivel': 'media', 'web': True})
+    prueba('comparar-pdf', '/api/tools/comparar-pdf', {'file_ids': [pdf, pdf2]})
     prueba('aplanar-pdf', '/api/tools/aplanar-pdf',
            {'file_ids': [pdf], 'campos': True, 'anotaciones': True})
     prueba('proteger-pdf', '/api/tools/proteger-pdf',

@@ -40,6 +40,7 @@ Pensada para usarse, no sólo para funcionar:
 | Dividir PDF | Saca páginas sueltas o rangos | `1-3, 7, 10-`, un archivo o uno por página |
 | Organizar PDF | Reordena, gira y elimina páginas | arrastre, giro de 90° y borrado |
 | Proteger PDF | Pone o quita la contraseña de apertura | cifrado AES-256 |
+| Comparar PDF | Dice en qué se diferencian dos versiones de un documento | informe en PDF, con las páginas recuadradas |
 | Aplanar PDF | Fija los formularios y las anotaciones dentro de la página | campos, anotaciones, varios documentos de una vez |
 | PDF con OCR | Reconoce el texto de un escaneado | español, inglés o ambos |
 | Firmar documento | Coloca tu firma sobre un PDF o una imagen | posición libre, tamaño, giro, página |
@@ -505,6 +506,30 @@ el número queda a 44 pt del borde en los dos. La marca de agua se gira con
 `morph` alrededor **del centro del texto**: girándola alrededor del inicio de la
 línea base —que es lo que sitúa `insert_text`— se va a la esquina.
 
+"Comparar PDF" contesta a "¿y esto en qué se diferencia de lo que firmamos?".
+Devuelve un PDF: el resumen, lo que cambia en el texto párrafo a párrafo y las
+páginas afectadas con **lo cambiado recuadrado**.
+
+Las dos mitades hacen falta. El texto dice qué frase se ha tocado, pero una
+firma, un sello o un logotipo nuevo no cambian ni una letra: eso sólo se ve. Por
+eso una página que por texto es idéntica **asciende a "cambiada"** si los píxeles
+no coinciden.
+
+Las páginas se emparejan por lo que dicen y no por su número (`difflib`): quien
+mete una hoja en medio no ha cambiado todo lo que va detrás, sólo lo ha
+desplazado, y decir lo contrario haría el informe inservible. Lo visual se mide
+con un umbral por píxel —por debajo están el antialiasing y el ruido del
+rasterizado, que si no marcarían la página entera— y las filas con algo se
+agrupan en bandas, que son los recuadros. Las páginas del informe viajan
+incrustadas como `data:`, que es lo único que el maquetador acepta, y ese límite
+es justo la protección que ya tenía "Markdown a PDF".
+
+"Aplanar PDF" es lo contrario de una herramienta que protege: no cifra nada.
+Dibuja los campos de formulario y las anotaciones **dentro** de la página y los
+borra como objetos, así que lo que se ve pasa a ser lo que hay y nadie puede
+reescribirlo con un lector normal. No tiene vuelta atrás y la página lo avisa
+antes, no después.
+
 "Extraer imágenes" saca los bytes tal y como están en el archivo, sin
 recomprimir. Descarta las que no llegan a un tamaño mínimo porque un PDF de
 texto corriente lleva docenas de fragmentos diminutos —viñetas, filetes de las
@@ -934,7 +959,7 @@ requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
 cd frontend && npm test                                    # 136 tests, Vitest
 cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 76 tests
 
-docker compose up -d --build && python3 scripts/barrido.py # las 24 herramientas, de verdad
+docker compose up -d --build && python3 scripts/barrido.py # las 25 herramientas, de verdad
 ```
 
 `scripts/barrido.py` llama a la API como lo haría el navegador y recorre todas

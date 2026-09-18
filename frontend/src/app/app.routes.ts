@@ -114,6 +114,13 @@ export const routes: Routes = [
         .then(m => m.NumerarPaginasComponent),
   },
   {
+    path: 'herramientas/comparar-pdf',
+    title: 'Comparar PDF',
+    loadComponent: () =>
+      import('./pages/tools/comparar-pdf/comparar-pdf.component')
+        .then(m => m.CompararPdfComponent),
+  },
+  {
     path: 'herramientas/aplanar-pdf',
     title: 'Aplanar PDF',
     loadComponent: () =>

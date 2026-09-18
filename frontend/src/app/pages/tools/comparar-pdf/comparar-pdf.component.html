@@ -1,0 +1,58 @@
+<app-tool-page slug="comparar-pdf">
+
+  <app-file-queue
+    [items]="archivos"
+    [multiple]="true"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra los dos documentos: primero el de antes, después el nuevo"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarArchivos()">
+  </app-file-queue>
+
+  @if (archivos.length === 2) {
+    <p class="form-text mt-2 mb-0">
+      Se compara <strong>{{ antes }}</strong> (antes) con <strong>{{ despues }}</strong> (después).
+      Si están al revés, arrástralos para cambiarlos de sitio.
+    </p>
+  }
+
+  <fieldset class="mt-4">
+    <legend class="h6">Qué lleva el informe</legend>
+    <p class="form-text mt-0">
+      Un PDF con el resumen, lo que cambia en el texto párrafo a párrafo y las páginas
+      afectadas con lo cambiado recuadrado.
+    </p>
+
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" id="con-imagenes"
+        [checked]="conImagenes" [disabled]="ocupado" (change)="cambiarImagenes($event)">
+      <label class="form-check-label" for="con-imagenes">
+        Incluir las páginas con lo cambiado recuadrado
+        <small class="d-block text-body-secondary">
+          Es lo que enseña un sello o un logotipo nuevo, que no cambia ni una letra.
+          Sin ellas el informe pesa mucho menos.
+        </small>
+      </label>
+    </div>
+  </fieldset>
+
+  <app-tool-controls [pagina]="pagina" accion="Comparar" icono="bi-file-earmark-diff">
+  </app-tool-controls>
+
+  @if (comparacion) {
+    <div class="alert mt-3 mb-0" [class.alert-success]="comparacion.identicos"
+      [class.alert-info]="!comparacion.identicos">
+      @if (comparacion.identicos) {
+        Los dos documentos dicen lo mismo y se ven igual.
+      } @else {
+        {{ comparacion.cambiadas }} páginas cambiadas,
+        {{ comparacion.anadidas }} añadidas y
+        {{ comparacion.quitadas }} quitadas;
+        {{ comparacion.diferencias }} cambios en el texto.
+      }
+    </div>
+  }
+
+  <app-result-list [archivos]="resultados" [resumen]="resumen"></app-result-list>
+
+</app-tool-page>

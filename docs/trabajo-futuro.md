@@ -17,7 +17,7 @@ Cuando sale una versión nueva, abre un pull request.
 
 **Por qué aquí funciona bien.** La CI ya levanta la pila completa y le pasa
 `scripts/barrido.py`, así que ese pull request no se cree nada: pasa los 136
-tests del frontend, los 99 del backend y las 24 herramientas **de verdad**, con
+tests del frontend, los 120 del backend y las 25 herramientas **de verdad**, con
 OCR, LibreOffice y WeasyPrint. Si una versión de PyMuPDF rompiera pdf2docx —que
 es justo lo que pasó al subir de la 1.24 a la 1.25— el barrido lo caza antes de
 llegar a `master`.

@@ -158,6 +158,17 @@ export const HERRAMIENTAS: Herramienta[] = [
     disponible: true,
   },
   {
+    slug: 'comparar-pdf',
+    nombre: 'Comparar PDF',
+    descripcion: 'Dice en qué se diferencian dos versiones de un documento y te lo enseña.',
+    icono: 'bi-file-earmark-diff',
+    categoria: 'PDF',
+    acepta: '.pdf',
+    varios: true,
+    palabras: ['diferencias', 'comparar', 'versiones', 'cambios', 'diff', 'antes y despues'],
+    disponible: true,
+  },
+  {
     slug: 'aplanar-pdf',
     nombre: 'Aplanar PDF',
     descripcion: 'Fija los formularios y las anotaciones para que nadie los cambie.',
