@@ -44,7 +44,7 @@ Pensada para usarse, no sólo para funcionar:
 | Firmar documento | Coloca tu firma sobre un PDF o una imagen | posición libre, tamaño, giro, página |
 | Firmar con certificado | Firma un PDF con tu certificado digital | con el certificado del equipo (AutoFirma) o un `.p12`, visible o invisible, sello de tiempo |
 | Comprobar firmas | Dice quién firmó un PDF y si lo han tocado después | ninguna: se comprueba al subirlo |
-| Comprimir PDF | Recomprime las imágenes del documento | suave, media, fuerte |
+| Comprimir PDF | Recomprime las imágenes del documento y lo optimiza para la web | ninguna, suave, media, fuerte; optimizar para verlo en la web |
 | Comprimir imagen | Baja el peso de varias imágenes a la vez | calidad y tamaño máximo |
 | Convertir imagen | Cambia de formato | JPG, PNG, WebP, TIFF, BMP, PDF |
 | Imagen a PDF | Reúne varias imágenes en un PDF | tamaño de página, orientación, margen y calidad |
@@ -74,7 +74,10 @@ sigue siendo un PDF por mucho que se le cambie el nombre.
 Las herramientas de imagen aceptan varios archivos y ofrecen descargar todo en un
 ZIP, cuyo nombre también se puede cambiar. "Comprimir PDF" nunca devuelve un archivo más pesado que el original: si la
 compresión no mejora nada (porque el PDF ya venía optimizado), entrega el
-original.
+original. Esa red de seguridad se levanta al pedir "optimizar para verlo en la
+web": linearizar reordena el archivo para que un visor enseñe la primera página
+sin haberlo descargado entero, y eso cuesta unos kilobytes; devolver el original
+sería deshacer justo lo que se ha pedido.
 
 Los formatos de destino no están escritos a mano: se le preguntan a Pillow en el
 arranque, así que la interfaz nunca ofrece uno que después falle al guardar.

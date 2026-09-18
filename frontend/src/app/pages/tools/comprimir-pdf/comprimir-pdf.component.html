@@ -13,7 +13,7 @@
     <legend class="h6">Nivel de compresión</legend>
     <div class="row g-2">
       @for (opcion of niveles; track opcion) {
-        <div class="col-12 col-sm-4">
+        <div class="col-6 col-sm-3">
           <input type="radio" class="btn-check" name="nivel" [id]="'nivel-' + opcion.id"
             [checked]="nivel === opcion.id" [disabled]="ocupado"
             (change)="elegirNivel(opcion.id)">
@@ -27,6 +27,16 @@
     <p class="form-text">
       La compresión trabaja sobre las imágenes del documento; el texto no pierde nitidez.
     </p>
+
+    <div class="form-check mt-3">
+      <input type="checkbox" class="form-check-input" id="para-web"
+        [checked]="paraWeb" [disabled]="ocupado" (change)="cambiarParaWeb($event)">
+      <label class="form-check-label" for="para-web">Optimizar para verlo en la web</label>
+      <p class="form-text mb-0">
+        Reordena el archivo para que un navegador pueda enseñar la primera página
+        sin haberlo descargado entero. No cambia nada de lo que se ve.
+      </p>
+    </div>
   </fieldset>
 
   <app-tool-controls [pagina]="pagina" accion="Comprimir PDF" icono="bi-file-earmark-zip">

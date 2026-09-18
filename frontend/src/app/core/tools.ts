@@ -171,12 +171,12 @@ export const HERRAMIENTAS: Herramienta[] = [
   {
     slug: 'comprimir-pdf',
     nombre: 'Comprimir PDF',
-    descripcion: 'Reduce el peso del documento conservando la calidad.',
+    descripcion: 'Reduce el peso del documento y lo deja listo para verlo en la web.',
     icono: 'bi-file-earmark-zip',
     categoria: 'PDF',
     acepta: '.pdf',
     varios: false,
-    palabras: ['reducir', 'aligerar', 'peso', 'tamaño', 'optimizar'],
+    palabras: ['reducir', 'aligerar', 'peso', 'tamaño', 'optimizar', 'linearizar', 'web'],
     disponible: true,
   },
   {
