@@ -178,13 +178,28 @@ export abstract class PaginaHerramienta {
           this.progreso = estado.porcentaje;
           return;
         }
-        // El servidor conserva el orden de envío, así que casan por posición.
-        estado.archivos.forEach((archivo, i) => {
-          if (items[i]) {
-            items[i].id = archivo.id;
-            items[i].estado = 'subido';
+        // El servidor puede no admitir alguno y admitir el resto, así que los
+        // admitidos casan por posición **descontando** los rechazados.
+        const rechazados = new Set(estado.rechazados.map(rechazado => rechazado.indice));
+        let siguiente = 0;
+        items.forEach((item, i) => {
+          if (rechazados.has(i)) {
+            return;
+          }
+          const archivo = estado.archivos[siguiente++];
+          if (archivo) {
+            item.id = archivo.id;
+            item.estado = 'subido';
           }
         });
+
+        if (estado.rechazados.length > 0) {
+          // Fuera de la cola: dejarlos ahí en rojo invita a reintentar algo que
+          // va a volver a fallar, porque el problema es el archivo.
+          const fuera = estado.rechazados.map(rechazado => items[rechazado.indice]);
+          this.archivos = this.archivos.filter(archivo => !fuera.includes(archivo));
+          avisoInfo(estado.rechazados.map(rechazado => rechazado.error).join(' '));
+        }
         this.progreso = -1;
         this.usoSesion.refrescar();
         this.alTerminarSubida();
@@ -193,7 +208,16 @@ export abstract class PaginaHerramienta {
       error: err => {
         items.forEach(item => (item.estado = 'error'));
         this.progreso = -1;
-        avisoError(mensajeDeError(err, 'No se han podido subir los archivos.'));
+        const codigo = (err as { status?: number })?.status;
+        const texto = mensajeDeError(err, 'No se han podido subir los archivos.');
+        // Un 400 o un 413 son cosa del archivo o de la cuota: tienen arreglo y
+        // se dicen sin interrumpir. Lo demás sí es un fallo que parar a leer.
+        if (codigo === 400 || codigo === 413) {
+          this.archivos = this.archivos.filter(archivo => !items.includes(archivo));
+          avisoInfo(texto);
+        } else {
+          avisoError(texto);
+        }
       },
     });
   }

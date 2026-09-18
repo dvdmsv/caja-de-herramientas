@@ -38,9 +38,28 @@ def upload_files():
     if not files:
         raise ApiError('No se ha recibido ningún archivo.', 400)
 
-    registros = [storage.save_upload(session_id, f, ALLOWED_EXTS, DESCRIPCION_ADMITIDOS)
-                 for f in files]
-    return jsonify({'files': [r.to_json() for r in registros]}), 201
+    # Cada archivo por su cuenta: si uno no vale, los demás no tienen por qué
+    # caerse con él. Antes bastaba con que el quinto de diez mintiera sobre su
+    # formato para perder la subida entera —y los cuatro primeros se quedaban en
+    # el servidor ocupando cuota, marcados como error en la pantalla—.
+    registros, rechazados = [], []
+    for indice, archivo in enumerate(files):
+        try:
+            registros.append(storage.save_upload(session_id, archivo, ALLOWED_EXTS,
+                                                 DESCRIPCION_ADMITIDOS))
+        except ApiError as fallo:
+            rechazados.append({'indice': indice, 'name': archivo.filename,
+                               'error': fallo.message})
+
+    # Si no se ha salvado ninguno, esto es un error de la petición y se responde
+    # como tal, con el motivo del primero.
+    if not registros:
+        raise ApiError(rechazados[0]['error'], 400)
+
+    respuesta = {'files': [r.to_json() for r in registros]}
+    if rechazados:
+        respuesta['rechazados'] = rechazados
+    return jsonify(respuesta), 201
 
 
 @bp.post('/files/zip')

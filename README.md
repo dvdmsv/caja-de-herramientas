@@ -773,7 +773,8 @@ procesarlo:
   `.pdf`, o un `.docx` que por dentro es una hoja de cálculo, se rechazan **al
   subirlos**, diciendo qué parecen ser. No es seguridad —aquí nada se ejecuta—:
   es que el aviso llegue antes y no como un «no se ha podido abrir» tres
-  pantallas después.
+  pantallas después. Si en una tanda sólo uno miente, los demás se suben igual:
+  el rechazado sale de la lista con su explicación.
 
 Quedarse sin memoria o sin disco se responde con un **413 que lo explica**, no
 con un 500. Incluye lo que dicen las bibliotecas nativas: MuPDF no lanza

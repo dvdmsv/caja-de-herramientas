@@ -86,3 +86,38 @@ def test_un_zip_dañado_lo_dice(almacen):
         almacen().save_upload(SESION, subida(b'PK\x03\x04' + b'basura', 'roto.docx'))
     assert fallo.value.status == 400
     assert 'dañado' in fallo.value.message
+
+
+def test_un_archivo_malo_no_se_lleva_por_delante_a_los_buenos(entorno):
+    """Antes, el quinto de diez mintiendo perdía la subida entera."""
+    entorno()
+    import app as modulo
+
+    cliente = modulo.create_app('web').test_client()
+    datos = {'files': [
+        (io.BytesIO(PDF), 'bueno.pdf'),
+        (io.BytesIO(JPEG), 'mentira.pdf'),
+        (io.BytesIO(b'texto\n'), 'notas.txt'),
+    ]}
+    respuesta = cliente.post('/api/files', headers={'X-Session-Id': SESION},
+                             data=datos, content_type='multipart/form-data')
+
+    assert respuesta.status_code == 201
+    cuerpo = respuesta.get_json()
+    assert [f['name'] for f in cuerpo['files']] == ['bueno.pdf', 'notas.txt']
+    assert len(cuerpo['rechazados']) == 1
+    assert cuerpo['rechazados'][0]['indice'] == 1
+    assert 'JPEG' in cuerpo['rechazados'][0]['error']
+
+
+def test_si_no_se_salva_ninguno_es_un_error_de_la_peticion(entorno):
+    entorno()
+    import app as modulo
+
+    cliente = modulo.create_app('web').test_client()
+    respuesta = cliente.post('/api/files', headers={'X-Session-Id': SESION},
+                             data={'files': [(io.BytesIO(JPEG), 'mentira.pdf')]},
+                             content_type='multipart/form-data')
+
+    assert respuesta.status_code == 400
+    assert 'JPEG' in respuesta.get_json()['error']

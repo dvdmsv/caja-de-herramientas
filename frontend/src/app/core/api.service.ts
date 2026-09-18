@@ -115,9 +115,23 @@ export interface FormatoImagen {
 }
 
 /** Progreso de una subida, o el resultado cuando ya ha terminado. */
+/** Un archivo que el servidor no ha admitido, y por qué. */
+export interface ArchivoRechazado {
+  /** Posición que ocupaba en la tanda enviada, para saber cuál de la cola es. */
+  indice: number;
+  name: string;
+  error: string;
+}
+
 export type ProgresoSubida =
   | { tipo: 'progreso'; porcentaje: number }
-  | { tipo: 'hecho'; archivos: ArchivoServidor[] };
+  | { tipo: 'hecho'; archivos: ArchivoServidor[]; rechazados: ArchivoRechazado[] };
+
+/** Lo que responde el servidor al subir: lo admitido y, si lo hay, lo rechazado. */
+interface RespuestaSubida {
+  files: ArchivoServidor[];
+  rechazados?: ArchivoRechazado[];
+}
 
 /**
  * Única puerta de entrada a la API. Todas las herramientas la usan; la cabecera
@@ -133,7 +147,7 @@ export class ApiService {
     archivos.forEach(archivo => formData.append('files', archivo));
 
     return this.http
-      .post<{ files: ArchivoServidor[] }>('/api/files', formData, {
+      .post<RespuestaSubida>('/api/files', formData, {
         observe: 'events',
         reportProgress: true,
       })
@@ -315,12 +329,13 @@ export class ApiService {
     return this.http.delete<void>('/api/session');
   }
 
-  private aProgreso(evento: HttpEvent<{ files: ArchivoServidor[] }>): ProgresoSubida | null {
+  private aProgreso(evento: HttpEvent<RespuestaSubida>): ProgresoSubida | null {
     if (evento.type === HttpEventType.UploadProgress && evento.total) {
       return { tipo: 'progreso', porcentaje: Math.round((100 * evento.loaded) / evento.total) };
     }
     if (evento.type === HttpEventType.Response && evento.body) {
-      return { tipo: 'hecho', archivos: evento.body.files };
+      return { tipo: 'hecho', archivos: evento.body.files,
+               rechazados: evento.body.rechazados ?? [] };
     }
     return null;
   }
