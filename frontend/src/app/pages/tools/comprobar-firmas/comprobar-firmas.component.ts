@@ -13,7 +13,7 @@ import { avisoError, mensajeDeError } from '../../../shared/notify';
  * Es la única herramienta que **no genera ningún archivo**: sólo mira y cuenta.
  * Por eso no lleva `app-tool-controls` ni botón de ejecutar, y el informe se
  * pide en cuanto el archivo termina de subir, igual que la inspección de
- * "Limpiar metadatos".
+ * "Editar metadatos".
  */
 @Component({
   selector: 'app-comprobar-firmas',

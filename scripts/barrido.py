@@ -202,7 +202,8 @@ def main():
     print('\n=== Documentos ===')
     prueba('limpiar-metadatos/inspec', '/api/tools/limpiar-metadatos/inspeccionar', {'file_ids': [pdf]})
     prueba('limpiar-metadatos', '/api/tools/limpiar-metadatos',
-           {'file_ids': [pdf], 'marcadas': {pdf: ['title', 'author']}})
+           {'file_ids': [pdf], 'seleccion': {pdf: ['author']},
+            'cambios': {pdf: {'title': 'Título nuevo'}}})
     prueba('a-markdown', '/api/tools/a-markdown', {'file_ids': [pdf]})
     prueba('markdown-a-pdf', '/api/tools/markdown-a-pdf', {'file_ids': [md]})
     prueba('documento-a-pdf', '/api/tools/documento-a-pdf', {'file_ids': [txt]})

@@ -258,13 +258,14 @@ export const HERRAMIENTAS: Herramienta[] = [
   },
   {
     slug: 'limpiar-metadatos',
-    nombre: 'Limpiar metadatos',
-    descripcion: 'Enseña lo que tus archivos cuentan de ti —hasta dónde se hizo la foto— y lo borra.',
+    nombre: 'Editar metadatos',
+    descripcion: 'Mira lo que tus archivos cuentan de ti —hasta dónde se hizo la foto—, corrígelo o bórralo.',
     icono: 'bi-incognito',
     categoria: 'Documentos',
     acepta: '.pdf,image/*',
     varios: true,
-    palabras: ['privacidad', 'exif', 'gps', 'ubicacion', 'autor', 'anonimizar'],
+    palabras: ['privacidad', 'exif', 'gps', 'ubicacion', 'autor', 'anonimizar', 'limpiar',
+               'borrar metadatos', 'titulo', 'propiedades'],
     disponible: true,
   },
   {

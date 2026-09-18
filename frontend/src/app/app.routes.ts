@@ -129,7 +129,7 @@ export const routes: Routes = [
   },
   {
     path: 'herramientas/limpiar-metadatos',
-    title: 'Limpiar metadatos',
+    title: 'Editar metadatos',
     loadComponent: () =>
       import('./pages/tools/limpiar-metadatos/limpiar-metadatos.component')
         .then(m => m.LimpiarMetadatosComponent),

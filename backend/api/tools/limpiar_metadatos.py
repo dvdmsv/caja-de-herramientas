@@ -1,4 +1,4 @@
-"""Herramienta: ver qué cuentan de ti tus archivos y borrar lo que decidas.
+"""Herramienta: ver qué cuentan de ti tus archivos, corregirlo o borrarlo.
 
 Un PDF lleva dentro quién lo escribió y con qué programa; una foto de móvil lleva
 el modelo de la cámara, la fecha exacta y, muy a menudo, **las coordenadas del
@@ -7,9 +7,19 @@ sitio donde se hizo**. Se reparte sin querer cada vez que se manda un archivo.
 Va en dos fases, y ese es todo el punto de la herramienta:
 
 1. ``/limpiar-metadatos/inspeccionar`` mira los archivos y cuenta lo que llevan
-   dentro **sin tocarlos**. Cada dato viene con una clave, para poder señalarlo.
-2. ``/limpiar-metadatos`` recibe qué claves hay que borrar de cada archivo. Se
-   puede tirar el GPS de una foto y conservar la fecha de la toma.
+   dentro **sin tocarlos**. Cada dato viene con una clave, para poder señalarlo,
+   y con su valor entero, para poder cambiarlo.
+2. ``/limpiar-metadatos`` recibe qué claves hay que borrar de cada archivo
+   (``seleccion``) y cuáles hay que reescribir (``cambios``). Se puede tirar el
+   GPS de una foto y conservar la fecha de la toma, o corregir el autor de un PDF
+   que salió con el nombre de otro.
+
+Borrar y cambiar el mismo dato a la vez es un error: no hay forma de adivinar
+cuál de las dos cosas quería quien lo pidió.
+
+De un PDF se enseñan **siempre** sus ocho campos, con valor o sin él: son un
+juego fijo y corto, y así se puede rellenar el que falte. De una foto sólo lo que
+lleva: inventarle un "número de serie" a una cámara no significa nada.
 
 En los JPEG los metadatos se arrancan **sin recomprimir la imagen**: si se borra
 todo el EXIF se omite su segmento, y si se borra sólo una parte se reconstruye el
@@ -18,6 +28,7 @@ que limpiar nunca cuesta calidad.
 """
 import os
 import shutil
+from datetime import datetime
 
 import fitz  # PyMuPDF
 from PIL import Image
@@ -77,6 +88,17 @@ FIRMAS_JPEG = [
 
 MAXIMO_VALOR = 120
 
+# Longitud máxima de un valor escrito a mano. Ni el título de un PDF ni el autor
+# de una foto necesitan más, y sin tope cualquiera podría meter un megabyte de
+# texto en una cabecera.
+MAXIMO_EDITADO = 500
+
+CLAVES_PDF = {clave for clave, _ in CAMPOS_PDF}
+
+# Formatos en los que se acepta una fecha escrita a mano: los mismos en los que
+# se enseña. Guardarla es pasarla a la sintaxis de fechas del PDF.
+FORMATOS_FECHA = ('%d/%m/%Y %H:%M', '%d/%m/%Y')
+
 
 def _extensiones_admitidas() -> set:
     return {'.pdf'} | extensiones_de_entrada()
@@ -107,21 +129,27 @@ def limpiar_metadatos():
     datos = params.cuerpo()
     file_ids = params.ids(datos, minimo=1, mensaje='Selecciona al menos un archivo.')
     a_fondo = params.booleano(datos, 'a_fondo', False)
+    entradas = _entradas(session_id, file_ids)
     seleccion = _leer_seleccion(datos, file_ids)
+    cambios = _leer_cambios(datos, entradas, seleccion)
 
     resultados = []
-    for record, origen in _entradas(session_id, file_ids):
+    for record, origen in entradas:
         marcadas = seleccion.get(record.id, set())
+        nuevos = cambios.get(record.id, {})
         base = os.path.splitext(nombre_seguro(record.name))[0]
+        # El nombre cuenta lo que se ha hecho: si sólo se han corregido valores,
+        # el archivo no se queda "sin metadatos".
+        sufijo = 'sin-metadatos' if marcadas is None or marcadas or a_fondo else 'metadatos'
 
         if record.ext == '.pdf':
-            destino, salida = storage.reserve_output(session_id, f'{base}-sin-metadatos.pdf')
-            _limpiar_pdf(origen, destino, record.name, marcadas, a_fondo)
+            destino, salida = storage.reserve_output(session_id, f'{base}-{sufijo}.pdf')
+            _limpiar_pdf(origen, destino, record.name, marcadas, nuevos, a_fondo)
         else:
             formato, extension = _formato_de_salida(record.ext)
             destino, salida = storage.reserve_output(
-                session_id, f'{base}-sin-metadatos{extension}')
-            _limpiar_imagen(origen, destino, record.name, marcadas, formato)
+                session_id, f'{base}-{sufijo}{extension}')
+            _limpiar_imagen(origen, destino, record.name, marcadas, nuevos, formato)
 
         resultados.append(storage.commit_output(session_id, salida).to_json())
 
@@ -161,22 +189,70 @@ def _leer_seleccion(datos: dict, file_ids: list[str]) -> dict:
     return seleccion
 
 
+def _leer_cambios(datos: dict, entradas: list, seleccion: dict) -> dict:
+    """Qué valor nuevo lleva cada clave, por archivo.
+
+    Se valida contra el tipo del archivo: en un PDF sólo caben sus ocho campos, y
+    en una foto sólo las etiquetas EXIF que la herramienta enseña.
+    """
+    crudo = datos.get('cambios')
+    if crudo is None:
+        return {}
+    if not isinstance(crudo, dict):
+        raise ApiError('Los cambios de metadatos no son válidos.', 400)
+
+    cambios = {}
+    for record, _ in entradas:
+        campos = crudo.get(record.id) or {}
+        if not isinstance(campos, dict):
+            raise ApiError('Los cambios de metadatos no son válidos.', 400)
+
+        marcadas = seleccion.get(record.id)
+        limpio = {}
+        for clave, valor in campos.items():
+            if not isinstance(valor, str):
+                raise ApiError('Los cambios de metadatos no son válidos.', 400)
+            if len(valor) > MAXIMO_EDITADO:
+                raise ApiError(f'El valor que has escrito en "{record.name}" es demasiado largo '
+                               f'(máximo {MAXIMO_EDITADO} caracteres).', 400)
+            if not _clave_editable(clave, record.ext == '.pdf'):
+                raise ApiError(f'"{clave}" no es un dato que se pueda cambiar.', 400)
+            # Con `marcadas is None` se ha pedido borrarlo todo y volver a
+            # escribir lo que venga: eso no es una contradicción. Marcar **este**
+            # dato para borrarlo y a la vez darle un valor, sí.
+            if marcadas is not None and clave in marcadas:
+                raise ApiError(f'No se puede borrar y cambiar el mismo dato de "{record.name}".',
+                               400)
+            limpio[clave] = valor.strip()
+        if limpio:
+            cambios[record.id] = limpio
+    return cambios
+
+
+def _clave_editable(clave: str, es_pdf: bool) -> bool:
+    if es_pdf:
+        return clave in CLAVES_PDF
+    etiqueta = clave[5:] if clave.startswith('exif:') else ''
+    return etiqueta.isdigit() and int(etiqueta) in CAMPOS_EXIF
+
+
 # --- PDF -------------------------------------------------------------------
 
 def _mirar_pdf(ruta: str, nombre: str) -> tuple[list, bool]:
     with _abrir_pdf(ruta, nombre) as documento:
         campos = _campos_pdf(documento.metadata or {})
         if documento.xref_xml_metadata() != 0:
-            campos.append({'clave': CLAVE_XMP, 'etiqueta': 'Metadatos XMP',
-                           'valor': 'un bloque incrustado en el documento'})
+            campos.append(_bloque(CLAVE_XMP, 'Metadatos XMP',
+                                  'un bloque incrustado en el documento'))
     return campos, False
 
 
-def _limpiar_pdf(origen: str, destino: str, nombre: str, marcadas, a_fondo: bool) -> None:
+def _limpiar_pdf(origen: str, destino: str, nombre: str, marcadas, cambios: dict,
+                 a_fondo: bool) -> None:
     with _abrir_pdf(origen, nombre) as documento:
         todo = marcadas is None
-        if not todo and not marcadas and not a_fondo:
-            shutil.copyfile(origen, destino)  # no hay nada que quitar
+        if not todo and not marcadas and not cambios and not a_fondo:
+            shutil.copyfile(origen, destino)  # no hay nada que hacer
             return
 
         if a_fondo:
@@ -196,6 +272,12 @@ def _limpiar_pdf(origen: str, destino: str, nombre: str, marcadas, a_fondo: bool
             if CLAVE_XMP in marcadas:
                 documento.del_xml_metadata()
 
+        if cambios:
+            # Después del borrado: así "bórralo todo y ponle este título" hace
+            # las dos cosas y en ese orden.
+            documento.set_metadata({clave: _valor_pdf(clave, valor)
+                                    for clave, valor in cambios.items()})
+
         try:
             documento.save(destino, deflate=True, garbage=4, clean=True)
         except Exception as err:
@@ -214,13 +296,26 @@ def _abrir_pdf(ruta: str, nombre: str):
 
 
 def _campos_pdf(metadatos: dict) -> list[dict]:
+    """Los ocho campos, con valor o sin él: los vacíos se pueden rellenar."""
     campos = []
     for clave, etiqueta in CAMPOS_PDF:
-        valor = (metadatos.get(clave) or '').strip()
-        if valor:
-            campos.append({'clave': clave, 'etiqueta': etiqueta,
-                           'valor': _recortar(_fecha_legible(valor))})
+        valor = _fecha_legible((metadatos.get(clave) or '').strip())
+        campos.append({'clave': clave, 'etiqueta': etiqueta,
+                       'valor': _recortar(valor), 'texto': valor, 'editable': True})
     return campos
+
+
+def _valor_pdf(clave: str, valor: str) -> str:
+    """Lo que se escribe en el PDF; las fechas vuelven a su sintaxis."""
+    if clave not in ('creationDate', 'modDate') or not valor:
+        return valor
+    for formato in FORMATOS_FECHA:
+        try:
+            return datetime.strptime(valor, formato).strftime('D:%Y%m%d%H%M%S')
+        except ValueError:
+            continue
+    raise ApiError(f'"{valor}" no es una fecha. Escríbela como 31/12/2026 o 31/12/2026 09:30.',
+                   400)
 
 
 def _fecha_legible(valor: str) -> str:
@@ -244,9 +339,14 @@ def _mirar_imagen(ruta: str, nombre: str) -> tuple[list, bool]:
                                 (CLAVE_IPTC, 'Datos IPTC (pies de foto, autoría)'),
                                 (CLAVE_COMENTARIO, 'Comentario')):
             if _tiene_bloque(imagen, clave):
-                campos.append({'clave': clave, 'etiqueta': etiqueta,
-                               'valor': 'un bloque incrustado en el archivo'})
+                campos.append(_bloque(clave, etiqueta, 'un bloque incrustado en el archivo'))
     return campos, ubicacion
+
+
+def _bloque(clave: str, etiqueta: str, valor: str) -> dict:
+    """Un metadato que sólo se puede conservar o tirar entero, nunca escribir."""
+    return {'clave': clave, 'etiqueta': etiqueta, 'valor': valor,
+            'texto': '', 'editable': False}
 
 
 def _tiene_bloque(imagen: Image.Image, clave: str) -> bool:
@@ -267,8 +367,9 @@ def _campos_exif(imagen: Image.Image) -> tuple[list[dict], bool]:
     campos = []
     for etiqueta, valor in exif.items():
         if etiqueta in CAMPOS_EXIF and valor not in (None, ''):
+            texto = _texto_exif(valor)
             campos.append({'clave': f'exif:{etiqueta}', 'etiqueta': CAMPOS_EXIF[etiqueta],
-                           'valor': _recortar(str(valor).strip())})
+                           'valor': _recortar(texto), 'texto': texto, 'editable': True})
 
     ubicacion = False
     try:
@@ -277,19 +378,41 @@ def _campos_exif(imagen: Image.Image) -> tuple[list[dict], bool]:
         gps = None
     if gps:
         ubicacion = True
-        campos.append({'clave': CLAVE_GPS, 'etiqueta': 'Ubicación', 'valor': _coordenadas(gps)})
+        campos.append(_bloque(CLAVE_GPS, 'Ubicación', _coordenadas(gps)))
 
     # Lo que no se enseña de una en una también se puede decidir: si no
     # apareciera aquí, se borraría sin que el usuario lo hubiera visto.
     otras = [e for e in exif if e not in CAMPOS_EXIF and e != 0x8825]
     if otras:
-        campos.append({
-            'clave': CLAVE_OTROS,
-            'etiqueta': 'Otros datos de la cámara',
-            'valor': f'{len(otras)} campos técnicos (exposición, resolución…)',
-        })
+        campos.append(_bloque(CLAVE_OTROS, 'Otros datos de la cámara',
+                              f'{len(otras)} campos técnicos (exposición, resolución…)'))
 
     return campos, ubicacion
+
+
+def _texto_exif(valor) -> str:
+    """Lo que dice una etiqueta EXIF, con los acentos en su sitio.
+
+    El EXIF declara sus campos de texto como ASCII, así que Pillow los lee como
+    latin-1 y "José" llega como "JosÃ©". Casi todo el mundo —exiftool incluido—
+    escribe ahí UTF-8, que es también lo que escribe esta herramienta, así que se
+    intenta interpretarlo como tal y se deja como estaba si no cuela.
+    """
+    texto = str(valor).strip()
+    try:
+        return texto.encode('latin-1').decode('utf-8')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return texto
+
+
+def _valor_exif(texto: str):
+    """Lo que se escribe en una etiqueta EXIF.
+
+    Pillow cambia por "?" lo que no sea ASCII, así que un nombre con acentos
+    quedaría destrozado. En bytes sí lo escribe tal cual, y en UTF-8 es como lo
+    espera cualquier lector moderno.
+    """
+    return texto if texto.isascii() else texto.encode('utf-8')
 
 
 def _coordenadas(gps: dict) -> str:
@@ -309,19 +432,25 @@ def _grados(valor, referencia: str) -> float:
     return -resultado if referencia in ('S', 'W') else resultado
 
 
-def _limpiar_imagen(origen: str, destino: str, nombre: str, marcadas, formato: str) -> None:
+def _limpiar_imagen(origen: str, destino: str, nombre: str, marcadas, cambios: dict,
+                    formato: str) -> None:
     todo = marcadas is None
-    if not todo and not marcadas:
-        shutil.copyfile(origen, destino)  # no hay nada que quitar
+    if not todo and not marcadas and not cambios:
+        shutil.copyfile(origen, destino)  # no hay nada que hacer
         return
 
     with imaging.abrir(origen, nombre) as imagen:
         original = imagen.format
-        exif = _exif_filtrado(imagen, marcadas)
+        exif = _exif_resultante(imagen, marcadas, cambios)
+
+    # Si se toca cualquier cosa del EXIF, el bloque original sobra entero: lo que
+    # se conserva se vuelve a escribir ya filtrado y con los valores nuevos.
+    exif_tocado = todo or bool(cambios) or any(
+        clave == CLAVE_GPS or clave.startswith('exif:') for clave in marcadas)
 
     if original == 'JPEG':
         # Sin recomprimir: se copian los bytes cambiando sólo las cabeceras.
-        _reescribir_jpeg(origen, destino, marcadas, exif)
+        _reescribir_jpeg(origen, destino, marcadas, exif, exif_tocado)
         return
 
     with imaging.abrir(origen, nombre) as imagen:
@@ -339,36 +468,44 @@ def _limpiar_imagen(origen: str, destino: str, nombre: str, marcadas, formato: s
         imaging.guardar(imagen, destino, formato, 95)
 
 
-def _exif_filtrado(imagen: Image.Image, marcadas) -> bytes | None:
-    """El EXIF que hay que conservar, ya serializado. `None` si no queda nada.
+def _exif_resultante(imagen: Image.Image, marcadas, cambios: dict) -> bytes | None:
+    """El EXIF que hay que escribir, ya serializado. `None` si no queda nada.
 
     Se reconstruye con Pillow en vez de tocar los bytes originales: sabe
     serializar el bloque entero, y así conservar la fecha mientras se tira el
-    GPS no obliga a recomprimir la imagen.
+    GPS —o corregir el autor— no obliga a recomprimir la imagen.
     """
-    if marcadas is None:
-        return None
     try:
         exif = imagen.getexif()
     except Exception:
-        return None
-    if not exif:
-        return None
+        exif = Image.Exif()
 
-    if CLAVE_GPS in marcadas:
-        exif.pop(0x8825, None)
-    for etiqueta in list(exif):
-        clave = f'exif:{etiqueta}'
-        borrar = clave in marcadas if etiqueta in CAMPOS_EXIF else CLAVE_OTROS in marcadas
-        if borrar and etiqueta != 0x8825:
-            del exif[etiqueta]
+    if marcadas is None:
+        # Borrarlo todo y volver a escribir sólo lo que se haya corregido.
+        exif = Image.Exif()
+    else:
+        if CLAVE_GPS in marcadas:
+            exif.pop(0x8825, None)
+        for etiqueta in list(exif):
+            clave = f'exif:{etiqueta}'
+            borrar = clave in marcadas if etiqueta in CAMPOS_EXIF else CLAVE_OTROS in marcadas
+            if borrar and etiqueta != 0x8825:
+                del exif[etiqueta]
+
+    for clave, valor in cambios.items():
+        etiqueta = int(clave[5:])
+        if valor:
+            exif[etiqueta] = _valor_exif(valor)
+        else:
+            exif.pop(etiqueta, None)  # dejar un campo en blanco es quitarlo
 
     if not list(exif) and not exif.get_ifd(0x8825):
         return None
     return exif.tobytes()
 
 
-def _reescribir_jpeg(origen: str, destino: str, marcadas, exif: bytes | None) -> None:
+def _reescribir_jpeg(origen: str, destino: str, marcadas, exif: bytes | None,
+                     exif_tocado: bool) -> None:
     """Copia el JPEG con las cabeceras que toquen, sin tocar la imagen."""
     with open(origen, 'rb') as fichero:
         datos = fichero.read()
@@ -393,7 +530,7 @@ def _reescribir_jpeg(origen: str, destino: str, marcadas, exif: bytes | None) ->
             salida += datos[i:]
             break
         contenido = datos[i + 4:i + 2 + longitud]
-        if not _sobra_segmento(marcador, contenido, marcadas):
+        if not _sobra_segmento(marcador, contenido, marcadas, exif_tocado):
             salida += datos[i:i + 2 + longitud]
         i += 2 + longitud
     else:
@@ -403,7 +540,7 @@ def _reescribir_jpeg(origen: str, destino: str, marcadas, exif: bytes | None) ->
         fichero.write(bytes(salida))
 
 
-def _sobra_segmento(marcador: int, contenido: bytes, marcadas) -> bool:
+def _sobra_segmento(marcador: int, contenido: bytes, marcadas, exif_tocado: bool) -> bool:
     """Si este segmento del JPEG lleva algo que el usuario ha marcado.
 
     Lo que no encaje con ninguna firma se queda: APP0 es el JFIF y APP2 suele
@@ -411,13 +548,13 @@ def _sobra_segmento(marcador: int, contenido: bytes, marcadas) -> bool:
     """
     for esperado, firma, familia in FIRMAS_JPEG:
         if marcador == esperado and contenido.startswith(firma):
+            if familia == 'exif':
+                # El EXIF que se conserve se vuelve a escribir aparte, filtrado y
+                # con los valores nuevos, así que en cuanto se toque algo de él
+                # sobra el original.
+                return exif_tocado
             if marcadas is None:
                 return True
-            if familia == 'exif':
-                # El EXIF que se conserve se vuelve a escribir aparte, filtrado,
-                # así que en cuanto se toque algo de él sobra el original.
-                return any(clave == CLAVE_GPS or clave.startswith('exif:')
-                           for clave in marcadas)
             return familia in marcadas
     return False
 

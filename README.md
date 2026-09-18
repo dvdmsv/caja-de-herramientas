@@ -53,7 +53,7 @@ Pensada para usarse, no sólo para funcionar:
 | Documento a PDF | Pasa Word, ODT, RTF o texto plano a PDF | varios documentos de una vez |
 | PDF a Word | Saca un `.docx` editable de un PDF | varios documentos de una vez |
 | Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo, margen y respetar los saltos de línea |
-| Limpiar metadatos | Enseña lo que tus archivos cuentan de ti y borra lo que elijas | campo a campo, limpieza a fondo |
+| Editar metadatos | Enseña lo que tus archivos cuentan de ti, y lo corriges o lo borras | campo a campo, valores editables, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
 | Numerar páginas | Numera el documento | posición, formato, desde qué página, con vista previa |
 | Extraer imágenes | Saca las imágenes que lleva dentro un PDF | tamaño mínimo y formato |
@@ -106,10 +106,10 @@ va a escribir el archivo, así que lo que se ve es lo que sale.
 
 ![Marca de agua](docs/capturas/marca-de-agua.png)
 
-**Limpiar metadatos.** Primero enseña lo que tus archivos cuentan de ti, campo a
-campo, y tú eliges qué se borra.
+**Editar metadatos.** Primero enseña lo que tus archivos cuentan de ti, campo a
+campo, y tú eliges qué se borra y qué se corrige.
 
-![Limpiar metadatos](docs/capturas/limpiar-metadatos.png)
+![Editar metadatos](docs/capturas/limpiar-metadatos.png)
 
 **El visor**, que ocupa la pantalla entera y está pensado para sesiones largas.
 
@@ -421,7 +421,7 @@ servidor y uno con una imagen en `http://` no le pide nada a nadie —comprobado
 con un servidor a la escucha—. Se incrustan sólo las imágenes que el propio
 archivo trae dentro.
 
-"Limpiar metadatos" es la que mejor explica por qué existe esta aplicación. Un
+"Editar metadatos" es la que mejor explica por qué existe esta aplicación. Un
 PDF lleva dentro quién lo escribió y con qué programa; una foto de móvil lleva el
 modelo de la cámara, la fecha exacta y, muy a menudo, **las coordenadas del sitio
 donde se hizo**. Todo eso viaja cada vez que se manda un archivo.
@@ -437,9 +437,24 @@ Lo que no se enseña de una en una —exposición, resolución y demás tecnicis
 se agrupa en un "Otros datos de la cámara (N campos)" con su propia casilla: si
 no apareciera, se borraría sin que nadie lo hubiera visto.
 
+Borrar no es lo único que se puede hacer: cada dato viene en una caja de texto y
+se puede **escribir encima**, corregir el autor de un PDF que salió con el nombre
+de otro o ponerle por fin un título. De un PDF se enseñan siempre sus ocho campos
+aunque estén vacíos —son un juego fijo y corto, así que se puede rellenar el que
+falta—; de una foto, sólo lo que lleva, porque inventarle un "número de serie" a
+una cámara no significa nada. Borrar y cambiar el mismo dato a la vez es un
+error: no hay forma de adivinar cuál de las dos cosas se quería, y la interfaz
+atenúa la caja en cuanto se marca la casilla.
+
+Las fechas se escriben como se leen (`31/12/2026 09:30`) y se guardan en la
+sintaxis del PDF. Y como el EXIF declara sus campos como ASCII —Pillow cambiaría
+"José" por "Jos?"—, el texto se escribe en UTF-8, que es lo que hace exiftool y
+lo que entiende cualquier lector de hoy.
+
 En los JPEG los metadatos se quitan **sin recomprimir la imagen**. Si se borra
-todo el EXIF se omite su segmento; si se conserva una parte, se reconstruye el
-segmento con lo que queda y los datos comprimidos se copian tal cual. Medido: el
+todo el EXIF se omite su segmento; si se conserva o se corrige una parte, se
+reconstruye el segmento con lo que queda y los datos comprimidos se copian tal
+cual. Medido: el
 bloque de imagen del archivo limpio es **idéntico byte a byte** al del original,
 así que limpiar nunca cuesta calidad. Con "limpieza a fondo" los PDF pierden
 además el JavaScript incrustado, los adjuntos, el texto oculto y las miniaturas;

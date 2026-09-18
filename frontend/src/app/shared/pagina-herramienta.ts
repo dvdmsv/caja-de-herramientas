@@ -43,7 +43,7 @@ export abstract class PaginaHerramienta {
 
   /**
    * Gancho para quien necesite hacer algo con los archivos en cuanto están
-   * arriba —"Limpiar metadatos" los inspecciona—. Se llama en toda subida que
+   * arriba —"Editar metadatos" los inspecciona—. Se llama en toda subida que
    * acabe bien, también en los reintentos.
    */
   protected alTerminarSubida(): void {}

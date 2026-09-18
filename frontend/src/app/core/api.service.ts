@@ -31,13 +31,21 @@ export interface VistaPrevia {
 
 /** Un dato que un archivo lleva dentro sin que su dueño lo sepa. */
 export interface CampoMetadato {
-  /** Con la que se le dice al servidor que lo borre. */
+  /** Con la que se le dice al servidor que lo borre o lo cambie. */
   clave: string;
   etiqueta: string;
+  /** Recortado para enseñarlo de un vistazo. */
   valor: string;
+  /** El valor entero, que es lo que se edita; vacío si el campo no lleva nada. */
+  texto: string;
+  /**
+   * Si se puede escribir encima. Los bloques enteros —XMP, IPTC, la ubicación,
+   * los datos técnicos de la cámara— sólo se conservan o se tiran.
+   */
+  editable: boolean;
 }
 
-/** Lo que "Limpiar metadatos" ha encontrado en un archivo. */
+/** Lo que "Editar metadatos" ha encontrado en un archivo. */
 export interface MetadatosArchivo {
   /** Id del archivo en el servidor, para casar el informe con la selección. */
   id: string;
@@ -275,7 +283,7 @@ export class ApiService {
   /**
    * Qué metadatos llevan dentro unos archivos, sin tocarlos.
    *
-   * Es la primera mitad de "Limpiar metadatos": primero se enseña lo que hay y
+   * Es la primera mitad de "Editar metadatos": primero se enseña lo que hay y
    * luego el usuario decide qué se borra.
    */
   inspeccionarMetadatos(ids: string[]): Observable<MetadatosArchivo[]> {
