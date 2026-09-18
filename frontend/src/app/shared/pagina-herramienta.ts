@@ -46,6 +46,16 @@ export abstract class PaginaHerramienta {
   trabajo: EstadoTrabajo | null = null;
   cancelando = false;
 
+  /**
+   * Cómo se pinta el trabajo. Es un campo y no un getter a propósito: con un
+   * getter, cada pasada de detección de cambios volvería a leer el reloj y el
+   * valor cambiaría **dentro** de la misma pasada, que es justo lo que Angular
+   * en desarrollo señala como binding inestable.
+   *
+   * Se recalcula en cada latido del sondeo, que es cuando puede cambiar algo.
+   */
+  avanceTrabajo: AvanceTrabajo = avance(null, 0);
+
   private trabajoId = '';
   /** Cuándo se vio empezar la etapa actual, por el reloj de aquí. */
   private vistoEn = 0;
@@ -83,18 +93,6 @@ export abstract class PaginaHerramienta {
   /** Para pasarse a `app-tool-controls` desde la plantilla. */
   get pagina(): PaginaHerramienta {
     return this;
-  }
-
-  /**
-   * Cómo se pinta el trabajo en marcha.
-   *
-   * El tiempo se mide con el reloj **de aquí** desde que se vio empezar la
-   * etapa, y no con el `desde` del servidor: los dos relojes no tienen por qué
-   * coincidir, y una diferencia de unos segundos dejaría la barra descolocada
-   * desde el primer momento.
-   */
-  get avanceTrabajo(): AvanceTrabajo {
-    return avance(this.trabajo, Date.now() - this.vistoEn);
   }
 
   get ocupado(): boolean {
@@ -166,6 +164,7 @@ export abstract class PaginaHerramienta {
     this.trabajo = null;
     this.cancelando = false;
     this.vistoEn = Date.now();
+    this.refrescarAvance();
     this.arrancarSondeo();
 
     this.api.ejecutar(this.slug, { file_ids: ids, ...this.opciones() }, this.trabajoId).subscribe({
@@ -228,6 +227,9 @@ export abstract class PaginaHerramienta {
         this.pararSondeo();
         return;
       }
+      // El reloj corre aunque la consulta no conteste: lo que lleva el trabajo
+      // se sabe aquí, y la barra estimada se mueve con eso.
+      this.refrescarAvance();
       this.api.progresoDelTrabajo(this.trabajoId).subscribe({
         next: ({ estado }) => {
           // Cada etapa cuenta su propio tiempo: el servidor cambia `desde` al
@@ -236,12 +238,23 @@ export abstract class PaginaHerramienta {
             this.vistoEn = Date.now();
           }
           this.trabajo = estado;
+          this.refrescarAvance();
         },
         // Si una consulta falla no se dice nada: es un dato de cortesía y la
         // herramienta sigue su curso.
         error: () => {},
       });
     }, INTERVALO_SONDEO);
+  }
+
+  /**
+   * El tiempo se mide con el reloj **de aquí** desde que se vio empezar la
+   * etapa, y no con el `desde` del servidor: los dos relojes no tienen por qué
+   * coincidir, y una diferencia de unos segundos dejaría la barra descolocada
+   * desde el primer momento.
+   */
+  private refrescarAvance(): void {
+    this.avanceTrabajo = avance(this.trabajo, Date.now() - this.vistoEn);
   }
 
   protected pararSondeo(): void {
