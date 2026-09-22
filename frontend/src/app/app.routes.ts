@@ -69,10 +69,23 @@ export const routes: Routes = [
       import('./pages/tools/proteger-pdf/proteger-pdf.component').then(m => m.ProtegerPdfComponent),
   },
   {
+    path: 'herramientas/anonimizar-pdf',
+    title: 'Anonimizar PDF',
+    loadComponent: () =>
+      import('./pages/tools/anonimizar-pdf/anonimizar-pdf.component')
+        .then(m => m.AnonimizarPdfComponent),
+  },
+  {
     path: 'herramientas/ocr-pdf',
     title: 'PDF con OCR',
     loadComponent: () =>
       import('./pages/tools/ocr-pdf/ocr-pdf.component').then(m => m.OcrPdfComponent),
+  },
+  {
+    path: 'herramientas/pdf-a-pdfa',
+    title: 'Convertir a PDF/A',
+    loadComponent: () =>
+      import('./pages/tools/pdf-a-pdfa/pdf-a-pdfa.component').then(m => m.PdfAPdfaComponent),
   },
   {
     path: 'herramientas/comprimir-pdf',
@@ -93,6 +106,20 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/tools/convertir-imagen/convertir-imagen.component')
         .then(m => m.ConvertirImagenComponent),
+  },
+  {
+    path: 'herramientas/editar-imagen',
+    title: 'Editar imagen',
+    loadComponent: () =>
+      import('./pages/tools/editar-imagen/editar-imagen.component')
+        .then(m => m.EditarImagenComponent),
+  },
+  {
+    path: 'herramientas/efecto-escaner',
+    title: 'Efecto escáner',
+    loadComponent: () =>
+      import('./pages/tools/efecto-escaner/efecto-escaner.component')
+        .then(m => m.EfectoEscanerComponent),
   },
   {
     path: 'herramientas/imagen-a-pdf',
@@ -142,6 +169,12 @@ export const routes: Routes = [
         .then(m => m.LimpiarMetadatosComponent),
   },
   {
+    path: 'herramientas/leer-codigo',
+    title: 'Leer QR o código de barras',
+    loadComponent: () =>
+      import('./pages/tools/leer-codigo/leer-codigo.component').then(m => m.LeerCodigoComponent),
+  },
+  {
     path: 'herramientas/generar-qr',
     title: 'Generar QR',
     loadComponent: () =>
@@ -159,6 +192,13 @@ export const routes: Routes = [
     title: 'PDF a Word',
     loadComponent: () =>
       import('./pages/tools/pdf-a-word/pdf-a-word.component').then(m => m.PdfAWordComponent),
+  },
+  {
+    path: 'herramientas/extraer-tablas',
+    title: 'Extraer tablas',
+    loadComponent: () =>
+      import('./pages/tools/extraer-tablas/extraer-tablas.component')
+        .then(m => m.ExtraerTablasComponent),
   },
   {
     path: 'herramientas/a-markdown',

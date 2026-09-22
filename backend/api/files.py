@@ -23,7 +23,7 @@ ALLOWED_EXTS = ({'.pdf'} | extensiones_de_entrada() | EXTENSIONES_DOCUMENTO
                 | EXTENSIONES_OFIMATICA)
 
 # Enumerar las ochenta y pico extensiones no le dice nada a nadie.
-DESCRIPCION_ADMITIDOS = ('PDF, imágenes (JPG, PNG, WebP, TIFF…) y documentos '
+DESCRIPCION_ADMITIDOS = ('PDF, imágenes (JPG, PNG, HEIC, WebP, TIFF…) y documentos '
                          '(Word, ODT, RTF, Excel, PowerPoint, CSV, HTML, EPub)')
 
 NOMBRE_ZIP_POR_DEFECTO = 'archivos.zip'

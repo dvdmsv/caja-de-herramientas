@@ -39,6 +39,33 @@ def pagina_a_jpeg(documento, numero: int, ancho: int = ANCHO_VISTA) -> bytes:
     return imagen.tobytes('jpeg', jpg_quality=CALIDAD)
 
 
+def reducir(imagen, ancho: int = ANCHO_VISTA):
+    """Una copia de la imagen al ancho de la vista previa.
+
+    Va aparte de `imagen_a_jpeg` porque el orden importa: quien enseñe el
+    resultado de un tratamiento tiene que **reducir primero y tratar después**.
+    Al revés —tratar la foto entera para enseñar 700 px— se tarda varios segundos
+    por cada movimiento de un deslizador.
+    """
+    from PIL import Image
+
+    if imagen.width <= ancho:
+        return imagen
+    alto = max(1, round(imagen.height * ancho / imagen.width))
+    return imagen.resize((ancho, alto), Image.LANCZOS)
+
+
+def imagen_a_jpeg(imagen, ancho: int = ANCHO_VISTA) -> bytes:
+    """Una imagen suelta —sin páginas— lista para enseñar."""
+    copia = reducir(imagen, ancho)
+    if copia.mode not in ('RGB', 'L'):
+        copia = copia.convert('RGB')
+
+    buzon = io.BytesIO()
+    copia.save(buzon, 'JPEG', quality=CALIDAD, optimize=True)
+    return buzon.getvalue()
+
+
 def responder(imagen: bytes):
     """La imagen tal cual, sin pasar por el almacén de la sesión."""
     return send_file(io.BytesIO(imagen), mimetype='image/jpeg')

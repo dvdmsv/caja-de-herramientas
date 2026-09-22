@@ -1,0 +1,184 @@
+<app-tool-page slug="anonimizar-pdf">
+
+  <app-file-queue
+    [items]="archivos"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra el PDF del que quieras borrar los datos personales"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alQuitarDocumento()">
+  </app-file-queue>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Qué se busca</legend>
+
+    @for (tipo of tiposDeDato; track tipo.id) {
+      <div class="form-check mt-2">
+        <input type="checkbox" class="form-check-input" [id]="'anon-' + tipo.id"
+          [checked]="marcados[tipo.id]" [disabled]="ocupado"
+          (change)="cambiarTipo(tipo.id, $event)">
+        <label class="form-check-label" [for]="'anon-' + tipo.id">
+          {{ tipo.nombre }}
+          <small class="d-block text-body-secondary">{{ tipo.ayuda }}</small>
+        </label>
+      </div>
+    }
+
+    <div class="mt-3">
+      <label class="form-label" for="anon-patron">Y además, lo que case con esta expresión</label>
+      <input type="text" class="form-control font-monospace" id="anon-patron"
+        placeholder="por ejemplo: [A-Z]{2}-\d{4}-\d{4}"
+        [(ngModel)]="patron" [disabled]="ocupado" (ngModelChange)="alCambiarAjuste()">
+      <small class="form-text">
+        Opcional, para lo que no esté en la lista: un número de expediente, una referencia.
+        Es una expresión regular de las de siempre.
+      </small>
+
+      <button type="button" class="btn btn-sm btn-link px-0 mt-1"
+        [disabled]="ocupado" (click)="alternarConstructor()"
+        [attr.aria-expanded]="armando">
+        <i class="bi" [class.bi-chevron-right]="!armando" [class.bi-chevron-down]="armando"
+          aria-hidden="true"></i>
+        {{ armando ? 'Cerrar el ayudante' : 'No sé escribirla: ayúdame' }}
+      </button>
+
+      @if (armando) {
+        <div class="border rounded p-3 mt-1">
+          <p class="small text-body-secondary">
+            Describe cómo es, trozo a trozo, y se escribe sola. Luego puedes retocarla
+            a mano en el campo de arriba.
+          </p>
+
+          <div class="row g-2 align-items-end">
+            <div class="col-sm-4">
+              <label class="form-label mb-1" for="anon-clase">Qué viene</label>
+              <select class="form-select form-select-sm" id="anon-clase"
+                [(ngModel)]="clase" [disabled]="ocupado">
+                <option value="digitos">Cifras</option>
+                <option value="letras">Letras</option>
+                <option value="alfanumerico">Letras o cifras</option>
+                <option value="texto">Un texto fijo</option>
+                <option value="separador">Un separador</option>
+              </select>
+            </div>
+
+            @if (piezaNecesitaTexto) {
+              <div class="col-sm-5">
+                <label class="form-label mb-1" for="anon-texto">Qué texto</label>
+                <input type="text" class="form-control form-control-sm" id="anon-texto"
+                  placeholder="EXP" [(ngModel)]="textoPieza" [disabled]="ocupado">
+              </div>
+            } @else if (clase === 'separador') {
+              <div class="col-sm-5">
+                <label class="form-label mb-1" for="anon-separador">Cuál</label>
+                <select class="form-select form-select-sm" id="anon-separador"
+                  [(ngModel)]="separador" [disabled]="ocupado">
+                  @for (nombre of separadores; track nombre) {
+                    <option [value]="nombre">{{ nombre }}</option>
+                  }
+                </select>
+              </div>
+            } @else {
+              <div class="col-6 col-sm-2">
+                <label class="form-label mb-1" for="anon-min">Desde</label>
+                <input type="number" class="form-control form-control-sm" id="anon-min"
+                  min="1" max="20" [(ngModel)]="cuantasMin" [disabled]="ocupado">
+              </div>
+              <div class="col-6 col-sm-3">
+                <label class="form-label mb-1" for="anon-max">Hasta</label>
+                <input type="number" class="form-control form-control-sm" id="anon-max"
+                  min="1" max="20" [(ngModel)]="cuantasMax" [disabled]="ocupado">
+              </div>
+            }
+
+            <div class="col-sm-3">
+              <button type="button" class="btn btn-sm btn-outline-secondary w-100"
+                [disabled]="ocupado || !puedeAnadirPieza" (click)="anadirPieza()">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Añadir
+              </button>
+            </div>
+          </div>
+
+          @if (piezas.length > 0) {
+            <ol class="list-group list-group-numbered mt-3">
+              @for (pieza of piezas; track $index) {
+                <li class="list-group-item d-flex align-items-center gap-2 py-1">
+                  <span class="flex-grow-1 small">{{ comoSeLee(pieza) }}</span>
+                  <button type="button" class="btn btn-sm btn-link text-danger p-0"
+                    [disabled]="ocupado" (click)="quitarPieza($index)">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    <span class="visually-hidden">Quitar</span>
+                  </button>
+                </li>
+              }
+            </ol>
+            <button type="button" class="btn btn-sm btn-link px-0 mt-1"
+              [disabled]="ocupado" (click)="vaciarPiezas()">Empezar de nuevo</button>
+          }
+        </div>
+      }
+    </div>
+
+    @if (nadaQueBuscar) {
+      <p class="form-text text-warning-emphasis mb-0">
+        Marca algún tipo de dato o escribe una expresión: si no, no hay nada que buscar.
+      </p>
+    }
+  </fieldset>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Qué queda donde estaba el dato</legend>
+    <div class="btn-group" role="group">
+      <button type="button" class="btn" [class.btn-primary]="color === 'negro'"
+        [class.btn-outline-secondary]="color !== 'negro'" [disabled]="ocupado"
+        (click)="elegirColor('negro')">Una barra negra</button>
+      <button type="button" class="btn" [class.btn-primary]="color === 'blanco'"
+        [class.btn-outline-secondary]="color !== 'blanco'" [disabled]="ocupado"
+        (click)="elegirColor('blanco')">Un hueco en blanco</button>
+    </div>
+  </fieldset>
+
+  @if (contando) {
+    <p class="mt-4 mb-0 text-body-secondary" aria-live="polite">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Mirando el documento…
+    </p>
+  } @else if (problema) {
+    <div class="alert alert-warning mt-4 mb-0" role="status">{{ problema }}</div>
+  } @else if (recuento) {
+    <div class="alert mt-4 mb-0" role="status" aria-live="polite"
+      [class.alert-info]="total > 0" [class.alert-secondary]="total === 0">
+      @if (total > 0) {
+        <strong>Se van a tachar {{ total }} {{ total === 1 ? 'cosa' : 'cosas' }}:</strong>
+        <ul class="mb-0 mt-1">
+          @for (fila of recuento; track fila.tipo) {
+            <li>{{ fila.cuantas }} · {{ nombreDe(fila.tipo) }}</li>
+          }
+        </ul>
+      } @else {
+        No se ha encontrado ninguno de los datos que has marcado.
+      }
+    </div>
+  }
+
+  <div class="alert alert-warning d-flex gap-2 mt-4">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Esto no tiene vuelta atrás.</strong>
+      El texto se borra del archivo, no se tapa: no se podrá copiar, ni buscar, ni recuperar
+      quitando la barra. Guarda el original si vas a necesitarlo. Y si el PDF está firmado,
+      tacharlo invalida la firma, porque reescribe el documento.
+      <span class="d-block mt-1">
+        Los nombres y las direcciones no salen en la lista porque no tienen una forma fija:
+        para ésos está el visor, donde se tacha a mano lo que elijas.
+        Y los metadatos —autor, programa, ubicación de una foto— viven aparte del texto:
+        eso se limpia en «Editar metadatos».
+      </span>
+    </div>
+  </div>
+
+  <app-tool-controls [pagina]="pagina" accion="Tachar los datos" icono="bi-eye-slash">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados"></app-result-list>
+
+</app-tool-page>

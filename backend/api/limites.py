@@ -158,6 +158,18 @@ def con_plazo(segundos: int, que: str):
 EDAD_MAXIMA_PETICION = config.entorno_entero('REQUEST_MAX_AGE_SECONDS', 60)
 
 
+# Plazo de las rutas auxiliares —las que acaban en `/inspeccionar` y que nginx
+# manda al servicio `ligeros`—. No es configurable a propósito: sale del perfil
+# de ese servicio, así que quien lo estreche o lo ensanche mueve las dos cosas a
+# la vez y no pueden quedarse descolgadas.
+#
+# Por qué hace falta: una inspección recorre el documento entero, y con un PDF
+# de mil páginas se pasaría de los segundos de CPU del trabajo. Sin plazo, el
+# `RLIMIT_CPU` mata el proceso y nginx contesta un 503 genérico; con él, sale un
+# 504 que dice qué ha pasado y qué hacer.
+PLAZO_AUXILIAR = max(10, int(config.PERFILES_TRABAJO['ligeros']['cpu_segundos'] * 0.8))
+
+
 def edad_peticion(cabecera: str | None, ahora: float) -> float | None:
     """Segundos que lleva la petición esperando, según la cabecera de nginx.
 

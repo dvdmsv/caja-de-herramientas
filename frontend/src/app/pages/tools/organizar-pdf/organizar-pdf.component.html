@@ -25,6 +25,12 @@
           <span>· {{ eliminadas }} se van a eliminar</span>
         }
       </p>
+      @if (pintando) {
+        <span class="small text-body-secondary" aria-live="polite">
+          <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+          Pintando las miniaturas…
+        </span>
+      }
       @if (hayCambios) {
         <button type="button" class="btn btn-sm btn-outline-secondary"
           [disabled]="ocupado" (click)="restablecer()">
@@ -32,6 +38,13 @@
         </button>
       }
     </div>
+    @if (demasiadasParaVerlas) {
+      <p class="text-body-secondary small mt-2 mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        Son {{ originales }} páginas: no se pintan las miniaturas para no atascar el navegador.
+        Se organizan igual, por su número.
+      </p>
+    }
     <ul class="list-group mt-2" cdkDropList [cdkDropListDisabled]="ocupado"
       (cdkDropListDropped)="reordenar($event)">
       @for (pagina of paginas; track pagina; let i = $index) {

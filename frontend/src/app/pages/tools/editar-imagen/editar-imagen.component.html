@@ -1,0 +1,102 @@
+<app-tool-page slug="editar-imagen">
+
+  <app-file-queue
+    [items]="archivos"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra la foto que quieras recortar"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarLaLista()">
+  </app-file-queue>
+
+  @if (hayFoto) {
+    <h2 class="h6 mb-2 mt-4">Qué parte te quedas</h2>
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      @for (opcion of proporciones; track opcion.id) {
+        <button type="button" class="btn btn-sm"
+          [class.btn-primary]="proporcion === opcion.id"
+          [class.btn-outline-secondary]="proporcion !== opcion.id"
+          [disabled]="ocupado" (click)="elegirProporcion(opcion.id)">{{ opcion.nombre }}</button>
+      }
+      <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+        [disabled]="ocupado" (click)="quitarRecorte()">Toda la imagen</button>
+    </div>
+
+    <div class="marco" [style]="estiloDelMarco">
+      <div class="marco__contenido" [style]="estiloDelContenido">
+        <app-recuadro [imagen]="vista" [recorte]="recorte" [objetivo]="objetivo"
+          [giro]="giro" [espejo]="espejo" [deshabilitado]="ocupado"
+          (recorteChange)="alRecortar($event)">
+        </app-recuadro>
+      </div>
+    </div>
+
+    @if (medidasDelRecorte) {
+      <p class="text-body-secondary small mt-2 mb-0">
+        Va a quedar en <strong>{{ medidasDelRecorte }}</strong>.
+      </p>
+    }
+
+    <h2 class="h6 mb-2 mt-4">Cómo queda orientada</h2>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado"
+        (click)="girar(-90)" title="Girar a la izquierda">
+        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+        <span class="visually-hidden">Girar a la izquierda</span>
+      </button>
+      <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado"
+        (click)="girar(90)" title="Girar a la derecha">
+        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        <span class="visually-hidden">Girar a la derecha</span>
+      </button>
+      <button type="button" class="btn" [class.btn-primary]="espejo"
+        [class.btn-outline-secondary]="!espejo" [disabled]="ocupado"
+        (click)="alternarEspejo()" title="Voltear de izquierda a derecha">
+        <i class="bi bi-symmetry-vertical" aria-hidden="true"></i>
+        <span class="visually-hidden">Voltear</span>
+      </button>
+      <span class="text-body-secondary small">
+        @if (giro || espejo) {
+          {{ giro ? 'Girada ' + giro + '°' : 'Sin girar' }}{{ espejo ? ' y volteada' : '' }}.
+        } @else {
+          Tal como está.
+        }
+      </span>
+    </div>
+    <p class="form-text mt-1 mb-0">
+      Se ve ya como va a quedar: el recuadro gira con la foto.
+    </p>
+
+    <h2 class="h6 mb-2 mt-4">Tamaño y peso</h2>
+    <div class="row g-3">
+      <div class="col-sm-6">
+        <label class="form-label" for="editar-lado">Lado máximo, en píxeles</label>
+        <input type="number" class="form-control" id="editar-lado" min="0" max="8000" step="100"
+          [(ngModel)]="ladoMaximo" [disabled]="ocupado" (ngModelChange)="alCambiarLista()">
+        <small class="form-text">0 para dejarla al tamaño que quede tras recortar.</small>
+      </div>
+      <div class="col-sm-6">
+        <label class="form-label" for="editar-calidad">
+          Calidad: <strong>{{ calidad }}</strong>
+        </label>
+        <input type="range" class="form-range" id="editar-calidad" min="20" max="100" step="5"
+          [(ngModel)]="calidad" [disabled]="ocupado" (ngModelChange)="alCambiarLista()">
+        <small class="form-text">Sólo cuenta en los formatos con pérdida, como el JPG.</small>
+      </div>
+    </div>
+  }
+
+  <div class="alert alert-info d-flex gap-2 mt-4">
+    <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      El formato se conserva: un PNG sale PNG y un JPG sale JPG. Para cambiarlo está
+      «Convertir imagen», y para bajar el peso de muchas a la vez, «Comprimir imagen».
+    </div>
+  </div>
+
+  <app-tool-controls [pagina]="pagina" accion="Guardar la imagen" icono="bi-crop">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados"></app-result-list>
+
+</app-tool-page>

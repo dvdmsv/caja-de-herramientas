@@ -17,8 +17,18 @@ interface PaginaOrganizada {
   miniatura: string;
 }
 
-/** Rasterizar en el navegador tiene un coste; por encima de esto no compensa. */
-const MAXIMO_PAGINAS = 100;
+/**
+ * A partir de aquí no se pintan miniaturas.
+ *
+ * No es un tope de la herramienta: organizar un documento de mil páginas es
+ * gratis —el backend sólo hace un `select`— y lo que cuesta es rasterizar en el
+ * navegador, una a una. Antes esto era un rechazo que **impedía abrir** el
+ * documento, y dejaba sin herramienta justo a quien más falta le hace. Ahora se
+ * organiza igual, por número de página, y lo único que se pierde es la imagen.
+ *
+ * Es el mismo trato que ya hace "Dividir PDF" con `MAXIMO_MINIATURAS`.
+ */
+const MAXIMO_MINIATURAS = 200;
 
 @Component({
   selector: 'app-organizar-pdf',
@@ -36,8 +46,17 @@ export class OrganizarPdfComponent extends PaginaHerramienta implements OnDestro
   paginas: PaginaOrganizada[] = [];
   originales = 0;
   cargando = false;
+  /** Si se están rellenando las miniaturas por detrás, con la lista ya usable. */
+  pintando = false;
+  /** Si el documento es tan largo que no se pintan. */
+  demasiadasParaVerlas = false;
 
   private documento: DocumentoPdf | null = null;
+  /**
+   * Qué documento está abierto. Pintar miniaturas es un bucle con `await`, y sin
+   * esto seguiría rellenando la lista de un documento que ya se ha cerrado.
+   */
+  private generacion = 0;
   private readonly pdf = inject(PdfService);
 
   ngOnDestroy(): void {
@@ -70,29 +89,48 @@ export class OrganizarPdfComponent extends PaginaHerramienta implements OnDestro
   private async abrir(archivo: File): Promise<void> {
     this.cerrar();
     this.cargando = true;
+    const mia = ++this.generacion;
     try {
       this.documento = await this.pdf.abrir(archivo);
       this.originales = this.documento.paginas;
-      if (this.originales > MAXIMO_PAGINAS) {
-        avisoError(`El documento tiene ${this.originales} páginas y aquí se pueden organizar hasta `
-          + `${MAXIMO_PAGINAS}. Para uno tan largo, usa "Dividir PDF".`);
-        this.cerrar();
-        return;
-      }
       this.paginas = Array.from({ length: this.originales }, (_, i) => ({
         numero: i + 1,
         rotacion: 0,
         miniatura: '',
       }));
-      for (const pagina of this.paginas) {
-        pagina.miniatura = await this.documento.imagen(pagina.numero, ANCHO_MINIATURA);
-      }
+      this.demasiadasParaVerlas = this.originales > MAXIMO_MINIATURAS;
     } catch (err) {
       console.error('pdf.js no ha podido abrir el documento:', err);
       avisoError('No se ha podido leer el PDF. Puede estar dañado o protegido con contraseña.');
       this.cerrar();
+      return;
     } finally {
+      // La lista ya se puede usar: se puede reordenar, girar y borrar por
+      // número. Las imágenes son una comodidad y llegan detrás.
       this.cargando = false;
+    }
+    if (!this.demasiadasParaVerlas) {
+      await this.pintarMiniaturas(mia);
+    }
+  }
+
+  /** Rellena las miniaturas con la lista ya en pantalla. */
+  private async pintarMiniaturas(mia: number): Promise<void> {
+    this.pintando = true;
+    try {
+      for (const pagina of this.paginas) {
+        if (mia !== this.generacion || !this.documento) {
+          return;  // se ha cerrado o se ha abierto otro documento
+        }
+        pagina.miniatura = await this.documento.imagen(pagina.numero, ANCHO_MINIATURA);
+      }
+    } catch (err) {
+      // Quedarse sin miniaturas no impide organizar: se sigue por número.
+      console.warn('No se han podido pintar todas las miniaturas:', err);
+    } finally {
+      if (mia === this.generacion) {
+        this.pintando = false;
+      }
     }
   }
 
@@ -150,9 +188,13 @@ export class OrganizarPdfComponent extends PaginaHerramienta implements OnDestro
   }
 
   private cerrar(): void {
+    // Invalida el bucle de miniaturas que pueda estar en marcha.
+    this.generacion++;
     this.documento?.cerrar();
     this.documento = null;
     this.paginas = [];
     this.originales = 0;
+    this.pintando = false;
+    this.demasiadasParaVerlas = false;
   }
 }

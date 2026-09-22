@@ -117,6 +117,30 @@ export class Cambios {
     return nueva;
   }
 
+  /**
+   * Añade muchas marcas de una vez, como **un solo paso** para deshacer.
+   *
+   * Es lo que necesita «buscar y tachar todo»: si cada coincidencia fuese su
+   * propio paso, arrepentirse de haber tachado cincuenta DNI costaría cincuenta
+   * `Ctrl+Z`, y por el camino se verían estados que nadie ha pedido.
+   *
+   * No sustituye a nada: lo que ya estuviera marcado se queda. Marcar dos veces
+   * la misma zona no hace daño —el tachado se aplica una vez— y quitar aquí lo
+   * que el usuario había puesto a mano sería peor.
+   */
+  marcarVarias(nuevas: Omit<Marca, 'id'>[]): Marca[] {
+    if (nuevas.length === 0) {
+      return [];
+    }
+    const puestas = nuevas.map(marca => {
+      const completa: Marca = { ...marca, id: `m${++this.secuencia}` };
+      this.marcas.push(completa);
+      return completa;
+    });
+    this.pila.push(() => puestas.forEach(marca => this.quitarSinRegistrar(marca.id)));
+    return puestas;
+  }
+
   cambiarColor(id: string, color: ColorSubrayado | ColorTachado): void {
     const marca = this.marcas.find(m => m.id === id);
     if (!marca || marca.color === color) {

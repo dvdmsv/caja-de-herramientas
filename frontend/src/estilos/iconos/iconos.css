@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   90 iconos de los 2078 que trae bootstrap-icons.
+   98 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -23,6 +23,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.bi-archive::before { content: "\f10d"; }
 .bi-arrow-clockwise::before { content: "\f116"; }
 .bi-arrow-counterclockwise::before { content: "\f117"; }
 .bi-arrow-left::before { content: "\f12f"; }
@@ -36,15 +37,18 @@
 .bi-book::before { content: "\f194"; }
 .bi-bookmark::before { content: "\f1a2"; }
 .bi-box-arrow-in-right::before { content: "\f1be"; }
+.bi-calendar-event::before { content: "\f1e8"; }
 .bi-card-image::before { content: "\f226"; }
 .bi-check-circle-fill::before { content: "\f26a"; }
 .bi-check-lg::before { content: "\f633"; }
 .bi-check2-square::before { content: "\f271"; }
 .bi-chevron-down::before { content: "\f282"; }
+.bi-chevron-right::before { content: "\f285"; }
 .bi-circle-half::before { content: "\f288"; }
 .bi-clipboard::before { content: "\f290"; }
 .bi-clock-history::before { content: "\f292"; }
 .bi-cloud-arrow-up::before { content: "\f297"; }
+.bi-crop::before { content: "\f2dd"; }
 .bi-dash-lg::before { content: "\f63b"; }
 .bi-download::before { content: "\f30a"; }
 .bi-droplet-half::before { content: "\f30c"; }
@@ -53,6 +57,7 @@
 .bi-exclamation-triangle::before { content: "\f33b"; }
 .bi-exclamation-triangle-fill::before { content: "\f33a"; }
 .bi-eye::before { content: "\f341"; }
+.bi-eye-slash::before { content: "\f340"; }
 .bi-file-earmark::before { content: "\f392"; }
 .bi-file-earmark-check::before { content: "\f360"; }
 .bi-file-earmark-diff::before { content: "\f364"; }
@@ -102,10 +107,13 @@
 .bi-shield-exclamation::before { content: "\f530"; }
 .bi-shield-x::before { content: "\f53e"; }
 .bi-sun::before { content: "\f5a2"; }
+.bi-symmetry-vertical::before { content: "\f5a9"; }
+.bi-table::before { content: "\f5aa"; }
 .bi-telephone::before { content: "\f5c1"; }
 .bi-trash::before { content: "\f5de"; }
 .bi-ui-checks::before { content: "\f5f9"; }
 .bi-unlock::before { content: "\f600"; }
+.bi-upc-scan::before { content: "\f601"; }
 .bi-upload::before { content: "\f603"; }
 .bi-vector-pen::before { content: "\f604"; }
 .bi-wifi::before { content: "\f61c"; }

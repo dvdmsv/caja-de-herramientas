@@ -103,6 +103,59 @@ export interface PaqueteAutofirma {
 }
 
 /** Lo que "Comprobar firmas" ha encontrado en un archivo. */
+/** Cuántos datos de un tipo se han encontrado en un documento. */
+export interface RecuentoAnonimizado {
+  tipo: string;
+  cuantas: number;
+}
+
+/** Un código leído de una imagen o de un PDF. */
+export interface CodigoLeido {
+  /** Cómo lo llama zxing-cpp: "QR Code", "EAN-13", "Code 128"… */
+  formato: string;
+  contenido: string;
+  /** Qué clase de contenido es: wifi, correo, telefono, contacto, enlace, texto. */
+  clase: string;
+  /** En qué página estaba, sólo cuando venía de un PDF. */
+  pagina?: number;
+}
+
+export interface InformeCodigos {
+  id: string;
+  archivo: string;
+  codigos: CodigoLeido[];
+}
+
+/** Una tabla detectada en un PDF, antes de sacarla. */
+export interface TablaDetectada {
+  pagina: number;
+  filas: number;
+  columnas: number;
+}
+
+export interface TablasDetectadas {
+  total: number;
+  tablas: TablaDetectada[];
+}
+
+/** Un dato encontrado: qué es y dónde está. */
+export interface MarcaAnonimizado {
+  tipo: string;
+  /**
+   * Proporciones de 0 a 1, origen arriba a la izquierda y sobre la página sin
+   * girar: la convención de todo el proyecto, la misma que usan las marcas del
+   * visor, que es quien pinta esto.
+   */
+  rect: number[];
+}
+
+/** Lo que la inspección de "Anonimizar PDF" encuentra, sin tocar el archivo. */
+export interface ZonasAnonimizado {
+  total: number;
+  recuento: RecuentoAnonimizado[];
+  paginas: { pagina: number; marcas: MarcaAnonimizado[] }[];
+}
+
 export interface InformeFirmas {
   id: string;
   archivo: string;
@@ -333,6 +386,41 @@ export class ApiService {
       .post<{ metadatos: MetadatosArchivo[] }>('/api/tools/limpiar-metadatos/inspeccionar',
                                                { file_ids: ids })
       .pipe(map(respuesta => respuesta.metadatos));
+  }
+
+  /** Qué códigos QR o de barras llevan dentro unas imágenes o unos PDF. */
+  leerCodigos(ids: string[]): Observable<InformeCodigos[]> {
+    return this.http
+      .post<{ informes: InformeCodigos[] }>('/api/tools/leer-codigo/inspeccionar',
+                                            { file_ids: ids })
+      .pipe(map(respuesta => respuesta.informes));
+  }
+
+  /**
+   * Qué tablas trae un PDF, sin escribir nada.
+   *
+   * Es lo que evita ejecutar a ciegas: si el documento maqueta sus tablas con
+   * espacios en vez de dibujarlas, aquí sale un cero y se puede explicar por
+   * qué, en vez de entregar un libro vacío.
+   */
+  inspeccionarTablas(id: string): Observable<TablasDetectadas> {
+    return this.http.post<TablasDetectadas>('/api/tools/extraer-tablas/inspeccionar',
+                                            { file_ids: [id] });
+  }
+
+  /**
+   * Qué datos personales hay en un PDF y dónde, sin tocarlo.
+   *
+   * La usan las dos pantallas: "Anonimizar PDF" para decir cuántos hay antes de
+   * un borrado que no tiene vuelta atrás, y el visor para pre-marcar las
+   * coincidencias y dejar que se revisen. Los patrones viven sólo en el
+   * servidor (`api/patrones.py`) a propósito: reescribirlos aquí sería
+   * garantizar que las dos versiones se separan a la primera corrección.
+   */
+  inspeccionarAnonimizado(id: string, tipos: string[], patron: string):
+      Observable<ZonasAnonimizado> {
+    return this.http.post<ZonasAnonimizado>('/api/tools/anonimizar-pdf/inspeccionar',
+                                            { file_ids: [id], tipos, patron });
   }
 
   /**

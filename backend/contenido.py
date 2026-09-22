@@ -75,12 +75,25 @@ DENTRO_DEL_ZIP = {
     '.epub': ('META-INF/container.xml', 'un EPUB'),
 }
 
-# WebP y AVIF llevan la firma a partir del byte 4 (son contenedores RIFF/ISO-BMFF).
+# La familia HEIF no tiene una firma, tiene once. El estándar deja que el
+# codificador elija la «marca principal» según cómo haya guardado la imagen:
+# `heic` es la que ponen los móviles, `mif1` la de una imagen suelta genérica,
+# `heix` la de diez bits y `msf1`/`hevc` las de secuencia. Quedarse sólo con
+# `heic` rechazaría al subirlo un archivo perfectamente válido, y el mensaje
+# diría además que «no es una imagen HEIC por dentro», que es justo lo contrario
+# de lo que pasa.
+MARCAS_HEIF = tuple(b'ftyp' + marca for marca in (
+    b'heic', b'heix', b'hevc', b'hevx', b'heim', b'heis', b'hevm', b'hevs',
+    b'mif1', b'msf1', b'avic',
+))
+
+# WebP, AVIF y HEIC llevan la firma a partir del byte 4 (son contenedores
+# RIFF/ISO-BMFF), no al principio.
 DESPLAZADAS = {
-    '.webp': (4, b'WEBP', 'una imagen WebP'),
-    '.avif': (4, b'ftypavif', 'una imagen AVIF'),
-    '.heic': (4, b'ftypheic', 'una imagen HEIC'),
-    '.heif': (4, b'ftypheic', 'una imagen HEIF'),
+    '.webp': (4, (b'WEBP',), 'una imagen WebP'),
+    '.avif': (4, (b'ftypavif', b'ftypavis'), 'una imagen AVIF'),
+    '.heic': (4, MARCAS_HEIF, 'una imagen HEIC'),
+    '.heif': (4, MARCAS_HEIF, 'una imagen HEIF'),
 }
 
 
@@ -89,8 +102,8 @@ def describir(cabecera: bytes) -> str:
     for firma, nombre in FIRMAS:
         if cabecera.startswith(firma):
             return nombre
-    for _, (desplazamiento, firma, nombre) in DESPLAZADAS.items():
-        if cabecera[desplazamiento:desplazamiento + len(firma)] == firma:
+    for _, (desplazamiento, firmas, nombre) in DESPLAZADAS.items():
+        if _casa_desplazada(cabecera, desplazamiento, firmas):
             return nombre
     if not cabecera.strip():
         return 'un archivo vacío'
@@ -124,13 +137,19 @@ def comprobar(ruta: str, nombre: str, extension: str) -> None:
         _comprobar_dentro_del_zip(ruta, nombre, extension)
         return
     if desplazada:
-        desplazamiento, firma, _ = desplazada
-        if cabecera[desplazamiento:desplazamiento + len(firma)] == firma:
+        desplazamiento, firmas, _ = desplazada
+        if _casa_desplazada(cabecera, desplazamiento, firmas):
             return
 
     raise ApiError(
         f'«{nombre}» no es {_articulo(extension)} por dentro: parece '
         f'{describir(cabecera)}. Comprueba el archivo o cámbiale la extensión.', 400)
+
+
+def _casa_desplazada(cabecera: bytes, desplazamiento: int, firmas: tuple) -> bool:
+    """Si alguna de las firmas está en su sitio, que no es el principio."""
+    return any(cabecera[desplazamiento:desplazamiento + len(firma)] == firma
+               for firma in firmas)
 
 
 def _comprobar_dentro_del_zip(ruta: str, nombre: str, extension: str) -> None:

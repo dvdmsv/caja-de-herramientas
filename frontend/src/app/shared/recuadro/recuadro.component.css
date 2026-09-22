@@ -1,0 +1,94 @@
+:host {
+  display: block;
+}
+
+/* Llena el hueco que le da quien lo usa, que ya viene con la proporción de la
+   foto: así no hay que decidir aquí el tamaño, y el recuadro —que va en
+   porcentajes— cae siempre encima de la imagen y no al lado. */
+.lienzo {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  line-height: 0;
+  /* Sin esto, arrastrar sobre la foto en un móvil desplaza la página. */
+  touch-action: none;
+  user-select: none;
+}
+
+.lienzo__foto {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fuera {
+  position: absolute;
+  background: rgb(0 0 0 / 45%);
+  pointer-events: none;
+}
+
+.recuadro {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 45%);
+  cursor: move;
+}
+
+/* Las dos líneas de tercios, que es lo que se usa para encuadrar. */
+.recuadro::before,
+.recuadro::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+}
+
+.recuadro::before {
+  background-image: linear-gradient(to right, rgb(255 255 255 / 40%) 1px, transparent 1px),
+                    linear-gradient(to right, rgb(255 255 255 / 40%) 1px, transparent 1px);
+  background-position: 33.33% 0, 66.66% 0;
+  background-size: 1px 100%;
+}
+
+.recuadro::after {
+  background-image: linear-gradient(to bottom, rgb(255 255 255 / 40%) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgb(255 255 255 / 40%) 1px, transparent 1px);
+  background-position: 0 33.33%, 0 66.66%;
+  background-size: 100% 1px;
+}
+
+.recuadro--quieto {
+  cursor: default;
+}
+
+.tirador {
+  position: absolute;
+  /* 44 px es el mínimo táctil; la parte que se ve es más pequeña y va centrada
+     con el borde, pero el área que responde al dedo es la de verdad. */
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  background: transparent;
+}
+
+.tirador::before {
+  content: '';
+  position: absolute;
+  inset: 16px;
+  background: #fff;
+  border: 1px solid rgb(0 0 0 / 45%);
+  border-radius: 2px;
+}
+
+.recuadro--quieto .tirador { pointer-events: none; }
+
+.tirador--nw { top: 0;    left: 0;    cursor: nwse-resize; }
+.tirador--n  { top: 0;    left: 50%;  cursor: ns-resize; }
+.tirador--ne { top: 0;    left: 100%; cursor: nesw-resize; }
+.tirador--e  { top: 50%;  left: 100%; cursor: ew-resize; }
+.tirador--se { top: 100%; left: 100%; cursor: nwse-resize; }
+.tirador--s  { top: 100%; left: 50%;  cursor: ns-resize; }
+.tirador--sw { top: 100%; left: 0;    cursor: nesw-resize; }
+.tirador--w  { top: 50%;  left: 0;    cursor: ew-resize; }

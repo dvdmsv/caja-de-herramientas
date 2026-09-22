@@ -11,6 +11,11 @@ JPEG = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00'
 PNG = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR'
 
 
+def heif(marca=b'heic'):
+    """Cabecera de un archivo de la familia HEIF con la marca principal dada."""
+    return b'\x00\x00\x00\x1cftyp' + marca + b'\x00\x00\x00\x00mif1' + marca
+
+
 def paquete(*rutas):
     datos = io.BytesIO()
     with zipfile.ZipFile(datos, 'w') as z:
@@ -60,6 +65,37 @@ def test_un_docx_que_por_dentro_es_una_hoja_de_calculo(almacen):
         almacen().save_upload(SESION, subida(paquete('xl/workbook.xml'), 'carta.docx'))
 
     assert 'hoja de cálculo' in fallo.value.message
+
+
+@pytest.mark.parametrize('marca', [b'heic', b'heix', b'hevc', b'hevx', b'heim',
+                                  b'heis', b'hevm', b'hevs', b'mif1', b'msf1', b'avic'])
+def test_el_heic_vale_con_cualquiera_de_sus_marcas(almacen, marca):
+    """La marca principal la elige el codificador, no hay una sola.
+
+    Quedarse con `heic` rechazaba al subirlo un archivo perfectamente válido.
+    """
+    assert almacen().save_upload(SESION, subida(heif(marca), 'foto.heic')).name == 'foto.heic'
+
+
+def test_un_heic_que_es_un_jpeg_se_sigue_rechazando(almacen):
+    """Ampliar las marcas no puede convertir la comprobación en un colador."""
+    from errors import ApiError
+
+    with pytest.raises(ApiError) as fallo:
+        almacen().save_upload(SESION, subida(JPEG, 'foto.heic'))
+    assert 'una imagen JPEG' in fallo.value.message
+
+
+def test_el_heic_entra_por_la_puerta(entorno):
+    """La extensión se admite de verdad, no sólo se reconoce su firma.
+
+    `ALLOWED_EXTS` sale de lo que Pillow sepa abrir, así que esto es lo que
+    comprueba que `pillow-heif` está instalado y registrado.
+    """
+    entorno()
+    from api import files
+
+    assert {'.heic', '.heif'} <= files.ALLOWED_EXTS
 
 
 def test_el_archivo_rechazado_no_se_queda_en_el_disco(almacen):

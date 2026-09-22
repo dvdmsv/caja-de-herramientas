@@ -54,7 +54,12 @@ MAXIMO_NOMBRE = 300
 
 # Un tope generoso, pero que evita que una petición absurda tenga al servidor
 # dibujando rectángulos un cuarto de hora.
-MAXIMO_MARCAS = 2000
+#
+# Va atado al `MAXIMO_ZONAS` de `anonimizar_pdf.py`, que es quien puede llenar
+# esto de golpe con «buscar y tachar todo»: si aquí cupieran menos, marcar
+# funcionaría y guardar fallaría con un 413 que no se entendería. Hay un test que
+# cruza los dos. Al mover uno, mueve el otro.
+MAXIMO_MARCAS = 50_000
 
 
 @bp.post('/visor/guardar')

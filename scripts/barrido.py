@@ -147,6 +147,53 @@ def _fabricar(carpeta):
     cartel.close()
 
     Image.new('RGB', (900, 700), (140, 170, 210)).save(f'{carpeta}/foto.jpg', quality=90)
+
+    # Un documento con datos personales de mentira, para "Anonimizar PDF". El
+    # DNI y el IBAN son válidos —su letra y su dígito de control cuadran—,
+    # porque la herramienta los comprueba y uno inventado no se tacharía. La
+    # factura sí es inventada a propósito: tiene que sobrevivir.
+    datos = fitz.open()
+    pagina = datos.new_page()
+    pagina.insert_text((72, 100), 'Contrato con Ana Ruiz', fontsize=12)
+    pagina.insert_text((72, 130), 'DNI 12345678 Z · Tel 600 123 456', fontsize=12)
+    pagina.insert_text((72, 160), 'IBAN ES91 2100 0418 4502 0005 1332', fontsize=12)
+    pagina.insert_text((72, 190), 'Correo ana@ejemplo.es · Factura 12345678 A', fontsize=12)
+    datos.save(f'{carpeta}/datos.pdf')
+    datos.close()
+
+    # Una factura con la tabla dibujada, para "Extraer tablas". Los importes
+    # llevan coma decimal porque es lo único que los distingue de una referencia:
+    # así se comprueba que llegan al Excel como números y no como texto.
+    tabla = fitz.open()
+    hoja = tabla.new_page()
+    filas = [['Concepto', 'Uds', 'Importe'],
+             ['Horas', '12', '540,00'],
+             ['Licencia', '1', '1.200,00'],
+             ['Total', '', '1.740,00']]
+    for i, fila in enumerate(filas):
+        x = 60
+        for j, celda in enumerate(fila):
+            caja = fitz.Rect(x, 100 + i * 24, x + [160, 60, 100][j], 124 + i * 24)
+            hoja.draw_rect(caja, color=(0, 0, 0), width=0.7)
+            hoja.insert_text((x + 4, 116 + i * 24), celda, fontsize=9)
+            x += [160, 60, 100][j]
+    tabla.save(f'{carpeta}/tabla.pdf')
+    tabla.close()
+
+    # Un QR, para el lector de códigos.
+    import segno
+
+    segno.make('WIFI:S:Oficina;T:WPA;P:clave1234;;').save(f'{carpeta}/codigo.png',
+                                                          scale=6, border=4)
+
+    # HEIC, que es lo que sale de un iPhone. Es el único formato de entrada que
+    # depende de un plugin de Pillow (`pillow-heif`), así que la única forma de
+    # saber que el plugin sigue dentro de la imagen es subir uno de verdad: sin
+    # él la subida se rechaza con «formato no admitido» y nada más se entera.
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()
+    Image.new('RGB', (640, 480), (200, 120, 60)).save(f'{carpeta}/foto.heic')
     with open(f'{carpeta}/texto.txt', 'w', encoding='utf-8') as fichero:
         fichero.write('Título\n\nPárrafo de prueba con acentos: ñ á é.\n')
     with open(f'{carpeta}/notas.md', 'w', encoding='utf-8') as fichero:
@@ -167,6 +214,10 @@ def main():
     largo = subir(f'{carpeta}/largo.pdf')
     cartel = subir(f'{carpeta}/cartel.pdf')
     foto = subir(f'{carpeta}/foto.jpg')
+    heic = subir(f'{carpeta}/foto.heic')
+    personales = subir(f'{carpeta}/datos.pdf')
+    conTabla = subir(f'{carpeta}/tabla.pdf')
+    codigo = subir(f'{carpeta}/codigo.png')
     txt = subir(f'{carpeta}/texto.txt')
     md = subir(f'{carpeta}/notas.md')
 
@@ -194,6 +245,14 @@ def main():
     prueba('marca/previsualizar', '/api/tools/marca-de-agua/previsualizar',
            {'file_ids': [pdf], 'modo': 'texto', 'texto': 'X', 'pagina': 1})
     prueba('extraer-imagenes', '/api/tools/extraer-imagenes', {'file_ids': [pdf]})
+    prueba('anonimizar/inspec', '/api/tools/anonimizar-pdf/inspeccionar',
+           {'file_ids': [personales], 'tipos': ['dni', 'telefono', 'iban', 'correo']})
+    prueba('anonimizar-pdf', '/api/tools/anonimizar-pdf',
+           {'file_ids': [personales], 'tipos': ['dni', 'telefono', 'iban', 'correo']})
+    # PDF/A: Ghostscript de verdad, que es lo que los tests no pueden tocar. El
+    # documento usa Helvetica sin incrustar, así que comprueba lo que importa:
+    # que la conversión meta la fuente dentro.
+    prueba('pdf-a-pdfa', '/api/tools/pdf-a-pdfa', {'file_ids': [personales], 'perfil': '2b'})
     prueba('ocr-pdf', '/api/tools/ocr-pdf', {'file_ids': [pdf], 'idioma': 'spa'})
     prueba('visor/guardar', '/api/tools/visor/guardar',
            {'file_ids': [pdf],
@@ -209,11 +268,25 @@ def main():
     prueba('comprimir-imagen', '/api/tools/comprimir-imagen',
            {'file_ids': [foto], 'calidad': 75, 'lado_maximo': 0})
     prueba('convertir-imagen', '/api/tools/convertir-imagen', {'file_ids': [foto], 'formato': 'PNG'})
+    prueba('convertir-imagen (HEIC)', '/api/tools/convertir-imagen',
+           {'file_ids': [heic], 'formato': 'JPEG'})
     prueba('convertir/formatos', '/api/tools/convertir-imagen/formatos', metodo='GET')
     prueba('imagen-a-pdf', '/api/tools/imagen-a-pdf', {'file_ids': [foto]})
     prueba('generar-qr', '/api/tools/generar-qr', {'tipo': 'texto', 'texto': 'hola', 'formato': 'png'})
+    prueba('leer-codigo', '/api/tools/leer-codigo/inspeccionar', {'file_ids': [codigo]})
+    prueba('efecto-escaner', '/api/tools/efecto-escaner',
+           {'file_ids': [foto], 'modo': 'blanco-y-negro', 'intensidad': 50})
+    prueba('efecto-escaner/prev', '/api/tools/efecto-escaner/previsualizar',
+           {'file_ids': [foto], 'modo': 'gris'})
+    prueba('editar-imagen', '/api/tools/editar-imagen',
+           {'file_ids': [foto], 'recorte': {'x': 0.1, 'y': 0.1, 'ancho': 0.5, 'alto': 0.5},
+            'giro': 90, 'lado_maximo': 400})
 
     print('\n=== Documentos ===')
+    prueba('extraer-tablas/inspec', '/api/tools/extraer-tablas/inspeccionar',
+           {'file_ids': [conTabla]})
+    prueba('extraer-tablas', '/api/tools/extraer-tablas',
+           {'file_ids': [conTabla], 'formato': 'xlsx'})
     prueba('limpiar-metadatos/inspec', '/api/tools/limpiar-metadatos/inspeccionar', {'file_ids': [pdf]})
     prueba('limpiar-metadatos', '/api/tools/limpiar-metadatos',
            {'file_ids': [pdf], 'seleccion': {pdf: ['author']},

@@ -12,6 +12,31 @@ con `entorno_entero`. La lista completa está en el README.
 import os
 import sys
 
+# ─── Antes que nada: los hilos de OpenBLAS ──────────────────────────────────
+#
+# Esto va aquí arriba, y no en el `docker-compose.yml`, porque tiene que estar
+# puesto **antes de que nadie importe numpy**, y `config` es lo primero que
+# importa cualquier entrada del proyecto (el `gunicorn.trabajos.conf.py`, el
+# `app.py` de desarrollo y los tests).
+#
+# Qué pasa si falta. OpenBLAS reserva de entrada un juego de arenas por hilo, y
+# eso son **639 MB de memoria virtual de datos** aunque no se toquen: medido,
+# `import numpy` lleva el `VmData` del proceso de 40 MB a 679. Con
+# `preload_app`, quien importa numpy es el **maestro**, así que cada hijo nace
+# con ese `VmData` heredado, y `post_fork` le pone encima un `RLIMIT_DATA` de
+# 192 MB en `ligeros`. El hijo nace, por tanto, con el límite ya superado: a
+# partir de ahí **ningún `mmap` nuevo funciona**. Eso no se ve como un error de
+# memoria, se ve como cosas que no encajan —una biblioteca nativa que «no se
+# puede mapear», MuPDF abortando el proceso al rasterizar— y se tarda en
+# relacionarlas.
+#
+# Con el hilo único el maestro se queda en 126 MB y todo vuelve a caber. No se
+# pierde nada por el camino: aquí numpy sólo hace aritmética de arrays elemento
+# a elemento (`api/escaneo.py`), que no pasa por BLAS. Y se fija **sólo**
+# OPENBLAS y no OMP, que es lo que usa tesseract: los programas externos heredan
+# este entorno, y limitarles los hilos sí les costaría tiempo.
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
+
 
 def entorno_entero(nombre: str, defecto: int, minimo: int = 1) -> int:
     """Un entero que se puede ajustar por variable de entorno.

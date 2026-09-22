@@ -76,6 +76,12 @@
           (click)="colorTachado = 'blanco'" title="Dejarlo en blanco"></button>
         </span>
       }
+      <button type="button" class="boton" [disabled]="!documento || buscandoDatos"
+        (click)="tacharDatosPersonales()"
+        title="Buscar DNI, teléfonos, correos y cuentas, y marcarlos para revisarlos">
+        <i class="bi" [class.bi-eye-slash]="!buscandoDatos"
+          [class.bi-hourglass-split]="buscandoDatos"></i>
+      </button>
       <button type="button" class="boton" [class.boton--activo]="herramienta === 'texto'"
         (click)="elegirHerramienta('texto')"
         title="Escribir sobre el documento: pulsa donde esté el hueco">

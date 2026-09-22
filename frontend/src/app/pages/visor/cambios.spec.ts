@@ -101,6 +101,35 @@ describe('cambios del visor', () => {
     expect(peticion.tachados.length).toBe(1);
   });
 
+  it('marcar muchas de golpe cuenta como un solo paso al deshacer', () => {
+    // Es lo que hace «buscar y tachar todo»: arrepentirse no puede costar
+    // cincuenta Ctrl+Z, ni enseñar por el camino estados que nadie ha pedido.
+    const cambios = new Cambios();
+    const antes = cambios.marcar(marca(1));
+
+    cambios.marcarVarias([marca(1, 'tachado'), marca(2, 'tachado'), marca(3, 'tachado')]);
+    expect(cambios.marcas.length).toBe(4);
+
+    cambios.deshacer();
+    expect(cambios.marcas.map(m => m.id)).toEqual([antes.id]);
+  });
+
+  it('marcar una lista vacía no deja un paso que deshacer', () => {
+    const cambios = new Cambios();
+    expect(cambios.marcarVarias([])).toEqual([]);
+    expect(cambios.sePuedeDeshacer).toBe(false);
+  });
+
+  it('marcar muchas no borra lo que ya había marcado a mano', () => {
+    const cambios = new Cambios();
+    const mia = cambios.marcar(marca(1, 'tachado'));
+
+    cambios.marcarVarias([marca(1, 'tachado')]);
+
+    expect(cambios.marcas.map(m => m.id)).toContain(mia.id);
+    expect(cambios.marcas.length).toBe(2);
+  });
+
   it('sustituir una marca cuenta como un solo paso al deshacer', () => {
     const cambios = new Cambios();
     const vieja = cambios.marcar(marca(1));

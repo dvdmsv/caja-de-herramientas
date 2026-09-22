@@ -6,10 +6,28 @@ por ejemplo, sólo está disponible con ciertas versiones o con un plugin).
 """
 from PIL import Image
 
+# HEIC es lo que guarda de serie el iPhone y buena parte de los Android, y Pillow
+# no lo abre sin ayuda. El plugin se registra aquí, antes del `Image.init()`,
+# porque a partir de ese momento lo ve `extensiones_de_entrada()` y **todas** las
+# herramientas de imagen lo admiten a la vez, sin tocar ninguna.
+#
+# El `try` no es un adorno: este módulo se importa al arrancar los tres
+# servicios, y quedarse sin HEIC es mucho mejor que quedarse sin servidor.
+try:
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()
+except ImportError:
+    pass
+
 Image.init()
 
 # Formatos de salida que tienen sentido ofrecer, con la extensión y el nombre
 # que ve el usuario. Se filtran por lo que Pillow pueda escribir de verdad.
+#
+# HEIF no está a propósito, aunque con `pillow-heif` registrado Pillow sepa
+# escribirlo: aquí se viene a convertir un HEIC en algo que se pueda abrir en
+# cualquier sitio, no al revés.
 _CANDIDATOS_SALIDA = [
     ('JPEG', '.jpg', 'JPG'),
     ('PNG', '.png', 'PNG'),

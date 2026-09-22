@@ -42,14 +42,19 @@ Pensada para usarse, no sólo para funcionar:
 | Proteger PDF | Pone o quita la contraseña de apertura | cifrado AES-256 |
 | Comparar PDF | Dice en qué se diferencian dos versiones de un documento | informe en PDF, con las páginas recuadradas |
 | Aplanar PDF | Fija los formularios y las anotaciones dentro de la página | campos, anotaciones, varios documentos de una vez |
+| Anonimizar PDF | Busca DNI, NIE, CIF, teléfonos, correos, cuentas y matrículas, y los borra del documento entero | qué tipos buscar, expresión propia con ayudante, barra negra o hueco en blanco |
 | PDF con OCR | Reconoce el texto de un escaneado | español, inglés o ambos |
 | Firmar documento | Coloca tu firma sobre un PDF o una imagen | posición libre, tamaño, giro, página |
 | Firmar con certificado | Firma un PDF con tu certificado digital | con el certificado del equipo (AutoFirma) o un `.p12`, visible o invisible, sello de tiempo |
 | Comprobar firmas | Dice quién firmó un PDF y si lo han tocado después | ninguna: se comprueba al subirlo |
+| Convertir a PDF/A | Deja el PDF en el formato de archivado que piden las sedes y los registros | PDF/A-1b o 2b; reconocer el texto de paso |
 | Comprimir PDF | Recomprime las imágenes del documento y lo optimiza para la web | ninguna, suave, media, fuerte; optimizar para verlo en la web |
 | Comprimir imagen | Baja el peso de varias imágenes a la vez | calidad y tamaño máximo |
-| Convertir imagen | Cambia de formato | JPG, PNG, WebP, TIFF, BMP, PDF |
+| Convertir imagen | Cambia de formato, incluido el HEIC del móvil | JPG, PNG, WebP, TIFF, BMP, PDF |
+| Editar imagen | Recorta, gira y cambia de tamaño una foto | proporciones preajustadas, giro, volteo, lado máximo y calidad |
+| Efecto escáner | Quita la sombra y el fondo gris de la foto de un papel | blanco y negro, grises o color; cuánto apretar; vista previa |
 | Imagen a PDF | Reúne varias imágenes en un PDF | tamaño de página, orientación, margen y calidad |
+| Extraer tablas | Saca a Excel o a CSV las tablas de un PDF, con los importes ya como números | un `.xlsx` con una hoja por tabla, o un `.csv` por tabla |
 | Documento a Markdown | Extrae el contenido para dárselo a un LLM | unir todo en un archivo |
 | Documento a PDF | Pasa Word, ODT, RTF o texto plano a PDF | varios documentos de una vez |
 | PDF a Word | Saca un `.docx` editable de un PDF | varios documentos de una vez |
@@ -58,6 +63,7 @@ Pensada para usarse, no sólo para funcionar:
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
 | Numerar páginas | Numera el documento | posición, formato, desde qué página, con vista previa |
 | Extraer imágenes | Saca las imágenes que lleva dentro un PDF | tamaño mínimo y formato |
+| Leer QR o código de barras | Saca lo que pone dentro de un código, desde un pantallazo, una foto o un PDF | ninguna |
 | Generar QR | Códigos QR de un enlace, tu wifi o tu contacto | PNG o SVG |
 | Crear certificado | Genera un certificado propio para firmar | validez, tamaño de clave, contraseña |
 
@@ -724,6 +730,7 @@ acertado.
 | `OCR_JOBS` | *se calcula* | Páginas que el OCR reconoce a la vez: los núcleos del servicio repartidos entre sus trabajos. **El ajuste que más se nota**: con 4 núcleos, 60 páginas pasan de 36 s a 21 s |
 | `OCR_OPTIMIZE` | `1` | Cuánto aprieta el PDF resultante, de 0 a 3. El 1 sale casi gratis: mismo tiempo y archivos hasta cuatro veces menores |
 | `OCR_TIMEOUT_SECONDS` | `240` | Plazo del OCR |
+| `PDFA_TIMEOUT_SECONDS` | `240` | Plazo de convertir a PDF/A. Lo hace el mismo ocrmypdf, y con la casilla de reconocer el texto marcada tarda lo que un OCR |
 | `PDF_TO_WORD_TIMEOUT_SECONDS` | `240` | Plazo al convertir a `.docx` |
 | `DOC_TO_PDF_TIMEOUT_SECONDS` | `180` | Plazo del lote hacia PDF |
 | `MAX_CONTENT_LENGTH_MB` | `200` | Tamaño máximo de una petición. nginx tiene el suyo y manda el más bajo |
@@ -1008,7 +1015,7 @@ requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
 cd frontend && npm test                                    # 143 tests, Vitest
 cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 139 tests
 
-docker compose up -d --build && python3 scripts/barrido.py # las 25 herramientas, de verdad
+docker compose up -d --build && python3 scripts/barrido.py # las 32 herramientas, de verdad
 ```
 
 `scripts/barrido.py` llama a la API como lo haría el navegador y recorre todas

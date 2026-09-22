@@ -20,10 +20,10 @@ delante lo que estuvieran haciendo los demás.
 import os
 
 import fitz  # PyMuPDF
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, jsonify
 
 import config
-from api import conversion, current_session, params, progreso
+from api import current_session, ocrmypdf, params, progreso
 from errors import ApiError
 from storage import storage, nombre_seguro
 
@@ -61,13 +61,10 @@ TRABAJOS = config.entorno_entero('OCR_JOBS', config.nucleos_por_trabajo())
 # evitando una memoria que hoy sobra.
 OPTIMIZACION = min(3, config.entorno_entero('OCR_OPTIMIZE', 1, minimo=0))
 
-# Qué significa cada código de salida de ocrmypdf, en cristiano.
+# Lo que sólo significa esto aquí. El resto de códigos de salida los traduce
+# `api/ocrmypdf.py`, que comparte con "Convertir a PDF/A".
 ERRORES = {
-    2: ('No se ha podido leer el PDF: puede estar dañado.', 422),
-    4: ('El resultado del reconocimiento no era un PDF válido.', 422),
-    5: ('El resultado del reconocimiento no era un PDF válido.', 422),
     6: ('El PDF ya tiene texto. Marca "rehacer el reconocimiento" si aun así quieres repetirlo.', 400),
-    8: ('El PDF está protegido con contraseña. Quítasela primero.', 422),
 }
 
 
@@ -115,30 +112,17 @@ def ocr_pdf():
 
 
 def _reconocer(origen: str, destino: str, idioma: str, rehacer: bool) -> None:
-    orden = [
-        'ocrmypdf',
-        '--jobs', str(TRABAJOS),
-        '--optimize', str(OPTIMIZACION),
-        '--language', idioma,
-        '--quiet',
-        # `redo-ocr` rehace el texto conservando los gráficos; `skip-text` deja
-        # en paz las páginas que ya tenían texto de verdad.
-        '--redo-ocr' if rehacer else '--skip-text',
-        origen,
-        destino,
-    ]
-
-    resultado = conversion.ejecutar(
-        orden, TIEMPO_LIMITE, 'ocrmypdf',
+    ocrmypdf.ejecutar(
+        [
+            '--jobs', str(TRABAJOS),
+            '--optimize', str(OPTIMIZACION),
+            '--language', idioma,
+            '--quiet',
+            # `redo-ocr` rehace el texto conservando los gráficos; `skip-text`
+            # deja en paz las páginas que ya tenían texto de verdad.
+            '--redo-ocr' if rehacer else '--skip-text',
+        ],
+        origen, destino, TIEMPO_LIMITE,
         'El reconocimiento de texto no está disponible en este servidor.',
-        trabajo='El reconocimiento')
-
-    if resultado.returncode == 0:
-        return
-
-    mensaje, codigo = ERRORES.get(
-        resultado.returncode, ('No se ha podido completar el reconocimiento de texto.', 422))
-    # El detalle de ocrmypdf va al registro, no a la pantalla del usuario.
-    current_app.logger.warning('ocrmypdf salió con %s: %s', resultado.returncode,
-                               (resultado.stderr or '').strip()[:500])
-    raise ApiError(mensaje, codigo)
+        trabajo='El reconocimiento', errores=ERRORES,
+        generico=('No se ha podido completar el reconocimiento de texto.', 422))

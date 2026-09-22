@@ -268,6 +268,28 @@ def _sin_negrita_simulada(lineas: list[Linea]) -> list[Linea]:
 # ─── Tablas con rejilla ────────────────────────────────────────────────────
 
 
+def merece_ser_tabla(columnas: int, filas: int, llenas: int, lineas_en_la_mayor: int,
+                     de_formulario: int = 0) -> bool:
+    """Si lo que ha encontrado `find_tables` es una tabla o sólo un recuadro.
+
+    `find_tables` marca como tabla cualquier rejilla, y en un PDF hay rejillas
+    por todas partes: el marco de una portada, una caja de aviso, un pie. Una
+    tabla inventada es peor que una tabla perdida, aquí y en «Extraer tablas»,
+    así que el criterio es uno solo y lo comparten los dos.
+
+    Lo mide cada uno a su manera —uno sobre las líneas con su tamaño de letra,
+    el otro sobre el texto llano—, pero la decisión se toma aquí.
+    """
+    if columnas < 2 or llenas < 3:
+        return False
+    # Una sola fila sólo vale si parece un formulario (etiqueta encima, valor
+    # debajo), que es como se maquetan muchos impresos oficiales.
+    if filas < 2 and de_formulario < 2:
+        return False
+    # Un marco con un párrafo dentro no es una tabla.
+    return lineas_en_la_mayor <= 6
+
+
 def _tablas_con_rejilla(pagina: fitz.Page, numero: int):
     """Las tablas que se ven dibujadas. Descarta lo que sólo es un marco."""
     try:
@@ -278,11 +300,11 @@ def _tablas_con_rejilla(pagina: fitz.Page, numero: int):
     for tabla in encontradas:
         celdas = [[_celda_rejilla(pagina, rect) for rect in fila.cells] for fila in tabla.rows]
         llenas = [c for fila in celdas for c in fila if c and c[0]]
-        de_formulario = sum(1 for c in llenas if len(c[1]) >= 2 and c[1][0].tamano < c[1][1].tamano * 0.9)
-        if tabla.col_count < 2 or len(llenas) < 3 or (tabla.row_count < 2 and de_formulario < 2):
+        if not llenas:
             continue
-        # Un marco con un párrafo dentro no es una tabla.
-        if max(len(c[1]) for c in llenas) > 6:
+        de_formulario = sum(1 for c in llenas if len(c[1]) >= 2 and c[1][0].tamano < c[1][1].tamano * 0.9)
+        if not merece_ser_tabla(tabla.col_count, tabla.row_count, len(llenas),
+                                max(len(c[1]) for c in llenas), de_formulario):
             continue
         resultado.append((tabla.bbox, _tabla_de_celdas(celdas, tabla.bbox[1], numero)))
     return resultado

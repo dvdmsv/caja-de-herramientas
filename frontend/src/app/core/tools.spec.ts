@@ -78,6 +78,9 @@ describe('a qué herramientas mandar un archivo', () => {
     const destinos = slugs([pdf, pdf]);
     expect(destinos).toContain('unir-pdf');
     expect(destinos).not.toContain('firmar');
-    expect(slugs([pdf, foto])).toEqual(['limpiar-metadatos']);
+    // Mezclar un PDF y una foto deja sólo las que admiten los dos y varios a la
+    // vez. Si aparece una nueva aquí, es que su `acepta` es más ancho de lo que
+    // se pretendía: la lista se repasa, no se amplía sin mirar.
+    expect(slugs([pdf, foto])).toEqual(['limpiar-metadatos', 'leer-codigo']);
   });
 });

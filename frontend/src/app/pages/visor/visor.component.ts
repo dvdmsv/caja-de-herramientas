@@ -7,11 +7,12 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { TraspasoService } from '../../core/traspaso.service';
-import { ApiService, ArchivoServidor } from '../../core/api.service';
+import { ApiService, ArchivoServidor, ZonasAnonimizado } from '../../core/api.service';
 import { MemoriaDocumentoService } from '../../core/memoria-documento.service';
 import { DocumentoPdf, PdfService } from '../../core/pdf.service';
 import { VisorRenderService } from '../../core/visor-render.service';
-import { avisoError, avisoExito, confirmar, mensajeDeError } from '../../shared/notify';
+import { avisoError, avisoExito, aviso, confirmar, mensajeDeError } from '../../shared/notify';
+import { IDS_DE_DATO, nombreDeDato } from '../../shared/datos-personales';
 import { copiarAlPortapapeles } from '../../shared/portapapeles';
 import { Coincidencia, IndiceTexto } from './buscador';
 import { Cambios, ColorSubrayado, ColorTachado, Marca, Texto } from './cambios';
@@ -50,6 +51,15 @@ const ESPERA_MEMORIA = 800;
 
 /** Compartido para que las páginas sin marcas no reciban un array nuevo cada vez. */
 const SIN_MARCAS: Marca[] = [];
+
+/**
+ * A partir de cuántas coincidencias se avisa de que repasarlas no es realista.
+ *
+ * El visor existe para **revisar** antes de borrar; con miles de marcas eso ya
+ * no lo hace nadie, y para eso está la herramienta suelta. No se impide —puede
+ * que quien lo haga sepa lo que quiere—, se dice.
+ */
+const REVISABLES = 500;
 
 @Component({
   selector: 'app-visor',
@@ -105,6 +115,13 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   hayCampos = false;
   /** Si se enseñan esos campos como controles. */
   conFormulario = true;
+  /** Si se está buscando datos personales; el botón se apaga mientras tanto. */
+  buscandoDatos = false;
+
+  /** Marcas por página, para no filtrar la lista entera en cada repintado. */
+  private readonly marcasPorPagina = new Map<number, Marca[]>();
+  /** Sobre qué lista se armó el índice; si cambia la identidad, se rehace. */
+  private marcasIndexadas: Marca[] | null = null;
 
   readonly fuentes = FUENTES;
   readonly coloresTexto = COLORES_TEXTO;
@@ -565,6 +582,89 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.refrescarMarcas();
   }
 
+  /**
+   * Busca DNI, teléfonos, correos y cuentas, y los deja **marcados para
+   * revisar**, no tachados.
+   *
+   * Ésa es toda la diferencia con la herramienta «Anonimizar PDF», que los
+   * tacha de una y devuelve el archivo: aquí se ven, se quitan los que sobren y
+   * se añaden a mano los que el patrón no puede conocer —un nombre, una
+   * dirección— antes de guardar. Por eso es un solo paso al deshacer.
+   *
+   * Quien busca es el servidor. Rehacer aquí las expresiones y sus
+   * comprobaciones —la letra del DNI, el dígito de la cuenta— sería garantizar
+   * que las dos versiones dejan de coincidir a la primera corrección.
+   */
+  async tacharDatosPersonales(): Promise<void> {
+    if (!this.documento || this.buscandoDatos) {
+      return;
+    }
+    this.buscandoDatos = true;
+    try {
+      const zonas = await this.buscarDatosPersonales();
+      if (zonas.total === 0) {
+        aviso('No se ha encontrado ningún DNI, NIE, teléfono, correo ni cuenta bancaria.');
+        return;
+      }
+
+      const desglose = zonas.recuento
+        .map(fila => `${fila.cuantas} · ${nombreDeDato(fila.tipo)}`)
+        .join('\n');
+      // Por encima de esto, repasarlas una a una deja de ser algo que nadie
+      // vaya a hacer, y la herramienta suelta las aplica de una vez.
+      const demasiadas = zonas.total > REVISABLES
+        ? `\n\nSon muchas para repasarlas una a una. Si no las vas a revisar, ` +
+          '«Anonimizar PDF» las tacha todas de una vez y te devuelve el archivo.'
+        : '';
+      const seguir = await confirmar(
+        `Se han encontrado ${zonas.total}`,
+        `${desglose}\n\nSe marcan para que los revises: podrás quitar los que sobren y ` +
+        'añadir a mano lo que no tiene forma fija, como un nombre. No se borra nada ' +
+        `hasta que guardes.${demasiadas}`,
+        'Marcarlos');
+      if (!seguir) {
+        return;
+      }
+
+      const nuevas = zonas.paginas.flatMap(pagina => pagina.marcas.map(marca => ({
+        tipo: 'tachado' as const,
+        pagina: pagina.pagina,
+        color: this.colorTachado,
+        rects: [marca.rect as Marca['rects'][number]],
+        texto: nombreDeDato(marca.tipo),
+      })));
+      this.cambios.marcarVarias(nuevas);
+      this.resultado = null;
+      this.elegirHerramienta('tachar');
+      this.refrescarMarcas();
+    } catch (err) {
+      avisoError(mensajeDeError(err, 'No se han podido buscar los datos personales.'));
+    } finally {
+      this.buscandoDatos = false;
+      this.cd.markForCheck();
+    }
+  }
+
+  /** Como `enviarCambios`: si el archivo ya no está en el servidor, se resube. */
+  private async buscarDatosPersonales(): Promise<ZonasAnonimizado> {
+    const peticion = () =>
+      this.api.inspeccionarAnonimizado(this.fileId!, IDS_DE_DATO, '').toPromise() as
+        Promise<ZonasAnonimizado>;
+
+    if (!this.fileId) {
+      await this.subirAlServidor(true);
+    }
+    try {
+      return await peticion();
+    } catch (err) {
+      if ((err as { status?: number })?.status !== 404) {
+        throw err;
+      }
+      await this.subirAlServidor(true);
+      return peticion();
+    }
+  }
+
   elegirHerramienta(herramienta: Herramienta): void {
     this.herramienta = herramienta;
     if (herramienta !== 'texto') {
@@ -730,8 +830,34 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   /** Sin esto, Angular rehace la página entera en cada desplazamiento. */
   porNumero = (_: number, visible: EnPantalla) => visible.colocada.numero;
 
-  marcasDe(numero: number) {
-    return this.cambios.marcas.filter(marca => marca.pagina === numero);
+  /**
+   * Las marcas de una página, desde un índice y no filtrando la lista entera.
+   *
+   * Esto lo llama la plantilla **por cada página visible en cada ciclo de
+   * detección de cambios**, o sea en cada movimiento del ratón. Con un `filter`
+   * eso era recorrer todas las marcas del documento tantas veces como páginas
+   * hubiera en pantalla, y además devolver un array nuevo cada vez, lo que
+   * obliga a repintar aunque nada haya cambiado. Con unas pocas marcas daba
+   * igual; con las miles que puede dejar «buscar y tachar todo» en un documento
+   * largo, no.
+   *
+   * El índice se rehace cuando cambia la **identidad** del array, que es
+   * justamente lo que hace `refrescarMarcas()` en cada cambio.
+   */
+  marcasDe(numero: number): Marca[] {
+    if (this.marcasIndexadas !== this.cambios.marcas) {
+      this.marcasPorPagina.clear();
+      for (const marca of this.cambios.marcas) {
+        const suyas = this.marcasPorPagina.get(marca.pagina);
+        if (suyas) {
+          suyas.push(marca);
+        } else {
+          this.marcasPorPagina.set(marca.pagina, [marca]);
+        }
+      }
+      this.marcasIndexadas = this.cambios.marcas;
+    }
+    return this.marcasPorPagina.get(numero) ?? SIN_MARCAS;
   }
 
   // --- guardar ----------------------------------------------------------

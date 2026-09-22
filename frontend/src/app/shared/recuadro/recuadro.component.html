@@ -1,0 +1,22 @@
+<div class="lienzo" #lienzo (pointermove)="seguir($event)" (pointerup)="soltar($event)"
+  (pointercancel)="soltar($event)">
+  <img class="lienzo__foto" [src]="imagen" alt="La imagen que vas a recortar" draggable="false">
+
+  <!-- Lo que queda fuera del recuadro, atenuado. Son cuatro bandas y no un
+       recorte con `clip-path` porque así funciona igual en cualquier navegador. -->
+  <div class="fuera" [style.height.%]="recorte.y * 100" style="top: 0; left: 0; right: 0"></div>
+  <div class="fuera" [style.top.%]="(recorte.y + recorte.alto) * 100"
+    style="bottom: 0; left: 0; right: 0"></div>
+  <div class="fuera" [style.top.%]="recorte.y * 100" [style.height.%]="recorte.alto * 100"
+    [style.width.%]="recorte.x * 100" style="left: 0"></div>
+  <div class="fuera" [style.top.%]="recorte.y * 100" [style.height.%]="recorte.alto * 100"
+    [style.left.%]="(recorte.x + recorte.ancho) * 100" style="right: 0"></div>
+
+  <div class="recuadro" [style]="estilo" [class.recuadro--quieto]="deshabilitado"
+    (pointerdown)="empezar($event, 'mover')">
+    @for (tirador of tiradores; track tirador) {
+      <span class="tirador tirador--{{ tirador }}" [attr.aria-hidden]="true"
+        (pointerdown)="empezar($event, tirador)"></span>
+    }
+  </div>
+</div>

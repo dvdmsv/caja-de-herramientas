@@ -1,0 +1,69 @@
+<app-tool-page slug="extraer-tablas">
+
+  <app-file-queue
+    [items]="archivos"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra el PDF con las tablas que necesites"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alQuitarDocumento()">
+  </app-file-queue>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Cómo lo quieres</legend>
+    <div class="btn-group" role="group">
+      <button type="button" class="btn" [class.btn-primary]="formato === 'xlsx'"
+        [class.btn-outline-secondary]="formato !== 'xlsx'" [disabled]="ocupado"
+        (click)="elegirFormato('xlsx')">Un Excel, una hoja por tabla</button>
+      <button type="button" class="btn" [class.btn-primary]="formato === 'csv'"
+        [class.btn-outline-secondary]="formato !== 'csv'" [disabled]="ocupado"
+        (click)="elegirFormato('csv')">Un CSV por tabla</button>
+    </div>
+  </fieldset>
+
+  @if (buscando) {
+    <p class="mt-4 mb-0 text-body-secondary" aria-live="polite">
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Buscando tablas…
+    </p>
+  } @else if (problema) {
+    <div class="alert alert-warning mt-4 mb-0" role="status">{{ problema }}</div>
+  } @else if (tablas) {
+    <div class="alert mt-4 mb-0" role="status" aria-live="polite"
+      [class.alert-info]="tablas.length > 0" [class.alert-secondary]="tablas.length === 0">
+      @if (tablas.length > 0) {
+        <strong>
+          {{ tablas.length === 1 ? 'Se ha encontrado 1 tabla' : 'Se han encontrado ' + tablas.length + ' tablas' }}
+          en {{ paginasConTablas }}:
+        </strong>
+        <ul class="mb-0 mt-1">
+          @for (tabla of tablas; track $index) {
+            <li>Página {{ tabla.pagina }} · {{ tabla.filas }} filas × {{ tabla.columnas }} columnas</li>
+          }
+        </ul>
+      } @else {
+        No se ha encontrado ninguna tabla dibujada. Mira el aviso de abajo.
+      }
+    </div>
+  }
+
+  <div class="alert alert-info d-flex gap-2 mt-4">
+    <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Se detectan las tablas que están dibujadas</strong>, con sus líneas. Las que se
+      alinean sólo con espacios no se pueden distinguir del texto corriente, y adivinarlas
+      significaría entregar de vez en cuando una tabla inventada: con una hoja de cálculo eso
+      no se nota hasta que ya has trabajado sobre ella.
+      <span class="d-block mt-1">
+        Los importes salen como números para que se puedan sumar. Lo que puede ser otra cosa
+        —un código postal, un año, una referencia— se queda como texto a propósito.
+        Y si el PDF es un escaneado, pásalo antes por «PDF con OCR».
+      </span>
+    </div>
+  </div>
+
+  <app-tool-controls [pagina]="pagina" accion="Extraer las tablas" icono="bi-table">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados" nombreZip="tablas.zip"></app-result-list>
+
+</app-tool-page>

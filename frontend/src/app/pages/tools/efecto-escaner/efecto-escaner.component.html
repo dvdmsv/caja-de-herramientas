@@ -1,0 +1,63 @@
+<app-tool-page slug="efecto-escaner">
+
+  <app-file-queue
+    [items]="archivos"
+    [multiple]="true"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra las fotos de los papeles que quieras limpiar"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alQuitarDocumento()">
+  </app-file-queue>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Cómo lo quieres</legend>
+    @for (opcion of modos; track opcion.id) {
+      <div class="form-check mt-2">
+        <input type="radio" class="form-check-input" name="modo" [id]="'modo-' + opcion.id"
+          [checked]="modo === opcion.id" [disabled]="ocupado" (change)="elegirModo(opcion.id)">
+        <label class="form-check-label" [for]="'modo-' + opcion.id">
+          {{ opcion.nombre }}
+          <small class="d-block text-body-secondary">{{ opcion.ayuda }}</small>
+        </label>
+      </div>
+    }
+  </fieldset>
+
+  <div class="mt-4">
+    <label class="form-label" for="escaner-intensidad">
+      Cuánto apretar: <strong>{{ intensidad }}</strong>
+    </label>
+    <input type="range" class="form-range" id="escaner-intensidad"
+      min="0" max="100" step="5"
+      [(ngModel)]="intensidad" [disabled]="ocupado" (ngModelChange)="alCambiarAjuste()">
+    <small class="form-text">
+      Con poco se respetan los grises y el fondo queda sólo algo más claro. Con mucho el papel
+      sale impecable, a costa de poder llevarse un lápiz flojo o un sello desvaído.
+    </small>
+  </div>
+
+  <app-vista-pagina [imagen]="vista" [paginas]="paginas" [pagina]="paginaVista"
+    [cargando]="previsualizando" [deshabilitado]="ocupado"
+    (paginaChange)="cambiarPagina($event)">
+  </app-vista-pagina>
+
+  <div class="alert alert-info d-flex gap-2 mt-4">
+    <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      Esto arregla la <strong>iluminación</strong>: la sombra de tu mano en una esquina, el papel
+      amarillento, el poco contraste. Lo que no hace es enderezar la hoja ni corregir la
+      perspectiva, así que procura que la foto salga lo más de frente posible.
+      <span class="d-block mt-1">
+        La vista previa se calcula sobre una copia reducida, así que el archivo final tendrá el
+        mismo aspecto con más detalle. Para dejar un PDF escaneado buscable, encadena después
+        con «Imagen a PDF» y «PDF con OCR».
+      </span>
+    </div>
+  </div>
+
+  <app-tool-controls [pagina]="pagina" accion="Limpiar las fotos" icono="bi-eraser">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados" nombreZip="escaneados.zip"></app-result-list>
+
+</app-tool-page>

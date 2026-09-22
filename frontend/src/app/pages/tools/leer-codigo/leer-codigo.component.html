@@ -1,0 +1,80 @@
+<app-tool-page slug="leer-codigo">
+
+  <app-file-queue
+    [items]="archivos"
+    [multiple]="true"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra el pantallazo, la foto o el PDF con el código"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alQuitar()">
+  </app-file-queue>
+
+  @if (leyendo) {
+    <p class="text-body-secondary small mt-3" aria-live="polite">
+      <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+      Buscando códigos…
+    </p>
+  }
+
+  @if (sinCodigos && !leyendo) {
+    <div class="alert alert-secondary mt-3">
+      <i class="bi bi-info-circle me-1"></i>
+      No se ha encontrado ningún código. Si es una foto, prueba a recortarla para que el código
+      ocupe la mayor parte: lo que impide leerlo casi siempre es que salga demasiado pequeño.
+    </div>
+  }
+
+  @for (informe of informes; track informe.id) {
+    @if (informe.codigos.length > 0) {
+      @if (informes.length > 1) {
+        <h2 class="h6 mb-2 mt-4">{{ informe.archivo }}</h2>
+      }
+      @for (codigo of informe.codigos; track $index) {
+        <div class="card mt-3">
+          <div class="card-body">
+            <p class="text-body-secondary small mb-2">
+              <i class="bi {{ icono(codigo) }} me-1" aria-hidden="true"></i>
+              {{ codigo.formato }}
+              @if (codigo.pagina) { · página {{ codigo.pagina }} }
+            </p>
+
+            @if (campos(codigo).length > 0) {
+              <dl class="row mb-2">
+                @for (campo of campos(codigo); track campo.etiqueta) {
+                  <dt class="col-sm-3 text-body-secondary fw-normal">{{ campo.etiqueta }}</dt>
+                  <dd class="col-sm-9 mb-1 text-break">{{ campo.valor }}</dd>
+                }
+              </dl>
+            } @else if (esEnlace(codigo)) {
+              <p class="mb-2 text-break">
+                <a [href]="codigo.contenido" target="_blank" rel="noopener noreferrer">
+                  {{ codigo.contenido }}
+                </a>
+              </p>
+            } @else {
+              <p class="mb-2 text-break font-monospace">{{ codigo.contenido }}</p>
+            }
+
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+              (click)="copiar(codigo)">
+              <i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copiar el contenido
+            </button>
+          </div>
+        </div>
+      }
+    }
+  }
+
+  <div class="alert alert-info d-flex gap-2 mt-4">
+    <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      Lee QR, DataMatrix, Aztec, PDF417 y los códigos de barras de siempre (EAN, UPC, Code 128,
+      Code 39, ITF). De un PDF se miran las primeras páginas, no el documento entero.
+      <span class="d-block mt-1">
+        El contenido se enseña tal cual venía. <strong>Un QR puede llevar cualquier enlace</strong>,
+        así que mira a dónde va antes de abrirlo.
+      </span>
+    </div>
+  </div>
+
+</app-tool-page>

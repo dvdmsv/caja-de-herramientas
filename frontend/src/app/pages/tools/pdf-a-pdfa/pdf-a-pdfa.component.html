@@ -1,0 +1,72 @@
+<app-tool-page slug="pdf-a-pdfa">
+
+  <app-file-queue
+    [items]="archivos"
+    [multiple]="true"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra los PDF que tengas que presentar"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarLista()">
+  </app-file-queue>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Qué perfil te piden</legend>
+    @for (opcion of perfiles; track opcion.id) {
+      <div class="form-check mt-2">
+        <input type="radio" class="form-check-input" name="perfil" [id]="'perfil-' + opcion.id"
+          [checked]="perfil === opcion.id" [disabled]="ocupado"
+          (change)="elegirPerfil(opcion.id)">
+        <label class="form-check-label" [for]="'perfil-' + opcion.id">
+          {{ opcion.nombre }}
+          <small class="d-block text-body-secondary">{{ opcion.ayuda }}</small>
+        </label>
+      </div>
+    }
+  </fieldset>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Y de paso</legend>
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" id="pdfa-ocr"
+        [checked]="ocr" [disabled]="ocupado" (change)="cambiarOcr($event)">
+      <label class="form-check-label" for="pdfa-ocr">
+        Reconocer el texto de las páginas escaneadas
+        <small class="d-block text-body-secondary">
+          Útil si el documento es una foto o un escaneado. Tarda lo que un OCR entero,
+          así que déjalo apagado si el PDF ya tiene texto.
+        </small>
+      </label>
+    </div>
+
+    @if (ocr) {
+      <div class="mt-3">
+        <label class="form-label" for="pdfa-idioma">En qué idioma está</label>
+        <select class="form-select" id="pdfa-idioma" [(ngModel)]="idioma" [disabled]="ocupado"
+          (ngModelChange)="alCambiarLista()">
+          @for (opcion of idiomas; track opcion.id) {
+            <option [value]="opcion.id">{{ opcion.nombre }}</option>
+          }
+        </select>
+      </div>
+    }
+  </fieldset>
+
+  <div class="alert alert-info d-flex gap-2 mt-4">
+    <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Se convierte y se comprueba que el archivo declare el perfil</strong>, que es lo
+      que mira una sede al recibirlo. No es un certificado de conformidad: para eso hace falta
+      un validador aparte, y aquí no lo hay. Si tu trámite exige uno, pásalo por él.
+      <span class="d-block mt-1">
+        Convertir reescribe el documento, así que <strong>invalida una firma digital que ya
+        tuviera</strong>. Si hay que firmarlo y archivarlo, convierte primero y firma después.
+      </span>
+    </div>
+  </div>
+
+  <app-tool-controls [pagina]="pagina" accion="Convertir a PDF/A" icono="bi-archive">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados" nombreZip="pdfa.zip"></app-result-list>
+
+</app-tool-page>
