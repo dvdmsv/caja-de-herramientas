@@ -44,19 +44,19 @@ CON_CALIDAD = {'JPEG', 'WEBP', 'AVIF'}
 # Formatos que no admiten transparencia: hay que aplanar el canal alfa.
 SIN_TRANSPARENCIA = {'JPEG', 'BMP', 'PDF'}
 
-# Documentos que markitdown sabe pasar a Markdown, además del PDF y del correo
-# `.eml`, que lee `api/correo.py`.
+# Documentos que markitdown sabe pasar a Markdown, además del PDF y de los
+# correos `.eml` y `.msg`, que lee `api/correo.py`.
 #
 # `.zip` se queda fuera a propósito aunque markitdown lo soporte: descomprimir
 # en el servidor lo que suba cualquiera invita a una zip bomb, y aquí no aporta.
 EXTENSIONES_DOCUMENTO = {
     '.docx', '.xlsx', '.xls', '.pptx', '.csv', '.json', '.xml', '.html', '.htm', '.txt',
-    '.md', '.epub', '.eml',
+    '.md', '.epub', '.eml', '.msg',
 }
 
-# Documentos de texto que sólo entiende LibreOffice ("Documento a PDF"), no
-# markitdown: por eso van aparte y no dentro de EXTENSIONES_DOCUMENTO.
-EXTENSIONES_OFIMATICA = {'.doc', '.odt', '.rtf'}
+# Documentos que sólo entiende LibreOffice ("Documento a PDF"), no markitdown:
+# por eso van aparte y no dentro de EXTENSIONES_DOCUMENTO.
+EXTENSIONES_OFIMATICA = {'.doc', '.odt', '.rtf', '.ods', '.ppt', '.odp'}
 
 
 def salidas_disponibles() -> list[dict]:

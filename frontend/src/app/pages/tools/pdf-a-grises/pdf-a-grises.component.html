@@ -1,0 +1,23 @@
+<app-tool-page slug="pdf-a-grises">
+
+  <app-file-queue
+    [items]="archivos"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra tus PDF aquí o haz clic para elegirlos"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarLista()">
+  </app-file-queue>
+
+  <p class="text-body-secondary small mt-3 mb-0">
+    <i class="bi bi-info-circle me-1"></i>
+    Cada color pasa a su gris, también en las fotos. El texto sigue siendo texto: se puede
+    seleccionar y buscar, y no pierde nitidez. En un escaneado a color, además, el archivo suele
+    quedar más ligero.
+  </p>
+
+  <app-tool-controls [pagina]="pagina" accion="Pasar a grises" icono="bi-circle-half">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados" nombreZip="pdfs-grises.zip"></app-result-list>
+
+</app-tool-page>

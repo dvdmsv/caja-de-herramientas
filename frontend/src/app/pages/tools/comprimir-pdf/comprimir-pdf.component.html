@@ -10,37 +10,92 @@
   </app-file-queue>
 
   <fieldset class="mt-4">
-    <legend class="h6">Nivel de compresión</legend>
+    <legend class="h6">Cómo comprimir</legend>
     <div class="row g-2">
-      @for (opcion of niveles; track opcion) {
-        <div class="col-6 col-sm-3">
-          <input type="radio" class="btn-check" name="nivel" [id]="'nivel-' + opcion.id"
-            [checked]="nivel === opcion.id" [disabled]="ocupado"
-            (change)="elegirNivel(opcion.id)">
-          <label class="btn btn-outline-primary w-100 text-start" [for]="'nivel-' + opcion.id">
-            <span class="d-block fw-semibold">{{ opcion.nombre }}</span>
-            <small class="text-body-secondary">{{ opcion.detalle }}</small>
-          </label>
-        </div>
-      }
-    </div>
-    <p class="form-text">
-      La compresión trabaja sobre las imágenes del documento; el texto no pierde nitidez.
-    </p>
-
-    <div class="form-check mt-3">
-      <input type="checkbox" class="form-check-input" id="para-web"
-        [checked]="paraWeb" [disabled]="ocupado" (change)="cambiarParaWeb($event)">
-      <label class="form-check-label" for="para-web">Optimizar para verlo en la web</label>
-      <p class="form-text mb-0">
-        Reordena el archivo para que un navegador pueda enseñar la primera página
-        sin haberlo descargado entero. No cambia nada de lo que se ve.
-      </p>
+      <div class="col-12 col-sm-6">
+        <input type="radio" class="btn-check" name="modo" id="modo-nivel"
+          [checked]="modo === 'nivel'" [disabled]="ocupado" (change)="elegirModo('nivel')">
+        <label class="btn btn-outline-primary w-100 text-start" for="modo-nivel">
+          <span class="d-block fw-semibold">Por nivel</span>
+          <small class="text-body-secondary">Tú eliges cuánto apretar</small>
+        </label>
+      </div>
+      <div class="col-12 col-sm-6">
+        <input type="radio" class="btn-check" name="modo" id="modo-tamano"
+          [checked]="modo === 'tamano'" [disabled]="ocupado" (change)="elegirModo('tamano')">
+        <label class="btn btn-outline-primary w-100 text-start" for="modo-tamano">
+          <span class="d-block fw-semibold">Hasta un tamaño</span>
+          <small class="text-body-secondary">«Que no pase de 2 MB»</small>
+        </label>
+      </div>
     </div>
   </fieldset>
 
+  @if (modo === 'nivel') {
+    <fieldset class="mt-4">
+      <legend class="h6">Nivel de compresión</legend>
+      <div class="row g-2">
+        @for (opcion of niveles; track opcion) {
+          <div class="col-6 col-sm-3">
+            <input type="radio" class="btn-check" name="nivel" [id]="'nivel-' + opcion.id"
+              [checked]="nivel === opcion.id" [disabled]="ocupado"
+              (change)="elegirNivel(opcion.id)">
+            <label class="btn btn-outline-primary w-100 text-start" [for]="'nivel-' + opcion.id">
+              <span class="d-block fw-semibold">{{ opcion.nombre }}</span>
+              <small class="text-body-secondary">{{ opcion.detalle }}</small>
+            </label>
+          </div>
+        }
+      </div>
+    </fieldset>
+  } @else {
+    <fieldset class="mt-4">
+      <legend class="h6">Tamaño máximo</legend>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="input-group" style="max-width: 11rem;">
+          <input type="number" class="form-control" id="objetivo" min="0.1" step="0.1"
+            aria-label="Tamaño máximo en megabytes"
+            [disabled]="ocupado" [(ngModel)]="objetivoMb" (change)="alCambiarLista()">
+          <span class="input-group-text">MB</span>
+        </div>
+        @for (mb of tamanosHabituales; track mb) {
+          <button type="button" class="btn btn-sm"
+            [class.btn-primary]="objetivoMb === mb" [class.btn-outline-secondary]="objetivoMb !== mb"
+            [disabled]="ocupado" (click)="elegirTamano(mb)">{{ mb }} MB</button>
+        }
+      </div>
+      <p class="form-text">
+        Se busca la compresión más suave que lo cumple, para no estropear las fotos más de lo
+        necesario. Si ya pesa menos, se deja como está.
+      </p>
+    </fieldset>
+  }
+
+  <p class="form-text">
+    La compresión trabaja sobre las imágenes del documento; el texto no pierde nitidez.
+  </p>
+
+  <div class="form-check mt-3">
+    <input type="checkbox" class="form-check-input" id="para-web"
+      [checked]="paraWeb" [disabled]="ocupado" (change)="cambiarParaWeb($event)">
+    <label class="form-check-label" for="para-web">Optimizar para verlo en la web</label>
+    <p class="form-text mb-0">
+      Reordena el archivo para que un navegador pueda enseñar la primera página
+      sin haberlo descargado entero. No cambia nada de lo que se ve.
+    </p>
+  </div>
+
   <app-tool-controls [pagina]="pagina" accion="Comprimir PDF" icono="bi-file-earmark-zip">
   </app-tool-controls>
+
+  @if (noAlcanzado && resultados.length > 0) {
+    <div class="alert alert-warning mt-3 mb-0" role="status">
+      <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+      No se ha podido bajar de {{ noAlcanzado.bytes | peso }} sin destrozar las imágenes. Te
+      dejamos lo más ligero que se ha conseguido. Si sigue sin valerte, prueba a pasarlo a grises
+      o a quitar páginas que no hagan falta.
+    </div>
+  }
 
   <app-result-list [archivos]="resultados" [resumen]="resumen"></app-result-list>
 

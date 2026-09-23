@@ -1,4 +1,4 @@
-"""Herramienta: pasar un correo `.eml` a PDF, con sus adjuntos aparte.
+"""Herramienta: pasar un correo `.eml` o `.msg` a PDF, con sus adjuntos aparte.
 
 Para guardar un correo como documento —un justificante, una conversación que hay
 que presentar— sin depender del programa de correo. Lo que sale es el asunto de
@@ -37,8 +37,8 @@ def correo_a_pdf():
     entradas = []
     for file_id in file_ids:
         record = storage.record_of(session_id, file_id)
-        if record.ext != '.eml':
-            raise ApiError(f'"{record.name}" no es un correo (.eml).', 400)
+        if record.ext not in correo.EXTENSIONES:
+            raise ApiError(f'"{record.name}" no es un correo (.eml o .msg).', 400)
         entradas.append((record, storage.path_of(session_id, file_id)))
 
     pdfs, correos = [], []

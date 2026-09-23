@@ -88,6 +88,12 @@ export const routes: Routes = [
       import('./pages/tools/pdf-a-pdfa/pdf-a-pdfa.component').then(m => m.PdfAPdfaComponent),
   },
   {
+    path: 'herramientas/pdf-a-grises',
+    title: 'PDF en escala de grises',
+    loadComponent: () =>
+      import('./pages/tools/pdf-a-grises/pdf-a-grises.component').then(m => m.PdfAGrisesComponent),
+  },
+  {
     path: 'herramientas/comprimir-pdf',
     title: 'Comprimir PDF',
     loadComponent: () =>

@@ -10,11 +10,12 @@ WORKDIR /app
 #   - El reconocimiento de texto: Tesseract hace el OCR y Ghostscript el trabajo
 #     con el PDF. `tesseract-ocr-spa` añade el español; el inglés viene con el
 #     paquete base.
-#   - "Documento a PDF": LibreOffice, y sólo `libreoffice-writer`, que arrastra
-#     `libreoffice-core` y nada más. El metapaquete `libreoffice` traería Calc,
-#     Impress y Base, que aquí no se usan, y multiplicaría el tamaño de la
-#     imagen. `--no-install-recommends` es lo que además evita `default-jre`:
-#     Writer no necesita Java para exportar a PDF y son ~180 MB de menos.
+#   - "Documento a PDF": LibreOffice con Writer, Calc e Impress —textos, hojas
+#     de cálculo y presentaciones—, que arrastran `libreoffice-core` y poco más:
+#     Calc e Impress suman unos 80 MB. El metapaquete `libreoffice` traería
+#     además Base, Draw y Math, que aquí no se usan.
+#     `--no-install-recommends` es lo que además evita `default-jre`: ninguno
+#     necesita Java para exportar a PDF y son ~180 MB de menos.
 #     `fonts-liberation` da las métricas de Arial, Times New Roman y Courier
 #     New, para que un .docx hecho en Windows pagine donde tiene que paginar.
 #   - "Markdown a PDF": WeasyPrint compone con Pango (`libpango-1.0-0`,
@@ -30,7 +31,7 @@ WORKDIR /app
 # convertir a PDF sin interfaz. Son unos 39 MB entre eso y la documentación.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ghostscript tesseract-ocr tesseract-ocr-spa \
-       libreoffice-writer fonts-liberation \
+       libreoffice-writer libreoffice-calc libreoffice-impress fonts-liberation \
        libpango-1.0-0 libpangoft2-1.0-0 fonts-inter fonts-sil-charis fonts-dejavu-mono \
     && rm -rf /var/lib/apt/lists/* \
     && find /usr/share/fonts/opentype/inter -type f \

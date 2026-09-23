@@ -1,4 +1,4 @@
-"""Correos `.eml`: que salga el correo que se ve en el buzón, no el MIME en crudo.
+"""Correos `.eml` y `.msg`: que salga el correo que se ve en el buzón, no el MIME en crudo.
 
 Lo que se comprueba es lo que markitdown hacía mal —asunto codificado, cuerpo en
 quoted-printable, adjuntos en base64— y lo que un correo real trae a menudo:
@@ -8,6 +8,9 @@ o con el mismo nombre, y correos reenviados como adjunto.
 "Correo a PDF" no se prueba aquí porque maqueta con WeasyPrint (ver
 `conftest.py`); su lectura es esta misma.
 """
+import io
+import os
+import struct
 from email.message import EmailMessage
 
 import pytest
@@ -158,3 +161,90 @@ def test_correo_a_pdf_rechaza_lo_que_no_es_eml(cliente):
                              json={'file_ids': [file_id]})
 
     assert respuesta.status_code == 400
+
+
+# --- Outlook .msg -----------------------------------------------------------
+
+MSG = os.path.join(os.path.dirname(__file__), 'archivos', 'outlook.msg')
+
+
+def test_msg_de_outlook(entorno):
+    """El `.msg` de ejemplo de markitdown (MIT): cabeceras, fecha y cuerpo."""
+    entorno()
+    from api import correo
+
+    leido = correo.leer(MSG, 'outlook.msg')
+
+    assert leido.asunto == 'Test Email Message'
+    # markitdown sólo daba la dirección; el nombre también va en el .msg.
+    assert leido.de.endswith(' <test.sender@example.com>')
+    assert leido.para == 'test.recipient@example.com'
+    assert leido.cuerpo == 'This is the body of the test email message'
+    assert leido.fecha  # la saca de las propiedades fijas: markitdown no la da
+    assert leido.adjuntos == []
+
+
+class MsgFalso:
+    """Lo justo de `OleFileIO` para probar lo que el `.msg` de ejemplo no trae."""
+
+    def __init__(self, flujos: dict[str, bytes]):
+        self.flujos = flujos
+
+    def exists(self, ruta):
+        return ruta in self.flujos
+
+    def openstream(self, ruta):
+        return io.BytesIO(self.flujos[ruta])
+
+    def listdir(self):
+        return [ruta.split('/') for ruta in self.flujos]
+
+
+def utf16(texto: str) -> bytes:
+    return texto.encode('utf-16-le')
+
+
+def test_msg_con_adjuntos_html_y_texto_ansi(entorno):
+    entorno()
+    from api import correo
+
+    # Página de códigos 1252 en las propiedades fijas: cabecera de 32 bytes y
+    # una entrada de 16 con la etiqueta 0x3FFD0003.
+    fijas = bytes(32) + struct.pack('<II8s', (0x3FFD << 16) | 0x0003, 0,
+                                    struct.pack('<I', 1252) + bytes(4))
+    msg = MsgFalso({
+        '__properties_version1.0': fijas,
+        '__substg1.0_0037001E': 'Reunión del lunes'.encode('cp1252'),
+        '__substg1.0_0C1A001F': utf16('Ana Pérez'),
+        '__substg1.0_0C1F001F': utf16('/O=EXCHANGELABS/OU=GRUPO/CN=ANA'),
+        '__substg1.0_5D01001F': utf16('ana@ejemplo.es'),
+        '__substg1.0_0E04001F': utf16('Luis'),
+        '__substg1.0_10130102': '<p>Va el <b>acta</b>.</p>'.encode('utf-8'),
+        '__attach_version1.0_#00000000/__substg1.0_3707001F': utf16('acta.pdf'),
+        '__attach_version1.0_#00000000/__substg1.0_37010102': b'%PDF-1.4 acta',
+        '__attach_version1.0_#00000001/__substg1.0_37010102': b'sin nombre',
+        # Un correo adjunto dentro: va como carpeta, sin flujo de datos.
+        '__attach_version1.0_#00000002/__substg1.0_3707001F': utf16('reenviado.msg'),
+    })
+
+    leido = correo._correo_de_msg(msg)
+
+    assert leido.asunto == 'Reunión del lunes'
+    # La dirección X.500 de Exchange no sirve: gana la SMTP.
+    assert leido.de == 'Ana Pérez <ana@ejemplo.es>'
+    assert leido.cuerpo == 'Va el **acta**.'
+    assert [(a.nombre, a.datos) for a in leido.adjuntos] == [
+        ('acta.pdf', b'%PDF-1.4 acta'), ('adjunto-2.bin', b'sin nombre')]
+
+
+def test_documento_a_markdown_acepta_msg(cliente):
+    from storage import storage
+    from tests.conftest import subida
+
+    with open(MSG, 'rb') as fh:
+        file_id = storage.save_upload(SESION, subida(fh.read(), 'aviso.msg')).id
+    respuesta = cliente.post('/api/tools/a-markdown', headers={'X-Session-Id': SESION},
+                             json={'file_ids': [file_id]})
+
+    assert respuesta.status_code == 201, respuesta.get_json()
+    assert respuesta.get_json()['vista_previa']['texto'].startswith('# Test Email Message')

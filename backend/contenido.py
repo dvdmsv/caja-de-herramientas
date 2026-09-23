@@ -55,6 +55,7 @@ ESPERADO = {
     '.tiff': (b'II*\x00', b'MM\x00*'),
     '.rtf': (b'{\\rtf',),
     '.doc': (b'\xd0\xcf\x11\xe0',),
+    '.msg': (b'\xd0\xcf\x11\xe0',),
     # Los de Office moderno y el EPUB son ZIP por dentro; lo que llevan dentro se
     # mira aparte, más abajo.
     '.docx': (b'PK\x03\x04',),

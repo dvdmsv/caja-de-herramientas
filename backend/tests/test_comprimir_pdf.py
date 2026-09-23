@@ -85,3 +85,86 @@ def test_optimizar_sin_tocar_las_imagenes_no_devuelve_el_original(cliente, tmp_p
     salida = comprimir(cliente, origen, nivel='ninguno', web=True)
 
     assert esta_linearizado(salida)
+
+
+# --- Por tamaño ----------------------------------------------------------------
+
+def comprimir_hasta(cliente, ruta, objetivo_mb):
+    from storage import storage
+
+    from tests.conftest import subida
+    with open(ruta, 'rb') as fh:
+        file_id = storage.save_upload(SESION, subida(fh.read(), 'documento.pdf')).id
+    respuesta = cliente.post('/api/tools/comprimir-pdf', headers={'X-Session-Id': SESION},
+                             json={'file_ids': [file_id], 'objetivo_mb': objetivo_mb})
+    assert respuesta.status_code == 201, respuesta.get_json()
+    datos = respuesta.get_json()
+    return storage.path_of(SESION, datos['files'][0]['id']), datos['objetivo']
+
+
+def documento_pesado(ruta, paginas=4):
+    """Varias fotos con mucho detalle: pesa lo bastante para que haya margen."""
+    import io
+    import random
+
+    from PIL import Image
+
+    aleatorio = random.Random(7)
+    documento = fitz.open()
+    for _ in range(paginas):
+        lienzo = Image.new('RGB', (1600, 1200))
+        lienzo.putdata([(aleatorio.randrange(256), (x * 3) % 256, (y * 2) % 256)
+                        for y in range(1200) for x in range(1600)])
+        memoria = io.BytesIO()
+        lienzo.save(memoria, format='JPEG', quality=95)
+        documento.new_page().insert_image(fitz.Rect(20, 20, 580, 440), stream=memoria.getvalue())
+    documento.save(str(ruta))
+    documento.close()
+    return str(ruta)
+
+
+def test_baja_del_tamano_pedido(cliente, tmp_path):
+    import os
+
+    origen = documento_pesado(tmp_path / 'origen.pdf')
+    objetivo = os.path.getsize(origen) / 1024 / 1024 / 3
+
+    salida, informe = comprimir_hasta(cliente, origen, objetivo)
+
+    assert informe['logrado'] is True
+    assert os.path.getsize(salida) <= informe['bytes']
+    with fitz.open(salida) as documento:
+        assert documento.page_count == 4
+
+
+def test_elige_la_compresion_mas_suave_que_cabe(cliente, tmp_path):
+    """Con un objetivo holgado no se machacan las fotos: el resultado se queda
+    cerca del objetivo, no en lo mínimo que se podría conseguir."""
+    import os
+
+    origen = documento_pesado(tmp_path / 'origen.pdf')
+    original = os.path.getsize(origen)
+
+    holgado, _ = comprimir_hasta(cliente, origen, original * 0.8 / 1024 / 1024)
+    apretado, _ = comprimir_hasta(cliente, origen, 0.01)
+
+    assert os.path.getsize(holgado) > os.path.getsize(apretado)
+
+
+def test_si_no_se_llega_entrega_lo_mas_ligero_y_lo_dice(cliente, tmp_path):
+    import os
+
+    origen = documento_pesado(tmp_path / 'origen.pdf')
+    salida, informe = comprimir_hasta(cliente, origen, 0.01)
+
+    assert informe['logrado'] is False
+    assert os.path.getsize(salida) < os.path.getsize(origen)
+
+
+def test_si_ya_cabe_no_se_toca(cliente, tmp_path):
+    origen = documento_con_imagen(tmp_path / 'origen.pdf')
+    salida, informe = comprimir_hasta(cliente, origen, 50)
+
+    assert informe['logrado'] is True
+    with open(origen, 'rb') as a, open(salida, 'rb') as b:
+        assert a.read() == b.read()

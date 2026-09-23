@@ -14,7 +14,7 @@ from api.tools import (a_markdown, anonimizar_pdf, aplanar_pdf, comparar_pdf, co
                        firmar_certificado, generar_qr, imagen_a_pdf, leer_codigo,
                        limpiar_metadatos,
                        marca_de_agua, markdown_a_pdf, numerar_paginas, ocr_pdf, organizar_pdf,
-                       pdf_a_imagen, pdf_a_pdfa, pdf_a_word, proteger_pdf, unir_pdf,
+                       pdf_a_grises, pdf_a_imagen, pdf_a_pdfa, pdf_a_word, proteger_pdf, unir_pdf,
                        visor)
 
 BLUEPRINTS = [
@@ -39,6 +39,7 @@ BLUEPRINTS = [
     comparar_pdf.bp,
     ocr_pdf.bp,
     pdf_a_pdfa.bp,
+    pdf_a_grises.bp,
     marca_de_agua.bp,
     numerar_paginas.bp,
     extraer_imagenes.bp,

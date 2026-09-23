@@ -171,6 +171,13 @@ export interface Resultado {
   vista_previa?: VistaPrevia;
   /** Sólo la manda "Comparar PDF": el recuento de páginas de su informe. */
   comparacion?: ResumenComparacion;
+  /** Sólo la manda "Comprimir PDF" cuando se le pide un tamaño: si ha llegado. */
+  objetivo?: ObjetivoTamano;
+}
+
+export interface ObjetivoTamano {
+  bytes: number;
+  logrado: boolean;
 }
 
 /** Lo que contesta la consulta de progreso; `null` es «aún no ha empezado». */

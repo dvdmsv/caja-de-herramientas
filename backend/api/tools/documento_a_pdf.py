@@ -1,9 +1,14 @@
-"""Herramienta: convertir un documento de texto a PDF.
+"""Herramienta: convertir un documento de oficina a PDF.
 
-Word (el .docx de ahora y el .doc de antes), OpenDocument, RTF y texto plano. El
-trabajo lo hace LibreOffice Writer sin interfaz, que es lo único capaz de
-respetar estilos, tablas, imágenes y saltos de página de un documento de Word;
-pandoc reescribe el documento y la maquetación se queda por el camino.
+Textos (Word, el .docx de ahora y el .doc de antes, OpenDocument, RTF y texto
+plano), hojas de cálculo (Excel y ODS) y presentaciones (PowerPoint y ODP). El
+trabajo lo hace LibreOffice sin interfaz, que es lo único capaz de respetar
+estilos, tablas, imágenes y saltos de página de un documento de Office; pandoc
+reescribe el documento y la maquetación se queda por el camino.
+
+Una hoja de cálculo sale paginada como la imprimiría LibreOffice: cada hoja
+con sus áreas de impresión, si las tiene, o entera si no. Una presentación sale
+con una diapositiva por página.
 
 Se lanza como proceso aparte, igual que ocrmypdf: se puede cortar por tiempo y
 su memoria vuelve entera al terminar, que en esta VM importa. Todo el lote va en
@@ -24,7 +29,11 @@ from storage import storage, cambiar_extension
 
 bp = Blueprint('documento_a_pdf', __name__, url_prefix='/api/tools')
 
-EXTENSIONES_ADMITIDAS = {'.docx', '.doc', '.odt', '.rtf', '.txt'}
+EXTENSIONES_ADMITIDAS = {
+    '.docx', '.doc', '.odt', '.rtf', '.txt',     # textos
+    '.xlsx', '.xls', '.ods',                     # hojas de cálculo
+    '.pptx', '.ppt', '.odp',                     # presentaciones
+}
 
 # Sin tope de archivos: el lote entero va en una sola llamada a LibreOffice, con
 # el plazo de aquí abajo. Si se pasa, se corta y se dice cuánto ha tardado.
@@ -54,7 +63,7 @@ def documento_a_pdf():
         record = storage.record_of(session_id, file_id)
         if record.ext not in EXTENSIONES_ADMITIDAS:
             raise ApiError(
-                f'"{record.name}" no es un documento de texto. Se admiten '
+                f'"{record.name}" no es un documento de oficina. Se admiten '
                 f'{", ".join(sorted(EXTENSIONES_ADMITIDAS))}.', 400)
         ruta = storage.path_of(session_id, file_id)
         # Un .docx o un .odt son un ZIP: lo que importa es lo que traen dentro.
@@ -90,7 +99,9 @@ def _convertir(origenes: list[str], carpeta_salida: str) -> None:
         orden = [
             'soffice', '--headless', '--norestore', '--nolockcheck',
             f'-env:UserInstallation=file://{perfil}',
-            '--convert-to', 'pdf:writer_pdf_Export',
+            # Sin filtro: cada tipo de documento necesita el suyo (Writer,
+            # Calc, Impress) y LibreOffice elige el que toca.
+            '--convert-to', 'pdf',
             '--outdir', carpeta_salida,
             *origenes,
         ]

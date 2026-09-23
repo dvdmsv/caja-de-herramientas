@@ -3,10 +3,16 @@
 Casi todo el peso de un PDF suele estar en sus imágenes, así que el trabajo real
 es recomprimirlas. Además se limpia la estructura del documento: objetos
 huérfanos, flujos sin comprimir y fuentes duplicadas.
+
+Se puede pedir por nivel o **por tamaño**: «que no pase de 2 MB», que es lo que
+dicen las sedes electrónicas. Con un tamaño, se busca la compresión más suave
+que lo cumple —para no estropear las fotos más de lo necesario— en vez de ir
+probando niveles a mano.
 """
 import io
 import os
 import shutil
+import tempfile
 
 import fitz  # PyMuPDF
 from PIL import Image
@@ -37,6 +43,24 @@ NIVELES = {
     'fuerte': {'calidad': 45, 'lado_maximo': 1100},
 }
 
+# Los pasos que se prueban cuando se pide un tamaño, de más suave a más fuerte.
+# El primero no toca las imágenes: a veces basta con limpiar la estructura.
+# Los extremos van más allá de "fuerte" a propósito: quien pide un tamaño
+# prefiere unas fotos peores a un archivo que la sede le rechaza.
+ESCALERA = [
+    None,
+    {'calidad': 85, 'lado_maximo': 2200},
+    {'calidad': 75, 'lado_maximo': 1800},
+    {'calidad': 65, 'lado_maximo': 1500},
+    {'calidad': 55, 'lado_maximo': 1200},
+    {'calidad': 45, 'lado_maximo': 1000},
+    {'calidad': 35, 'lado_maximo': 800},
+    {'calidad': 25, 'lado_maximo': 600},
+]
+
+# Tope del tamaño que se puede pedir, en MB. Sólo para cortar un número absurdo.
+OBJETIVO_MAXIMO_MB = 1000
+
 # Recomprimir una imagen ya pequeña casi nunca compensa y sí degrada.
 MINIMO_BYTES = 20 * 1024
 MINIMO_LADO = 80
@@ -52,6 +76,8 @@ def comprimir_pdf():
     # Linearizar: reordena el archivo para que un visor pueda enseñar la primera
     # página sin haberlo descargado entero. No cambia lo que se ve.
     para_web = params.booleano(datos, 'web', False)
+    # Tamaño máximo en MB; 0 es comprimir por nivel.
+    objetivo_mb = params.decimal(datos, 'objetivo_mb', 0.0, 0.0, OBJETIVO_MAXIMO_MB)
 
     record = storage.record_of(session_id, file_ids[0])
     if record.ext != '.pdf':
@@ -60,22 +86,19 @@ def comprimir_pdf():
 
     base = os.path.splitext(nombre_seguro(record.name))[0]
     destino, salida = storage.reserve_output(session_id, f'{base}-comprimido.pdf')
+    tamano_original = os.path.getsize(origen)
 
-    try:
-        documento = fitz.open(origen)
-    except Exception as err:
-        raise ApiError(f'No se ha podido abrir el PDF: {err}', 422) from err
+    if objetivo_mb > 0:
+        objetivo = int(objetivo_mb * 1024 * 1024)
+        logrado = _hasta_tamano(origen, destino, objetivo, para_web)
+        resultado = storage.commit_output(session_id, salida)
+        return jsonify({
+            'files': [resultado.to_json()],
+            'resumen': {'antes': tamano_original, 'despues': resultado.size},
+            'objetivo': {'bytes': objetivo, 'logrado': logrado},
+        }), 201
 
-    with documento:
-        if documento.needs_pass:
-            raise ApiError('El PDF está protegido con contraseña.', 422)
-        if NIVELES[nivel]:
-            _recomprimir_imagenes(documento, **NIVELES[nivel])
-        # Limpiar la estructura y escribirlo entero no es despreciable en un
-        # PDF grande, y no se puede contar: se dice al menos qué está pasando.
-        progreso.fase('Guardando el documento', cancelable=False)
-        documento.save(destino, garbage=4, deflate=True, deflate_images=True,
-                       deflate_fonts=True, clean=True, linear=para_web)
+    _comprimir(origen, destino, NIVELES[nivel], para_web)
 
     # Si el "comprimido" pesa más (pasa con PDF ya optimizados), se entrega el
     # original: nadie quiere descargar una versión peor de su archivo.
@@ -84,7 +107,6 @@ def comprimir_pdf():
     # engordar unos kilobytes a propósito —la tabla que permite empezar a leer
     # sin descargarlo entero ocupa—, y devolver el original sería deshacer en
     # silencio justo lo que se ha pedido.
-    tamano_original = os.path.getsize(origen)
     if not para_web and os.path.getsize(destino) >= tamano_original:
         shutil.copyfile(origen, destino)
 
@@ -95,12 +117,84 @@ def comprimir_pdf():
     }), 201
 
 
-def _recomprimir_imagenes(documento, calidad: int, lado_maximo: int) -> None:
+def _comprimir(origen: str, destino: str, ajustes: dict | None, para_web: bool,
+               etapa: str = 'Recomprimiendo imágenes') -> None:
+    """Una pasada de compresión con unos ajustes, del original a `destino`."""
+    try:
+        documento = fitz.open(origen)
+    except Exception as err:
+        raise ApiError(f'No se ha podido abrir el PDF: {err}', 422) from err
+
+    with documento:
+        if documento.needs_pass:
+            raise ApiError('El PDF está protegido con contraseña.', 422)
+        if ajustes:
+            _recomprimir_imagenes(documento, etapa=etapa, **ajustes)
+        # Limpiar la estructura y escribirlo entero no es despreciable en un
+        # PDF grande, y no se puede contar: se dice al menos qué está pasando.
+        progreso.fase('Guardando el documento', cancelable=False)
+        documento.save(destino, garbage=4, deflate=True, deflate_images=True,
+                       deflate_fonts=True, clean=True, linear=para_web)
+
+
+def _hasta_tamano(origen: str, destino: str, objetivo: int, para_web: bool) -> bool:
+    """Deja en `destino` la compresión más suave que no pasa de `objetivo`.
+
+    Si ni la más fuerte llega, deja la más ligera que se ha conseguido y
+    devuelve `False`: mejor acercarse que no entregar nada, y quien lo pidió
+    decide si le vale.
+
+    Se busca por bisección en `ESCALERA` en vez de probar los pasos en orden:
+    cada intento es recomprimir el documento entero, y así son tres o cuatro
+    intentos en vez de hasta ocho. Funciona porque cada paso pesa menos que el
+    anterior, o casi siempre.
+    """
+    if not para_web and os.path.getsize(origen) <= objetivo:
+        # Ya cabe: nada que estropear.
+        shutil.copyfile(origen, destino)
+        return True
+
+    with tempfile.TemporaryDirectory() as temporal:
+        pesos: dict[int, int] = {}
+
+        def probar(paso: int) -> int:
+            if paso not in pesos:
+                intento = os.path.join(temporal, f'{paso}.pdf')
+                _comprimir(origen, intento, ESCALERA[paso], para_web,
+                           etapa=f'Intento {len(pesos) + 1}: recomprimiendo imágenes')
+                pesos[paso] = os.path.getsize(intento)
+            return pesos[paso]
+
+        # Primero el más fuerte: si ése no llega, ninguno llega.
+        ultimo = len(ESCALERA) - 1
+        if probar(ultimo) > objetivo:
+            mejor = min(pesos, key=pesos.get)
+            logrado = False
+        else:
+            bajo, alto = 0, ultimo
+            while bajo < alto:
+                medio = (bajo + alto) // 2
+                if probar(medio) <= objetivo:
+                    alto = medio
+                else:
+                    bajo = medio + 1
+            mejor, logrado = alto, True
+
+        # Si ni así baja del original, el original: nadie quiere una versión
+        # peor de su archivo que además pesa más.
+        if not para_web and pesos[mejor] >= os.path.getsize(origen):
+            shutil.copyfile(origen, destino)
+        else:
+            shutil.copyfile(os.path.join(temporal, f'{mejor}.pdf'), destino)
+        return logrado
+
+
+def _recomprimir_imagenes(documento, calidad: int, lado_maximo: int,
+                          etapa: str = 'Recomprimiendo imágenes') -> None:
     """Sustituye las imágenes del PDF por versiones JPEG más ligeras."""
     procesados: set[int] = set()
 
-    for pagina in progreso.contando(documento, documento.page_count,
-                                    'Recomprimiendo imágenes'):
+    for pagina in progreso.contando(documento, documento.page_count, etapa):
         for informacion in pagina.get_images(full=True):
             xref = informacion[0]
             if xref in procesados:

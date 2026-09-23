@@ -48,7 +48,8 @@ Pensada para usarse, no sólo para funcionar:
 | Firmar con certificado | Firma un PDF con tu certificado digital | con el certificado del equipo (AutoFirma) o un `.p12`, visible o invisible, sello de tiempo |
 | Comprobar firmas | Dice quién firmó un PDF y si lo han tocado después | ninguna: se comprueba al subirlo |
 | Convertir a PDF/A | Deja el PDF en el formato de archivado que piden las sedes y los registros | PDF/A-1b o 2b; reconocer el texto de paso |
-| Comprimir PDF | Recomprime las imágenes del documento y lo optimiza para la web | ninguna, suave, media, fuerte; optimizar para verlo en la web |
+| Comprimir PDF | Recomprime las imágenes del documento y lo optimiza para la web | por nivel (ninguna, suave, media, fuerte) o hasta un tamaño máximo; optimizar para verlo en la web |
+| PDF en escala de grises | Quita el color sin rasterizar: el texto sigue siendo texto | varios documentos de una vez |
 | Comprimir imagen | Baja el peso de varias imágenes a la vez | calidad y tamaño máximo |
 | Convertir imagen | Cambia de formato, incluido el HEIC del móvil | JPG, PNG, WebP, TIFF, BMP, PDF |
 | Editar imagen | Recorta, gira y cambia de tamaño una foto | proporciones preajustadas, giro, volteo, lado máximo y calidad |
@@ -56,10 +57,10 @@ Pensada para usarse, no sólo para funcionar:
 | Imagen a PDF | Reúne varias imágenes en un PDF | tamaño de página, orientación, margen y calidad |
 | Extraer tablas | Saca a Excel o a CSV las tablas de un PDF, con los importes ya como números | un `.xlsx` con una hoja por tabla, o un `.csv` por tabla |
 | Documento a Markdown | Extrae el contenido para dárselo a un LLM | unir todo en un archivo |
-| Documento a PDF | Pasa Word, ODT, RTF o texto plano a PDF | varios documentos de una vez |
+| Documento a PDF | Pasa Word, Excel, PowerPoint, OpenDocument, RTF o texto plano a PDF | varios documentos de una vez |
 | PDF a Word | Saca un `.docx` editable de un PDF | varios documentos de una vez |
 | Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo, margen y respetar los saltos de línea |
-| Correo a PDF | Guarda un correo `.eml` como documento y saca sus adjuntos aparte | varios correos de una vez |
+| Correo a PDF | Guarda un correo `.eml` o `.msg` de Outlook como documento y saca sus adjuntos aparte | varios correos de una vez |
 | Editar metadatos | Enseña lo que tus archivos cuentan de ti, y lo corriges o lo borras | campo a campo, valores editables, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
 | Numerar páginas | Numera el documento | posición, formato, desde qué página, con vista previa |
@@ -363,12 +364,16 @@ cualquiera invita a una zip bomb.
 
 "Documento a PDF" y "PDF a Word" cierran el otro círculo, el de la ofimática.
 
-De Word a PDF convierte **LibreOffice Writer sin interfaz**, que es lo único que
+De Word a PDF convierte **LibreOffice sin interfaz**, que es lo único que
 respeta estilos, tablas, imágenes y saltos de página de un `.docx`; pandoc, la
 alternativa ligera, reescribe el documento y la maquetación se queda por el
-camino. Acepta también `.doc`, `.odt`, `.rtf` y texto plano, y todo el lote se
-convierte en **una sola llamada**: arrancar LibreOffice cuesta unos segundos y
-cada documento, décimas.
+camino. Acepta también `.doc`, `.odt`, `.rtf` y texto plano, hojas de cálculo
+(`.xlsx`, `.xls`, `.ods`) y presentaciones (`.pptx`, `.ppt`, `.odp`): para eso
+la imagen lleva Writer, Calc e Impress, que suman unos 80 MB a lo que ya pesaba
+Writer solo. Una hoja sale paginada como la imprimiría LibreOffice —con sus
+áreas de impresión, si las tiene— y una presentación, con una diapositiva por
+página. Todo el lote se convierte en **una sola llamada**: arrancar LibreOffice
+cuesta unos segundos y cada documento, décimas.
 
 De PDF a Word lo hace [pdf2docx](https://github.com/ArtifexSoftware/pdf2docx),
 que reconstruye párrafos, tablas e imágenes leyendo el archivo con PyMuPDF. Sale
@@ -453,8 +458,8 @@ archivo trae dentro.
 manda, a quién, con copia a quién y cuándo, el texto y la lista de adjuntos. Los
 adjuntos salen además **sueltos en los resultados**, porque un correo suele ser
 sobre todo lo que trae adjunto, y así se pueden pasar a otra herramienta sin salir
-de la aplicación. "Documento a Markdown" también acepta `.eml` y hace lo mismo con
-los adjuntos.
+de la aplicación. "Documento a Markdown" también acepta `.eml` y `.msg`, y hace lo
+mismo con los adjuntos.
 
 markitdown no sirve aquí: toma el `.eml` por texto plano y devuelve el mensaje
 en crudo, con el asunto en `=?utf-8?q?…?=`, las fronteras MIME, el
@@ -464,7 +469,30 @@ prefiere la versión HTML, que es la que trae negritas, listas y tablas, y se pa
 a Markdown con markitdown; si sólo hay texto, va tal cual. Se maqueta con la
 misma función que "Markdown a PDF", así que tampoco va a buscar nada fuera: las
 imágenes remotas de un boletín no se descargan y las incrustadas no se pintan,
-salen como adjuntos. Los `.msg` de Outlook no entran: son otro formato.
+salen como adjuntos.
+
+El `.msg` de Outlook es otra cosa: un archivo OLE, como los `.doc` de antes, con
+cada dato en su propio flujo. markitdown lo lee, pero sólo saca remitente,
+destinatario, asunto y cuerpo en texto: sin fecha, sin copia, sin el HTML y sin
+los adjuntos. Así que se lee también en `correo.py`, con `olefile` —lo que trae el
+extra `outlook` de markitdown—, y un `.msg` sale igual que un `.eml`. Dos detalles
+de Outlook: dentro de una organización, Exchange guarda como remitente una ruta
+X.500 (`/O=EXCHANGELABS/…`) que no le dice nada a nadie, así que se prefiere la
+dirección SMTP; y un correo adjunto dentro de otro `.msg` no se extrae.
+
+"Comprimir PDF" también trabaja **por tamaño**: «que no pase de 2 MB», que es como
+lo dicen las sedes electrónicas. En vez de probar niveles a mano, se busca la
+compresión **más suave** que lo cumple, para no estropear las fotos más de lo
+necesario: hay una escalera de ocho pasos —el primero sólo limpia la estructura,
+los últimos van más allá de «fuerte»— y se recorre por bisección, así que son tres
+o cuatro pasadas y no ocho. Si ni el más fuerte llega, se entrega lo más ligero
+conseguido y se avisa; si el archivo ya cabía, se deja como estaba.
+
+"PDF en escala de grises" quita el color para imprimir sin gastar tinta de color.
+Lo hace Ghostscript —ya estaba en la imagen por el OCR—, que reescribe el PDF
+convirtiendo cada color a gris **sin rasterizar**: el texto sigue siendo texto y
+los dibujos, vectores. Se lanza como proceso aparte, con el mismo turno, plazo y
+cancelación que LibreOffice.
 
 "Editar metadatos" es la que mejor explica por qué existe esta aplicación. Un
 PDF lleva dentro quién lo escribió y con qué programa; una foto de móvil lleva el
@@ -665,14 +693,14 @@ fallan esas cuatro, y con un mensaje que lo dice. En Debian o Ubuntu:
 
 ```bash
 sudo apt install ghostscript tesseract-ocr tesseract-ocr-spa \
-                 libreoffice-writer fonts-liberation
+                 libreoffice-writer libreoffice-calc libreoffice-impress fonts-liberation
 ```
 
 | Programa | Lo necesita |
 |---|---|
 | `tesseract-ocr` + `tesseract-ocr-spa` | PDF con OCR (el español; el inglés viene en el paquete base) |
-| `ghostscript` | PDF con OCR |
-| `libreoffice-writer` | Documento a PDF |
+| `ghostscript` | PDF con OCR, PDF en escala de grises |
+| `libreoffice-writer`, `-calc`, `-impress` | Documento a PDF (textos, hojas de cálculo y presentaciones) |
 | `fonts-liberation` | Que un `.docx` hecho en Windows pagine donde tiene que paginar |
 
 Y luego, en dos terminales:

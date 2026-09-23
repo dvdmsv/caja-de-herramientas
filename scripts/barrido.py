@@ -199,6 +199,34 @@ def _fabricar(carpeta):
     with open(f'{carpeta}/notas.md', 'w', encoding='utf-8') as fichero:
         fichero.write('# Título\n\nPárrafo **en negrita**:\n\n| a | b |\n|---|---|\n| 1 | 2 |\n')
 
+    # Una hoja de cálculo y una presentación, para "Documento a PDF": son las
+    # que necesitan Calc e Impress, y sin ellos LibreOffice no escribe nada.
+    import openpyxl
+    import pptx
+
+    libro = openpyxl.Workbook()
+    libro.active.append(['Concepto', 'Importe'])
+    libro.active.append(['Horas', 540])
+    libro.save(f'{carpeta}/cuentas.xlsx')
+    presentacion = pptx.Presentation()
+    diapositiva = presentacion.slides.add_slide(presentacion.slide_layouts[1])
+    diapositiva.shapes.title.text = 'Presentación de ejemplo'
+    presentacion.save(f'{carpeta}/charla.pptx')
+
+    # Un correo con un adjunto, para "Correo a PDF".
+    from email.message import EmailMessage
+
+    correo = EmailMessage()
+    correo['From'] = 'Ana Ejemplo <ana@ejemplo.es>'
+    correo['To'] = 'luis@ejemplo.es'
+    correo['Subject'] = 'Presupuesto del año'
+    correo['Date'] = 'Wed, 23 Sep 2026 10:00:00 +0200'
+    correo.set_content('Hola,\nva el presupuesto.')
+    correo.add_attachment(b'%PDF-1.4', maintype='application', subtype='pdf',
+                          filename='presupuesto.pdf')
+    with open(f'{carpeta}/correo.eml', 'wb') as fichero:
+        fichero.write(bytes(correo))
+
 
 def subir(ruta):
     codigo, cuerpo = peticion('POST', '/api/files', archivo=ruta)
@@ -220,6 +248,9 @@ def main():
     codigo = subir(f'{carpeta}/codigo.png')
     txt = subir(f'{carpeta}/texto.txt')
     md = subir(f'{carpeta}/notas.md')
+    xlsx = subir(f'{carpeta}/cuentas.xlsx')
+    pptx_ = subir(f'{carpeta}/charla.pptx')
+    eml = subir(f'{carpeta}/correo.eml')
 
     print('\n=== PDF ===')
     prueba('unir-pdf', '/api/tools/unir-pdf', {'file_ids': [pdf, pdf2]})
@@ -232,6 +263,9 @@ def main():
     prueba('pdf-a-imagen/formatos', '/api/tools/pdf-a-imagen/formatos', metodo='GET')
     prueba('comprimir-pdf', '/api/tools/comprimir-pdf',
            {'file_ids': [pdf], 'nivel': 'media', 'web': True})
+    prueba('comprimir-pdf (tamaño)', '/api/tools/comprimir-pdf',
+           {'file_ids': [pdf], 'objetivo_mb': 0.01})
+    prueba('pdf-a-grises', '/api/tools/pdf-a-grises', {'file_ids': [pdf]})
     prueba('comparar-pdf', '/api/tools/comparar-pdf', {'file_ids': [pdf, pdf2]})
     prueba('aplanar-pdf', '/api/tools/aplanar-pdf',
            {'file_ids': [pdf], 'campos': True, 'anotaciones': True})
@@ -294,6 +328,10 @@ def main():
     prueba('a-markdown', '/api/tools/a-markdown', {'file_ids': [pdf]})
     prueba('markdown-a-pdf', '/api/tools/markdown-a-pdf', {'file_ids': [md]})
     prueba('documento-a-pdf', '/api/tools/documento-a-pdf', {'file_ids': [txt]})
+    prueba('documento-a-pdf (Excel y PowerPoint)', '/api/tools/documento-a-pdf',
+           {'file_ids': [xlsx, pptx_]})
+    prueba('a-markdown (correo)', '/api/tools/a-markdown', {'file_ids': [eml]})
+    prueba('correo-a-pdf', '/api/tools/correo-a-pdf', {'file_ids': [eml]})
     prueba('pdf-a-word', '/api/tools/pdf-a-word', {'file_ids': [pdf]})
 
     print('\n=== Lo que tiene que fallar ===')

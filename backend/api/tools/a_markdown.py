@@ -44,7 +44,7 @@ def a_markdown():
         record = storage.record_of(session_id, file_id)
         ruta = storage.path_of(session_id, file_id)
         limites.comprobar_descomprimido(ruta, record.name)
-        if record.ext == '.eml':
+        if record.ext in correo.EXTENSIONES:
             mensaje = correo.leer(ruta, record.name)
             correos.append(mensaje)
             convertidos.append((record, correo.a_markdown(mensaje)))
