@@ -25,7 +25,7 @@ import io
 import os
 
 import fitz  # PyMuPDF
-from flask import Blueprint, jsonify, send_file
+from flask import Blueprint, current_app, jsonify, send_file
 
 from api import current_session, firma_digital, params
 from api.tools.firmar import firma_preparada
@@ -289,6 +289,9 @@ def _estampar(pdf: bytes, ajustes: dict, pagina: int, caja, firmante, sellador) 
         salida = pdf_signer.sign_pdf(escritor, existing_fields_only=ajustes['visible'])
     except Exception as err:
         if sellador is not None:
+            # El mensaje al usuario es genérico; sin esto la causa real (DNS,
+            # URL mal puesta, certificado…) no queda en ningún sitio.
+            current_app.logger.warning('Fallo al sellar la firma: %r', err)
             raise firma_digital.error_de_sellado() from err
         raise ApiError(f'No se ha podido firmar el documento: {err}', 422) from err
     return salida.getvalue()

@@ -217,5 +217,7 @@ CLEANUP_INTERVAL_SECONDS = entorno_entero('CLEANUP_INTERVAL_MINUTES', 15) * 60
 # un tercero, de modo que siga verificándose cuando su certificado caduque. Lo
 # único que viaja hasta aquí es un resumen (hash) de la firma; el documento no
 # sale de esta máquina. Es la única llamada saliente de todo el backend.
-TSA_URL = os.environ.get('TSA_URL', 'https://freetsa.org/tsr')
+# Con `or` y no con el defecto de `get`: docker-compose pasa la variable vacía
+# cuando no está en el `.env`, y una URL vacía hace fallar todo sellado.
+TSA_URL = os.environ.get('TSA_URL', '').strip() or 'https://freetsa.org/tsr'
 TSA_TIMEOUT = entorno_entero('TSA_TIMEOUT_SECONDS', 15)
