@@ -4,7 +4,7 @@ PyMuPDF==1.25.5
 Pillow==12.3.0
 pillow-heif==1.7.0
 numpy==2.5.3
-markitdown[pdf,docx,xlsx,pptx]==0.1.7
+markitdown[pdf,docx,xlsx,pptx]==0.1.8
 markdown-it-py==4.2.0
 weasyprint==70.0
 Pygments==2.21.0
