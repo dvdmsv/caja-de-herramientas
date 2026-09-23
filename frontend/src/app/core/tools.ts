@@ -274,12 +274,13 @@ export const HERRAMIENTAS: Herramienta[] = [
   {
     slug: 'comprimir-imagen',
     nombre: 'Comprimir imagen',
-    descripcion: 'Baja el peso de tus imágenes ajustando la calidad.',
+    descripcion: 'Baja el peso de tus imágenes, o déjalas por debajo del tamaño que te piden.',
     icono: 'bi-images',
     categoria: 'Imágenes',
     acepta: 'image/*',
     varios: true,
-    palabras: ['reducir', 'aligerar', 'peso', 'tamaño', 'optimizar', 'foto', 'jpg'],
+    palabras: ['reducir', 'aligerar', 'peso', 'tamaño', 'optimizar', 'foto', 'jpg', 'kb',
+               'limite', 'maximo', 'formulario'],
     disponible: true,
   },
   {

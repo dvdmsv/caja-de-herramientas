@@ -117,6 +117,33 @@ def comprimir_pdf():
     }), 201
 
 
+@bp.post('/comprimir-pdf/minimo')
+@limites.con_plazo(PLAZO_EN_PROCESO, 'El cálculo del mínimo')
+def minimo():
+    """Lo más que puede bajar un PDF, para decirlo **antes** de pedir un tamaño.
+
+    Sin esto, quien pide «1 MB» para un PDF que no baja de 3 se entera después
+    de esperar. No es una estimación: es comprimirlo con el paso más fuerte de
+    la escalera, que es lo más ligero que daría la herramienta. Por eso cuesta
+    una compresión entera, y por eso va al servicio de trabajos pesados y la
+    pantalla sólo lo pide cuando se elige comprimir por tamaño.
+    """
+    session_id = current_session()
+    datos = params.cuerpo()
+    file_ids = params.ids(datos, minimo=1, mensaje='Selecciona un PDF.')
+    record = storage.record_of(session_id, file_ids[0])
+    if record.ext != '.pdf':
+        raise ApiError(f'"{record.name}" no es un PDF.', 400)
+    origen = storage.path_of(session_id, file_ids[0])
+    original = os.path.getsize(origen)
+
+    with tempfile.TemporaryDirectory() as temporal:
+        prueba = os.path.join(temporal, 'minimo.pdf')
+        _comprimir(origen, prueba, ESCALERA[-1], False, etapa='Calculando hasta dónde baja')
+        # Si comprimir no lo aligera, la herramienta entrega el original.
+        return jsonify({'minimo': min(os.path.getsize(prueba), original), 'original': original})
+
+
 def _comprimir(origen: str, destino: str, ajustes: dict | None, para_web: bool,
                etapa: str = 'Recomprimiendo imágenes') -> None:
     """Una pasada de compresión con unos ajustes, del original a `destino`."""

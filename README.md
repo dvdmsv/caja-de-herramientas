@@ -50,7 +50,7 @@ Pensada para usarse, no sólo para funcionar:
 | Convertir a PDF/A | Deja el PDF en el formato de archivado que piden las sedes y los registros | PDF/A-1b o 2b; reconocer el texto de paso |
 | Comprimir PDF | Recomprime las imágenes del documento y lo optimiza para la web | por nivel (ninguna, suave, media, fuerte) o hasta un tamaño máximo; optimizar para verlo en la web |
 | PDF en escala de grises | Quita el color sin rasterizar: el texto sigue siendo texto | varios documentos de una vez |
-| Comprimir imagen | Baja el peso de varias imágenes a la vez | calidad y tamaño máximo |
+| Comprimir imagen | Baja el peso de varias imágenes a la vez | por calidad y tamaño máximo en píxeles, o hasta un peso máximo por imagen |
 | Convertir imagen | Cambia de formato, incluido el HEIC del móvil | JPG, PNG, WebP, TIFF, BMP, PDF |
 | Editar imagen | Recorta, gira y cambia de tamaño una foto | proporciones preajustadas, giro, volteo, lado máximo y calidad |
 | Efecto escáner | Quita la sombra y el fondo gris de la foto de un papel | blanco y negro, grises o color; cuánto apretar; vista previa |
@@ -487,6 +487,23 @@ necesario: hay una escalera de ocho pasos —el primero sólo limpia la estructu
 los últimos van más allá de «fuerte»— y se recorre por bisección, así que son tres
 o cuatro pasadas y no ocho. Si ni el más fuerte llega, se entrega lo más ligero
 conseguido y se avisa; si el archivo ya cabía, se deja como estaba.
+
+Y para no esperar en balde, **al elegir comprimir por tamaño se calcula cuánto
+puede bajar ese PDF** (`POST /api/tools/comprimir-pdf/minimo`): no es una
+estimación, es comprimirlo con el paso más fuerte, lo mismo que daría la
+herramienta. La pantalla dice «pesa 4,2 MB y como mucho baja a 2,9 MB», desactiva
+los tamaños que no caben y no deja pedir uno menor. Como cuesta una compresión
+entera, va al servicio de trabajos pesados y sólo se pide en ese modo, una vez por
+archivo. Un PDF que casi no baja —su peso es texto y fuentes, no imágenes— se dice
+tal cual.
+
+"Comprimir imagen" también va por tamaño, **imagen a imagen**: «cada foto por
+debajo de 200 KB», que es lo que piden los formularios. Primero se busca por
+bisección la calidad más alta que cabe (de 95 a 60) y, sólo si ni con la más baja
+cabe, se reduce la foto en píxeles buscando la escala más grande que cabe, porque
+una foto algo más pequeña se ve mejor que una muy machacada. Todo se prueba en
+memoria y se escribe sólo la buena. Se conserva el formato; en un PNG la «calidad»
+es la reducción de paleta. Las que no llegan se nombran en el aviso.
 
 "PDF en escala de grises" quita el color para imprimir sin gastar tinta de color.
 Lo hace Ghostscript —ya estaba en la imagen por el OCR—, que reescribe el PDF

@@ -265,6 +265,7 @@ def main():
            {'file_ids': [pdf], 'nivel': 'media', 'web': True})
     prueba('comprimir-pdf (tamaño)', '/api/tools/comprimir-pdf',
            {'file_ids': [pdf], 'objetivo_mb': 0.01})
+    prueba('comprimir-pdf/minimo', '/api/tools/comprimir-pdf/minimo', {'file_ids': [pdf]})
     prueba('pdf-a-grises', '/api/tools/pdf-a-grises', {'file_ids': [pdf]})
     prueba('comparar-pdf', '/api/tools/comparar-pdf', {'file_ids': [pdf, pdf2]})
     prueba('aplanar-pdf', '/api/tools/aplanar-pdf',
@@ -301,6 +302,8 @@ def main():
     print('\n=== Imágenes ===')
     prueba('comprimir-imagen', '/api/tools/comprimir-imagen',
            {'file_ids': [foto], 'calidad': 75, 'lado_maximo': 0})
+    prueba('comprimir-imagen (tamaño)', '/api/tools/comprimir-imagen',
+           {'file_ids': [foto], 'objetivo_kb': 5})
     prueba('convertir-imagen', '/api/tools/convertir-imagen', {'file_ids': [foto], 'formato': 'PNG'})
     prueba('convertir-imagen (HEIC)', '/api/tools/convertir-imagen',
            {'file_ids': [heic], 'formato': 'JPEG'})

@@ -61,9 +61,40 @@
         @for (mb of tamanosHabituales; track mb) {
           <button type="button" class="btn btn-sm"
             [class.btn-primary]="objetivoMb === mb" [class.btn-outline-secondary]="objetivoMb !== mb"
-            [disabled]="ocupado" (click)="elegirTamano(mb)">{{ mb }} MB</button>
+            [disabled]="ocupado || inalcanzable(mb)"
+            [title]="inalcanzable(mb) ? 'Este PDF no baja tanto' : ''"
+            (click)="elegirTamano(mb)">{{ mb }} MB</button>
         }
       </div>
+
+      @if (calculandoMinimo) {
+        <p class="form-text mb-0 mt-2" role="status">
+          <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+          Calculando hasta dónde puede bajar este PDF…
+        </p>
+      } @else if (minimo) {
+        @if (sinMargen) {
+          <p class="small mb-0 mt-2 text-warning-emphasis" role="status">
+            <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+            Este PDF ya no se puede aligerar: pesa {{ minimo.original | peso }} y como mucho
+            baja a {{ minimoMb?.toLocaleString('es-ES') }} MB. Casi todo su peso es texto y fuentes,
+            no imágenes.
+          </p>
+        } @else {
+          <p class="small mb-0 mt-2" role="status">
+            <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+            Este PDF pesa {{ minimo.original | peso }} y como mucho baja a
+            <strong>{{ minimoMb?.toLocaleString('es-ES') }} MB</strong>.
+          </p>
+        }
+        @if (imposible) {
+          <p class="small mb-0 mt-1 text-danger" role="alert">
+            Con {{ objetivoMb.toLocaleString('es-ES') }} MB no cabe: pide
+            {{ minimoMb?.toLocaleString('es-ES') }} MB o más.
+          </p>
+        }
+      }
+
       <p class="form-text">
         Se busca la compresión más suave que lo cumple, para no estropear las fotos más de lo
         necesario. Si ya pesa menos, se deja como está.

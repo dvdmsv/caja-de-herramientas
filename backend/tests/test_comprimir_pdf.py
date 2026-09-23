@@ -168,3 +168,47 @@ def test_si_ya_cabe_no_se_toca(cliente, tmp_path):
     assert informe['logrado'] is True
     with open(origen, 'rb') as a, open(salida, 'rb') as b:
         assert a.read() == b.read()
+
+
+# --- El mínimo, antes de comprimir ------------------------------------------------
+
+def pedir_minimo(cliente, ruta):
+    from storage import storage
+
+    from tests.conftest import subida
+    with open(ruta, 'rb') as fh:
+        file_id = storage.save_upload(SESION, subida(fh.read(), 'documento.pdf')).id
+    respuesta = cliente.post('/api/tools/comprimir-pdf/minimo', headers={'X-Session-Id': SESION},
+                             json={'file_ids': [file_id]})
+    assert respuesta.status_code == 200, respuesta.get_json()
+    return respuesta.get_json()
+
+
+def test_el_minimo_es_lo_que_luego_entrega(cliente, tmp_path):
+    import os
+
+    origen = documento_pesado(tmp_path / 'origen.pdf')
+    datos = pedir_minimo(cliente, origen)
+    salida, informe = comprimir_hasta(cliente, origen, 0.01)
+
+    assert datos['original'] == os.path.getsize(origen)
+    assert datos['minimo'] < datos['original']
+    assert datos['minimo'] == os.path.getsize(salida)
+
+    # Y pidiendo justo el mínimo, se llega.
+    _, informe = comprimir_hasta(cliente, origen, datos['minimo'] / 1024 / 1024)
+    assert informe['logrado'] is True
+
+
+def test_un_pdf_sin_imagenes_apenas_baja(cliente, tmp_path):
+    documento = fitz.open()
+    for numero in range(20):
+        documento.new_page().insert_text((72, 72), f'Página {numero} ' * 20, fontsize=9)
+    ruta = str(tmp_path / 'texto.pdf')
+    documento.save(ruta, deflate=True)
+    documento.close()
+
+    datos = pedir_minimo(cliente, ruta)
+
+    # Sólo se gana lo de limpiar la estructura: medido, un 14 %.
+    assert datos['minimo'] >= datos['original'] * 0.8

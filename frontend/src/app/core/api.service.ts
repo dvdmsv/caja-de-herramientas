@@ -178,6 +178,14 @@ export interface Resultado {
 export interface ObjetivoTamano {
   bytes: number;
   logrado: boolean;
+  /** "Comprimir imagen": las que no han llegado, por nombre. */
+  no_alcanzadas?: string[];
+}
+
+/** Lo más que puede bajar un PDF, y lo que pesa ahora. */
+export interface MinimoPdf {
+  minimo: number;
+  original: number;
 }
 
 /** Lo que contesta la consulta de progreso; `null` es «aún no ha empezado». */
@@ -395,6 +403,14 @@ export class ApiService {
       .post<{ metadatos: MetadatosArchivo[] }>('/api/tools/limpiar-metadatos/inspeccionar',
                                                { file_ids: ids })
       .pipe(map(respuesta => respuesta.metadatos));
+  }
+
+  /**
+   * Lo más ligero que puede quedar un PDF, para no dejar pedir un tamaño
+   * imposible. Cuesta una compresión entera: pedirlo sólo cuando haga falta.
+   */
+  minimoComprimirPdf(id: string): Observable<MinimoPdf> {
+    return this.http.post<MinimoPdf>('/api/tools/comprimir-pdf/minimo', { file_ids: [id] });
   }
 
   /** Qué códigos QR o de barras llevan dentro unas imágenes o unos PDF. */

@@ -81,8 +81,12 @@ def recortar_transparente(imagen: Image.Image) -> Image.Image:
     return rgba.crop(caja) if caja else rgba
 
 
-def guardar(imagen: Image.Image, destino: str, formato: str, calidad: int) -> None:
-    """Escribe la imagen en el formato pedido con opciones sensatas."""
+def guardar(imagen: Image.Image, destino, formato: str, calidad: int) -> None:
+    """Escribe la imagen en el formato pedido con opciones sensatas.
+
+    `destino` es una ruta o un archivo abierto: "Comprimir imagen" prueba varias
+    calidades en memoria antes de escribir la buena.
+    """
     preparada = adaptar_modo(imagen, formato)
     opciones: dict = {}
 

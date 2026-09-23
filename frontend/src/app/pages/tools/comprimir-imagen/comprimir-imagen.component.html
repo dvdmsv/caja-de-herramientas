@@ -8,30 +8,84 @@
     (itemsChange)="alCambiarLista()">
   </app-file-queue>
 
-  <div class="row g-4 mt-1">
-    <div class="col-12 col-md-6">
-      <label for="calidad" class="form-label h6 mb-1">
-        Calidad: <span class="fw-normal">{{ calidad }} %</span>
-      </label>
-      <input type="range" class="form-range" id="calidad" min="20" max="95" step="5"
-        [disabled]="ocupado" [(ngModel)]="calidad" (change)="alCambiarLista()">
-      <p class="form-text mt-0">{{ descripcionCalidad }}</p>
+  <fieldset class="mt-4">
+    <legend class="h6">Cómo comprimir</legend>
+    <div class="row g-2">
+      <div class="col-12 col-sm-6">
+        <input type="radio" class="btn-check" name="modo" id="modo-calidad"
+          [checked]="modo === 'calidad'" [disabled]="ocupado" (change)="elegirModo('calidad')">
+        <label class="btn btn-outline-primary w-100 text-start" for="modo-calidad">
+          <span class="d-block fw-semibold">Por calidad</span>
+          <small class="text-body-secondary">Tú eliges cuánto apretar</small>
+        </label>
+      </div>
+      <div class="col-12 col-sm-6">
+        <input type="radio" class="btn-check" name="modo" id="modo-tamano"
+          [checked]="modo === 'tamano'" [disabled]="ocupado" (change)="elegirModo('tamano')">
+        <label class="btn btn-outline-primary w-100 text-start" for="modo-tamano">
+          <span class="d-block fw-semibold">Hasta un tamaño</span>
+          <small class="text-body-secondary">«Cada foto por debajo de 200 KB»</small>
+        </label>
+      </div>
     </div>
+  </fieldset>
 
-    <div class="col-12 col-md-6">
-      <label for="tamano" class="form-label h6 mb-1">Tamaño máximo</label>
-      <select class="form-select" id="tamano" [disabled]="ocupado"
-        [(ngModel)]="ladoMaximo" (change)="alCambiarLista()">
-        @for (tamano of tamanos; track tamano) {
-          <option [ngValue]="tamano.valor">{{ tamano.nombre }}</option>
-        }
-      </select>
-      <p class="form-text">Se aplica al lado más largo, manteniendo la proporción.</p>
+  @if (modo === 'calidad') {
+    <div class="row g-4 mt-1">
+      <div class="col-12 col-md-6">
+        <label for="calidad" class="form-label h6 mb-1">
+          Calidad: <span class="fw-normal">{{ calidad }} %</span>
+        </label>
+        <input type="range" class="form-range" id="calidad" min="20" max="95" step="5"
+          [disabled]="ocupado" [(ngModel)]="calidad" (change)="alCambiarLista()">
+        <p class="form-text mt-0">{{ descripcionCalidad }}</p>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label for="tamano" class="form-label h6 mb-1">Tamaño máximo</label>
+        <select class="form-select" id="tamano" [disabled]="ocupado"
+          [(ngModel)]="ladoMaximo" (change)="alCambiarLista()">
+          @for (tamano of tamanos; track tamano) {
+            <option [ngValue]="tamano.valor">{{ tamano.nombre }}</option>
+          }
+        </select>
+        <p class="form-text">Se aplica al lado más largo, manteniendo la proporción.</p>
+      </div>
     </div>
-  </div>
+  } @else {
+    <fieldset class="mt-4">
+      <legend class="h6">Peso máximo de cada imagen</legend>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="input-group" style="max-width: 11rem;">
+          <input type="number" class="form-control" id="objetivo" min="10" step="10"
+            aria-label="Peso máximo de cada imagen en kilobytes"
+            [disabled]="ocupado" [(ngModel)]="objetivoKb" (change)="alCambiarLista()">
+          <span class="input-group-text">KB</span>
+        </div>
+        @for (kb of tamanosHabituales; track kb) {
+          <button type="button" class="btn btn-sm"
+            [class.btn-primary]="objetivoKb === kb" [class.btn-outline-secondary]="objetivoKb !== kb"
+            [disabled]="ocupado" (click)="elegirTamano(kb)">{{ kb }} KB</button>
+        }
+      </div>
+      <p class="form-text">
+        Primero se baja la calidad lo justo; sólo si no basta, se reduce la foto en píxeles, que
+        se ve mejor que una foto muy machacada. Se conserva el formato, y la que ya pesa menos se
+        deja como está.
+      </p>
+    </fieldset>
+  }
 
   <app-tool-controls [pagina]="pagina" accion="Comprimir imágenes" icono="bi-images">
   </app-tool-controls>
+
+  @if (noAlcanzado && resultados.length > 0) {
+    <div class="alert alert-warning mt-3 mb-0" role="status">
+      <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+      No se ha podido dejar por debajo de {{ noAlcanzado.bytes | peso }}:
+      {{ noAlcanzado.no_alcanzadas?.join(', ') }}. Te dejamos lo más ligero que se ha conseguido.
+    </div>
+  }
 
   <app-result-list [archivos]="resultados" [resumen]="resumen"
   nombreZip="imagenes-comprimidas.zip"></app-result-list>
