@@ -2,15 +2,15 @@
 
 El trabajo lo hace markitdown (Microsoft), que conserva la estructura —títulos,
 listas y tablas— en vez de escupir un chorro de texto plano. Admite PDF, Word,
-Excel, PowerPoint y unos cuantos formatos de texto más.
+Excel, PowerPoint, correos `.eml` y unos cuantos formatos de texto más.
 """
 import os
-import threading
 
 from flask import Blueprint, jsonify
 
 import config
-from api import current_session, params, pdf_estructura, progreso
+from api import correo, current_session, params, pdf_estructura, progreso
+from api.conversor_markdown import markitdown
 from api import limites
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -21,28 +21,6 @@ bp = Blueprint('a_markdown', __name__, url_prefix='/api/tools')
 # aparte: sin él, el único freno era el plazo de gunicorn, que mata al worker
 # entero y con él las peticiones que llevara en sus otros hilos.
 PLAZO_EN_PROCESO = config.entorno_entero('MARKDOWN_TIMEOUT_SECONDS', 120)
-
-_convertidor = None
-_candado = threading.Lock()
-
-
-def _markitdown():
-    """El conversor, construido la primera vez que alguien lo pide.
-
-    Importar markitdown cuesta unos 120 MB de memoria porque arrastra
-    onnxruntime para detectar tipos de archivo. Quien no use esta herramienta no
-    debería pagar ese precio: hasta la primera conversión el backend se queda en
-    unos 70 MB, y quien la use la paga una vez.
-
-    Los plugins van desactivados a propósito: aquí no hay ninguno instalado y
-    habilitarlos sólo abriría la puerta a ejecutar código de terceros.
-    """
-    global _convertidor
-    with _candado:
-        if _convertidor is None:
-            from markitdown import MarkItDown
-            _convertidor = MarkItDown(enable_plugins=False)
-    return _convertidor
 
 SALIDA_UNIDA = 'documentos.md'
 
@@ -60,12 +38,23 @@ def a_markdown():
     unir = params.booleano(datos, 'unir', False)
 
     convertidos = []
+    correos = []
     for file_id in progreso.contando(file_ids, len(file_ids),
                                        'Extrayendo el contenido'):
         record = storage.record_of(session_id, file_id)
         ruta = storage.path_of(session_id, file_id)
         limites.comprobar_descomprimido(ruta, record.name)
-        convertidos.append((record, _convertir(ruta, record.name)))
+        if record.ext == '.eml':
+            mensaje = correo.leer(ruta, record.name)
+            correos.append(mensaje)
+            convertidos.append((record, correo.a_markdown(mensaje)))
+        else:
+            convertidos.append((record, _convertir(ruta, record.name)))
+
+    # Los adjuntos se guardan al final: si un documento del lote falla, no
+    # quedan sueltos los de los correos que iban antes.
+    adjuntos = [guardado for mensaje in correos
+                for guardado in correo.guardar_adjuntos(session_id, mensaje)]
 
     if unir and len(convertidos) > 1:
         # Cada documento bajo su propio título: quien lo lea, humano o modelo,
@@ -77,7 +66,7 @@ def a_markdown():
                    for record, markdown in convertidos]
         texto = convertidos[0][1]
 
-    respuesta = {'files': [salida.to_json() for salida in salidas]}
+    respuesta = {'files': [salida.to_json() for salida in salidas + adjuntos]}
     if len(salidas) == 1 and len(texto) <= MAXIMO_VISTA_PREVIA:
         respuesta['vista_previa'] = {
             'texto': texto,
@@ -94,7 +83,7 @@ def _convertir(ruta: str, nombre: str) -> str:
             # markitdown los lee como texto corrido (ver api/pdf_estructura.py).
             texto = pdf_estructura.pdf_a_markdown(ruta)
         else:
-            texto = getattr(_markitdown().convert(ruta), 'text_content', '') or ''
+            texto = getattr(markitdown().convert(ruta), 'text_content', '') or ''
     except Exception as err:
         raise ApiError(f'No se ha podido leer "{nombre}": {err}', 422) from err
 

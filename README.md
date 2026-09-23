@@ -59,6 +59,7 @@ Pensada para usarse, no sólo para funcionar:
 | Documento a PDF | Pasa Word, ODT, RTF o texto plano a PDF | varios documentos de una vez |
 | PDF a Word | Saca un `.docx` editable de un PDF | varios documentos de una vez |
 | Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo, margen y respetar los saltos de línea |
+| Correo a PDF | Guarda un correo `.eml` como documento y saca sus adjuntos aparte | varios correos de una vez |
 | Editar metadatos | Enseña lo que tus archivos cuentan de ti, y lo corriges o lo borras | campo a campo, valores editables, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
 | Numerar páginas | Numera el documento | posición, formato, desde qué página, con vista previa |
@@ -319,7 +320,8 @@ superior) y de que Pillow suba a la rama 12: las versiones nuevas de
 `pdfminer.six` que arrastra ocrmypdf traen consigo un `pdfplumber` que ya no
 admite Pillow 10.
 
-"Documento a Markdown" acepta PDF, Word, Excel, PowerPoint, HTML, CSV y EPub.
+"Documento a Markdown" acepta PDF, Word, Excel, PowerPoint, HTML, CSV, EPub y
+correos `.eml`.
 Los PDF los lee con PyMuPDF (`backend/api/pdf_estructura.py`) y el resto con
 [markitdown](https://github.com/microsoft/markitdown) de Microsoft. Conserva
 la estructura —títulos, listas y tablas— en vez de escupir texto plano, enseña
@@ -446,6 +448,23 @@ buscar**. WeasyPrint recibe un `URLFetcher` que sólo admite `data:` y no hay
 servidor y uno con una imagen en `http://` no le pide nada a nadie —comprobado
 con un servidor a la escucha—. Se incrustan sólo las imágenes que el propio
 archivo trae dentro.
+
+"Correo a PDF" guarda un correo como documento: el asunto de título, quién lo
+manda, a quién, con copia a quién y cuándo, el texto y la lista de adjuntos. Los
+adjuntos salen además **sueltos en los resultados**, porque un correo suele ser
+sobre todo lo que trae adjunto, y así se pueden pasar a otra herramienta sin salir
+de la aplicación. "Documento a Markdown" también acepta `.eml` y hace lo mismo con
+los adjuntos.
+
+markitdown no sirve aquí: toma el `.eml` por texto plano y devuelve el mensaje
+en crudo, con el asunto en `=?utf-8?q?…?=`, las fronteras MIME, el
+quoted-printable y los adjuntos en base64. Lo lee el paquete `email` de Python
+(`backend/api/correo.py`), que deshace todas esas codificaciones. Del cuerpo se
+prefiere la versión HTML, que es la que trae negritas, listas y tablas, y se pasa
+a Markdown con markitdown; si sólo hay texto, va tal cual. Se maqueta con la
+misma función que "Markdown a PDF", así que tampoco va a buscar nada fuera: las
+imágenes remotas de un boletín no se descargan y las incrustadas no se pintan,
+salen como adjuntos. Los `.msg` de Outlook no entran: son otro formato.
 
 "Editar metadatos" es la que mejor explica por qué existe esta aplicación. Un
 PDF lleva dentro quién lo escribió y con qué programa; una foto de móvil lleva el

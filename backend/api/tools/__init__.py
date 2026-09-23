@@ -5,7 +5,8 @@ Blueprint llamado ``bp`` con ``url_prefix='/api/tools'`` e inclúyelo en la list
 de abajo. No hay que tocar nada más ni en el arranque ni en nginx.
 """
 from api.tools import (a_markdown, anonimizar_pdf, aplanar_pdf, comparar_pdf, comprimir_imagen,
-                       comprimir_pdf, comprobar_firmas, convertir_imagen, crear_certificado,
+                       comprimir_pdf, comprobar_firmas, convertir_imagen, correo_a_pdf,
+                       crear_certificado,
                        dividir_pdf, documento_a_pdf, editar_imagen, efecto_escaner,
                        extraer_imagenes,
                        extraer_tablas,
@@ -30,6 +31,7 @@ BLUEPRINTS = [
     documento_a_pdf.bp,
     pdf_a_word.bp,
     markdown_a_pdf.bp,
+    correo_a_pdf.bp,
     dividir_pdf.bp,
     organizar_pdf.bp,
     proteger_pdf.bp,

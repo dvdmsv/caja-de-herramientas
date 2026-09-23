@@ -214,6 +214,13 @@ export const routes: Routes = [
         .then(m => m.MarkdownAPdfComponent),
   },
   {
+    path: 'herramientas/correo-a-pdf',
+    title: 'Correo a PDF',
+    loadComponent: () =>
+      import('./pages/tools/correo-a-pdf/correo-a-pdf.component')
+        .then(m => m.CorreoAPdfComponent),
+  },
+  {
     // El visor manda en toda la pantalla: sin barra de navegación ni pie.
     path: 'visor',
     title: 'Visor de PDF',

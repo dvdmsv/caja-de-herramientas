@@ -1,0 +1,29 @@
+<app-tool-page slug="correo-a-pdf">
+
+  <app-file-queue
+    [items]="archivos"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra tus correos .eml aquí o haz clic para elegirlos"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarLista()">
+  </app-file-queue>
+
+  <p class="text-body-secondary small mt-3 mb-0">
+    <i class="bi bi-info-circle me-1"></i>
+    Para sacar un correo en .eml, en la mayoría de programas basta con arrastrarlo del buzón a
+    una carpeta; en Gmail está en «Descargar mensaje» del menú de los tres puntos.
+  </p>
+
+  <p class="text-body-secondary small mt-2 mb-0">
+    <i class="bi bi-paperclip me-1"></i>
+    Cada correo sale como un PDF con el asunto, el remitente, los destinatarios, la fecha y el
+    texto. Los adjuntos se nombran al final y además aparecen sueltos en los resultados. Las
+    imágenes del cuerpo no se pintan: las incrustadas salen como adjuntos.
+  </p>
+
+  <app-tool-controls [pagina]="pagina" accion="Crear el PDF" icono="bi-file-earmark-pdf">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados"></app-result-list>
+
+</app-tool-page>
