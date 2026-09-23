@@ -10,6 +10,7 @@
         <span>Caja de herramientas</span>
       </a>
       <div class="d-flex align-items-center gap-1 order-lg-last ms-auto ms-lg-2">
+        <app-uso-sesion></app-uso-sesion>
         <button type="button" class="btn btn-link boton-tema" (click)="tema.alternar()"
           [attr.aria-label]="'Tema: ' + etiquetaTema + '. Pulsa para cambiarlo'"
           [title]="'Tema: ' + etiquetaTema">
@@ -41,7 +42,7 @@
 @if ((pantallaCompleta | async) === false) {
   <footer class="border-top py-3 mt-auto">
     <div class="container text-center text-body-secondary small">
-      Tus archivos se borran automáticamente del servidor pasadas 2 horas. · {{ anio }}
+      Tus archivos se borran del servidor 2 horas después de tu última actividad. · {{ anio }}
     </div>
   </footer>
 }

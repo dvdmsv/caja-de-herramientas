@@ -5,10 +5,11 @@ import { filter, map, startWith } from 'rxjs';
 
 import { TemaService } from './core/tema.service';
 import { MenuPrincipalComponent } from './shared/menu-principal/menu-principal.component';
+import { UsoSesionComponent } from './shared/uso-sesion/uso-sesion.component';
 
 @Component({
   selector: 'app-root',
-  imports: [AsyncPipe, RouterOutlet, RouterLink, MenuPrincipalComponent],
+  imports: [AsyncPipe, RouterOutlet, RouterLink, MenuPrincipalComponent, UsoSesionComponent],
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './app.component.css',

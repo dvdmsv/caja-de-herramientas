@@ -17,6 +17,8 @@ export interface ArchivoServidor {
 export interface UsoSesion {
   usado: number;
   tope: number;
+  /** Desde cuándo se puede borrar, en segundos Unix; `null` si no hay nada guardado. */
+  caduca: number | null;
 }
 
 export interface ResumenTamano {

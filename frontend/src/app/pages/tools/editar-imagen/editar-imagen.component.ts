@@ -145,8 +145,8 @@ export class EditarImagenComponent extends PaginaHerramienta implements OnDestro
     }
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.olvidarVista();
     this.recorte = { ...RECORTE_COMPLETO };
     this.giro = 0;

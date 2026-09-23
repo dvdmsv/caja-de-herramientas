@@ -63,8 +63,8 @@ export class CompararPdfComponent extends PaginaHerramienta {
     this.comparacion = null;
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.comparacion = null;
   }
 }

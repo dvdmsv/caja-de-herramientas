@@ -468,8 +468,8 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
     });
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.trazos = [];
     this.contarPaginas(0);
     this.cerrarPdf();

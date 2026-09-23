@@ -85,8 +85,8 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
     }
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.paginas = 0;
     this.paginaVista = 1;
     this.olvidarVista();

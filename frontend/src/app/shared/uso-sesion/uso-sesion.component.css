@@ -1,0 +1,114 @@
+:host {
+  position: relative;
+  display: inline-flex;
+}
+
+.uso__boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0 0.5rem;
+  color: var(--bs-secondary-color);
+  font-size: 0.8rem;
+  background: none;
+  border: 0;
+  border-radius: var(--bs-border-radius);
+}
+
+.uso__boton:hover,
+.uso__boton[aria-expanded='true'] {
+  color: var(--bs-body-color);
+  background-color: var(--bs-tertiary-bg);
+}
+
+.uso__boton .bi {
+  font-size: 1.05rem;
+}
+
+.uso__medida {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  line-height: 1;
+}
+
+/* En estrecho la barra no tiene sitio para las cifras: quedan el icono y la
+   barrita, y el detalle en el panel. */
+@media (max-width: 575.98px) {
+  .uso__cifras {
+    display: none;
+  }
+}
+
+.uso__barra {
+  display: block;
+  width: 3.5rem;
+  height: 0.25rem;
+  overflow: hidden;
+  background-color: var(--bs-secondary-bg);
+  border-radius: 1rem;
+}
+
+.uso__relleno {
+  display: block;
+  height: 100%;
+  background-color: var(--bs-secondary-color);
+  transition: width 0.3s ease;
+}
+
+.uso--apurado .uso__relleno,
+.uso__relleno.uso--apurado {
+  background-color: var(--bs-warning);
+}
+
+.uso--lleno .uso__relleno,
+.uso__relleno.uso--lleno {
+  background-color: var(--bs-danger);
+}
+
+.uso--apurado,
+.uso--lleno {
+  color: var(--bs-body-color);
+  font-weight: 600;
+}
+
+.uso__aviso {
+  color: var(--bs-warning-text-emphasis);
+}
+
+.uso__panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  width: min(20rem, calc(100vw - 2rem));
+  padding: 1rem;
+  font-size: 0.9rem;
+  background-color: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  box-shadow: var(--sombra-elevada);
+  /* Oculto también para el teclado mientras está cerrado. */
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-0.25rem);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  z-index: 1030;
+}
+
+.uso__panel--abierto {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+}
+
+.progress {
+  height: 0.4rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uso__panel,
+  .uso__relleno {
+    transition: none;
+  }
+}

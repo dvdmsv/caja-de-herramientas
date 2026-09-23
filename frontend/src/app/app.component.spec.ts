@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
@@ -8,7 +10,7 @@ describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 
@@ -29,6 +31,19 @@ describe('AppComponent', () => {
     esperadas.forEach((herramienta, i) => {
       expect(enlaces[i].textContent).toContain(herramienta.nombre);
     });
+  });
+
+  it('enseña lo que ocupa la sesión nada más entrar, sin haber usado ninguna herramienta', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+
+    TestBed.inject(HttpTestingController).expectOne('/api/session/uso')
+      .flush({ usado: 9 * 1024 * 1024, tope: 1024 ** 3, caduca: null });
+    fixture.detectChanges();
+
+    const boton: HTMLElement = fixture.nativeElement.querySelector('app-uso-sesion .uso__boton');
+    expect(boton.textContent).toContain('9,0 MB / 1,0 GB');
+    expect(boton.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('hay un botón por sección y ninguna empieza desplegada', () => {

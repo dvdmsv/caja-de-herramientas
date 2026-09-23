@@ -1,0 +1,71 @@
+@if (uso | async; as ocupacion) {
+  <button type="button" class="uso__boton uso--{{ nivel(ocupacion.usado, ocupacion.tope) }}"
+    (click)="alternar()" aria-controls="panel-uso" [attr.aria-expanded]="abierto"
+    [attr.aria-label]="'Espacio en el servidor: ' + (ocupacion.usado | peso) + ' de ' + (ocupacion.tope | peso) + '. Pulsa para ver el detalle'"
+    [title]="'Espacio en el servidor: ' + (ocupacion.usado | peso) + ' de ' + (ocupacion.tope | peso)">
+    <i class="bi bi-hdd" aria-hidden="true"></i>
+    <span class="uso__medida">
+      <span class="uso__cifras">{{ ocupacion.usado | peso }} / {{ ocupacion.tope | peso }}</span>
+      <span class="uso__barra" aria-hidden="true">
+        <span class="uso__relleno" [style.width.%]="porcentaje(ocupacion.usado, ocupacion.tope)"></span>
+      </span>
+    </span>
+  </button>
+
+  <div class="uso__panel" id="panel-uso" [class.uso__panel--abierto]="abierto">
+    <p class="fw-semibold mb-2">Espacio en el servidor</p>
+
+    <div class="progress mb-2" role="progressbar" aria-label="Espacio ocupado en esta sesión"
+      aria-valuemin="0" aria-valuemax="100"
+      [attr.aria-valuenow]="porcentaje(ocupacion.usado, ocupacion.tope)">
+      <div class="progress-bar uso__relleno uso--{{ nivel(ocupacion.usado, ocupacion.tope) }}"
+        [style.width.%]="porcentaje(ocupacion.usado, ocupacion.tope)"></div>
+    </div>
+
+    <p class="mb-2">
+      Ocupas <strong>{{ ocupacion.usado | peso }}</strong> de {{ ocupacion.tope | peso }}
+      ({{ porcentaje(ocupacion.usado, ocupacion.tope) }} %). Cuenta lo que subes y también lo que
+      generan las herramientas.
+    </p>
+
+    @if (nivel(ocupacion.usado, ocupacion.tope) !== 'normal') {
+      <p class="mb-2 uso__aviso">
+        <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+        Te queda poco sitio: un resultado grande podría no caber. Vacía lo que ya no necesites.
+      </p>
+    }
+
+    @if (ocupacion.caduca) {
+      <p class="mb-3 text-body-secondary small">
+        <i class="bi bi-clock me-1" aria-hidden="true"></i>
+        Si no haces nada más, se borrarán a partir de {{ cuando(ocupacion.caduca) }}. Cada vez que
+        subes o generas un archivo, el plazo de 2 horas vuelve a empezar.
+      </p>
+    } @else {
+      <p class="mb-3 text-body-secondary small">No tienes archivos en el servidor.</p>
+    }
+
+    @if (!confirmando) {
+      <button type="button" class="btn btn-sm btn-outline-danger w-100"
+        [disabled]="ocupacion.usado === 0 || vaciando" (click)="confirmando = true">
+        <i class="bi bi-trash me-1" aria-hidden="true"></i>Vaciar ahora
+      </button>
+    } @else {
+      <p class="small mb-2">Se borrarán todos tus archivos, también los de las herramientas que
+        tengas abiertas. No se puede deshacer.</p>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-danger flex-fill" [disabled]="vaciando"
+          (click)="vaciar()">
+          @if (vaciando) {
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+          }
+          Sí, vaciar
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary flex-fill"
+          [disabled]="vaciando" (click)="confirmando = false">
+          Cancelar
+        </button>
+      </div>
+    }
+  </div>
+}

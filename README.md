@@ -901,6 +901,18 @@ nadie ve los archivos de otra persona y "empezar de cero" sólo borra los tuyos.
 Las sesiones sin actividad se eliminan solas (2 horas por defecto,
 `SESSION_TTL_MINUTES`).
 
+Cada sesión tiene un tope (1 GB por defecto, `SESSION_QUOTA_MB`) en el que
+cuentan lo subido y lo generado. Para que no sea una sorpresa, **la barra
+superior lo enseña siempre**, desde que se entra y en cualquier página: lo
+ocupado sobre el tope y una barrita que se pone ámbar al 75 % y roja al 90 %. Al
+pulsarlo se abre el detalle con la hora a partir de la cual se borrarán los
+archivos —la fecha de la carpeta más el tiempo de vida, la misma cuenta que hace
+el recolector— y un botón para vaciar la sesión, que es la única forma de liberar
+sitio si los archivos son de una visita anterior y no hay nada en la cola de una
+herramienta. Vaciar desde ahí también suelta la cola de la herramienta que esté
+abierta. Consultar el uso no cuenta como actividad: mirar el indicador no alarga
+la vida de los archivos.
+
 ### La API
 
 | Método | Ruta | Para qué |
@@ -925,6 +937,7 @@ Las sesiones sin actividad se eliminan solas (2 horas por defecto,
 | `GET` | `/api/files/<id>/paginas` | cuántas páginas tiene un archivo subido |
 | `POST` | `/api/tools/visor/guardar` | aplica de una vez todo lo hecho en el visor |
 | `POST` | `/api/session/keepalive` | marca la sesión como activa (la usa el visor) |
+| `GET` | `/api/session/uso` | lo que ocupa la sesión, su tope y desde cuándo se puede borrar |
 | `GET` | `/api/health` | comprobación de estado |
 
 Todas las herramientas reciben `{"file_ids": [...]}` más sus propias opciones y

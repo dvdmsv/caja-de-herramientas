@@ -172,8 +172,8 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
     this.temporizador = setTimeout(() => this.contar(), ESPERA);
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.olvidarRecuento();
   }
 

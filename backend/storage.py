@@ -126,6 +126,18 @@ class Storage:
             return 0
         return total
 
+    def caducidad(self, session_id: str) -> float | None:
+        """Desde cuándo la sesión se puede borrar, si nadie la toca antes.
+
+        Es la misma cuenta que hace `purge_expired`: la fecha de la carpeta más
+        el tiempo de vida. El borrado de verdad llega con la siguiente pasada
+        del recolector. Sin carpeta no hay nada que borrar.
+        """
+        try:
+            return os.path.getmtime(self.session_dir(session_id, create=False)) + self.ttl_seconds
+        except FileNotFoundError:
+            return None
+
     def espacio_libre(self) -> int:
         """Bytes libres en el disco donde vive el volumen."""
         return shutil.disk_usage(self.root).free

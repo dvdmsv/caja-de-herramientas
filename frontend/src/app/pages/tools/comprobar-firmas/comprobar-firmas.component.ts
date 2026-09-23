@@ -54,8 +54,8 @@ export class ComprobarFirmasComponent extends PaginaHerramienta {
     }
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.informes = [];
   }
 

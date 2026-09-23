@@ -7,6 +7,7 @@ import { AsyncPipe } from '@angular/common';
 import { UsoSesion } from '../../core/api.service';
 import { UsoService } from '../../core/uso.service';
 import { PesoPipe } from '../peso.pipe';
+import { nivelDeUso } from '../uso';
 import { avisoInfo } from '../notify';
 import { destinosPara } from '../../core/tools';
 import { ColaReceptora, MARCO_HERRAMIENTA } from '../marco-herramienta';
@@ -68,9 +69,9 @@ export class FileQueueComponent implements OnInit, ColaReceptora {
   /** Lo que ocupa la sesión; lo actualizan las páginas al subir o al terminar. */
   readonly uso = inject(UsoService).uso;
 
-  /** A partir de tres cuartos conviene avisar, no cuando ya no cabe nada. */
+  /** Se avisa aquí también, junto a lo que se sube, cuando se va llenando. */
   apurado(ocupacion: UsoSesion): boolean {
-    return ocupacion.usado >= ocupacion.tope * 0.75;
+    return nivelDeUso(ocupacion.usado, ocupacion.tope) !== 'normal';
   }
 
   ngOnInit(): void {

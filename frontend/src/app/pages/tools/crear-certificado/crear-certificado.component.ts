@@ -76,8 +76,8 @@ export class CrearCertificadoComponent extends PaginaHerramienta {
     };
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.contrasena = '';
     this.repetida = '';
   }

@@ -150,16 +150,20 @@ def delete_file(file_id: str):
 
 @bp.get('/session/uso')
 def uso_de_la_sesion():
-    """Cuánto ocupa la sesión y cuánto le cabe.
+    """Cuánto ocupa la sesión, cuánto le cabe y cuándo se borrará.
 
-    Lo pregunta la cola de archivos para poder enseñarlo. Sin esto, quien llega
-    al tope recibe un 413 correcto pero a ciegas: no sabe cuánto lleva
-    acumulado ni que los resultados también cuentan.
+    Lo pregunta el indicador de la barra superior para enseñarlo en todo
+    momento. Sin esto, quien llega al tope recibe un 413 correcto pero a
+    ciegas: no sabe cuánto lleva acumulado ni que los resultados también
+    cuentan.
+
+    `caduca` es una marca de tiempo Unix, o `null` si no hay nada guardado.
+    Preguntar no la mueve: mirar el indicador no es actividad.
     """
     session_id = current_session()
     tope = config.SESSION_QUOTA_MB * 1024 * 1024
     usado = storage.tamano_sesion(session_id)
-    return jsonify({'usado': usado, 'tope': tope})
+    return jsonify({'usado': usado, 'tope': tope, 'caduca': storage.caducidad(session_id)})
 
 
 @bp.get('/progreso/<trabajo>')

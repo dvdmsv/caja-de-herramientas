@@ -1,4 +1,5 @@
 import { inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ApiService, ArchivoServidor, Resultado, ResumenTamano, VistaPrevia } from '../core/api.service';
 import { UsoService } from '../core/uso.service';
@@ -31,6 +32,14 @@ const VUELTAS_MAXIMAS = 330;
 export abstract class PaginaHerramienta {
   protected readonly api = inject(ApiService);
   private readonly usoSesion = inject(UsoService);
+
+  /**
+   * La sesión se puede vaciar desde la barra superior, no sólo desde aquí: la
+   * cola tiene que soltar entonces unos archivos que ya no están en el servidor.
+   */
+  private readonly alVaciarSesion = this.usoSesion.vaciada
+    .pipe(takeUntilDestroyed())
+    .subscribe(() => this.reiniciar());
 
   archivos: ArchivoEnCola[] = [];
   resultados: ArchivoServidor[] = [];
@@ -84,6 +93,14 @@ export abstract class PaginaHerramienta {
    * —"Comparar PDF" saca de ahí su recuento—. Se llama sólo si ha ido bien.
    */
   protected alTerminar(_resultado: Resultado): void {}
+
+  /**
+   * Gancho para quien guarde algo más que la cola y los resultados —una
+   * segunda cola, una vista previa, un informe—. Se llama al empezar de cero y
+   * también cuando la sesión se vacía desde la barra superior, así que no debe
+   * hablar con el servidor: ahí ya no queda nada.
+   */
+  protected alReiniciar(): void {}
 
   /** Texto del aviso cuando termina bien. */
   protected get mensajeExito(): string {
@@ -263,15 +280,17 @@ export abstract class PaginaHerramienta {
   }
 
   empezarDeCero(): void {
-    this.api.limpiarSesion().subscribe({
-      next: () => {
-        this.archivos = [];
-        this.olvidarResultado();
-        this.progreso = -1;
-        this.usoSesion.olvidar();
-      },
+    // El reinicio lo hace `alVaciarSesion`, igual que si se vacía desde la barra.
+    this.usoSesion.vaciar().subscribe({
       error: err => avisoError(mensajeDeError(err, 'No se han podido borrar los archivos.')),
     });
+  }
+
+  private reiniciar(): void {
+    this.archivos = [];
+    this.olvidarResultado();
+    this.progreso = -1;
+    this.alReiniciar();
   }
 
   private olvidarResultado(): void {

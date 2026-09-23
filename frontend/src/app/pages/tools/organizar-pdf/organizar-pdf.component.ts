@@ -182,8 +182,8 @@ export class OrganizarPdfComponent extends PaginaHerramienta implements OnDestro
     };
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.cerrar();
   }
 

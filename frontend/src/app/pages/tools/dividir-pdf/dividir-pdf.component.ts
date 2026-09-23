@@ -133,8 +133,8 @@ export class DividirPdfComponent extends PaginaHerramienta implements OnDestroy 
     return { paginas: this.rangos, modo: this.modo };
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.cerrar();
   }
 

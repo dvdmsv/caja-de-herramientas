@@ -219,8 +219,8 @@ export class FirmarComponent extends PaginaHerramienta implements OnDestroy {
     };
   }
 
-  override empezarDeCero(): void {
-    super.empezarDeCero();
+  protected override alReiniciar(): void {
+    super.alReiniciar();
     this.firmas = [];
     this.contarPaginas(0);
     this.cerrarPdf();
