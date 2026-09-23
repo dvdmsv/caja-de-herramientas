@@ -19,12 +19,6 @@
   <app-tool-controls [pagina]="pagina" accion="Combinar PDF" icono="bi-file-earmark-plus">
   </app-tool-controls>
 
-  @if (archivos.length === 1) {
-    <p class="text-body-secondary small mt-2 mb-0">
-      Añade al menos un PDF más para poder combinarlos.
-    </p>
-  }
-
   <app-result-list [archivos]="resultados" [resumen]="resumen"></app-result-list>
 
 </app-tool-page>

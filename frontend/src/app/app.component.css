@@ -69,6 +69,36 @@
   }
 }
 
+/*
+ * Móvil en vertical (`ESTRECHA` en core/pantalla.ts): la marca, el indicador de
+ * espacio, el tema y el menú no cabían en una línea (hacían falta unos 425 px),
+ * y la barra se partía en dos, gastando 50 px de pantalla en nada. La marca se
+ * parte en dos renglones —«Caja de» sobre «herramientas»— y el indicador de
+ * espacio se queda en icono (uso-sesion.component.css).
+ */
+@media (max-width: 575.98px) {
+  .marca {
+    gap: 0.45rem;
+    margin-right: 0;
+    font-size: 1rem;
+  }
+
+  /* En bloque, porque en un `span` en línea el `max-width` no cuenta, y con
+     `white-space: normal`, porque `.navbar-brand` de Bootstrap no deja partir
+     la línea: con cualquiera de los dos, el texto se montaba sobre el botón de
+     al lado en vez de partirse. */
+  .marca__texto {
+    display: block;
+    max-width: 7rem;
+    white-space: normal;
+    line-height: 1.1;
+  }
+
+  .navbar-toggler {
+    padding-inline: 0.5rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .menu-plegable {
     transition: none;

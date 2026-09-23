@@ -32,12 +32,13 @@
     }
     <ul class="list-group list-group-flush">
       @for (archivo of archivos; track archivo) {
-        <li class="list-group-item d-flex align-items-center gap-2">
+        <li class="list-group-item d-flex align-items-center gap-2 resultado"
+          [class.resultado--editando]="editando === archivo.id">
           <i class="bi bi-file-earmark-check text-success flex-shrink-0"></i>
           @if (editando !== archivo.id) {
-            <span class="text-truncate flex-grow-1" [title]="archivo.name">{{ archivo.name }}</span>
-            <span class="small text-body-secondary flex-shrink-0">{{ archivo.size | peso }}</span>
-            <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 flex-shrink-0 boton-tactil"
+            <span class="text-truncate flex-grow-1 resultado__nombre" [title]="archivo.name">{{ archivo.name }}</span>
+            <span class="small text-body-secondary flex-shrink-0 resultado__peso">{{ archivo.size | peso }}</span>
+            <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 flex-shrink-0 boton-tactil resultado__renombrar"
               (click)="editar(archivo)" [attr.aria-label]="'Cambiar el nombre de ' + archivo.name">
               <i class="bi bi-pencil"></i>
             </button>

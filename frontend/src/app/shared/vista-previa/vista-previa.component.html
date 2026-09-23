@@ -26,8 +26,17 @@
       </p>
 
       <ng-container *ngIf="!cargando">
-        <iframe *ngSwitchCase="'pdf'" class="marco" [src]="urlSegura"
-                [title]="'Vista previa de ' + actual.name"></iframe>
+        <ng-container *ngSwitchCase="'pdf'">
+          <iframe *ngIf="pdfEnLinea" class="marco" [src]="urlSegura"
+                  [title]="'Vista previa de ' + actual.name"></iframe>
+          <div *ngIf="!pdfEnLinea" class="sin-visor">
+            <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+            <p class="mb-0">Este navegador no enseña los PDF dentro de la página.</p>
+            <button type="button" class="btn btn-primary" (click)="abrirEnVisor()">
+              Abrirlo en el visor
+            </button>
+          </div>
+        </ng-container>
 
         <img *ngSwitchCase="'imagen'" class="imagen" [src]="imagen"
              [alt]="'Vista previa de ' + actual.name">

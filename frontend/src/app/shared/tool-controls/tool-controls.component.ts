@@ -12,6 +12,7 @@ import { PaginaHerramienta } from '../pagina-herramienta';
   imports: [],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './tool-controls.component.html',
+  styleUrl: './tool-controls.component.css',
 })
 export class ToolControlsComponent {
   @Input({ required: true }) pagina!: PaginaHerramienta;

@@ -130,12 +130,6 @@
   <app-tool-controls [pagina]="pagina" accion="Aplicar los cambios" icono="bi-incognito">
   </app-tool-controls>
 
-  @if (informe.length > 0 && marcadas.size === 0 && !hayCambios) {
-    <p class="text-body-secondary small mt-2 mb-0">
-      No has marcado nada para borrar ni has cambiado ningún valor.
-    </p>
-  }
-
   <app-result-list [archivos]="resultados" [resumen]="resumen" nombreZip="metadatos.zip">
   </app-result-list>
 

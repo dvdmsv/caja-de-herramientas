@@ -60,3 +60,33 @@
 .menu__opcion:focus-visible {
   background-color: var(--bs-tertiary-bg);
 }
+
+/*
+ * Móvil en vertical (`ESTRECHA`): una hoja que sube desde abajo en vez de un
+ * desplegable colgado del botón. Colgado, el menú caía donde le dejaba la
+ * fila —a veces medio fuera de la pantalla, a veces tapando el botón que lo
+ * abrió— y con treinta herramientas no cabía ni en una pantalla. Abajo está
+ * siempre entero y al alcance del pulgar.
+ *
+ * La sombra enorme oscurece el resto de la página sin un elemento de fondo:
+ * tocar fuera ya lo cierra el `document:click` del componente.
+ */
+@media (max-width: 575.98px) {
+  .menu,
+  .menu--derecha,
+  .menu--arriba {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1060;
+    width: auto;
+    max-height: 75vh;
+    max-height: 75dvh;
+    padding: 0.5rem 0.75rem 1rem;
+    border-width: 1px 0 0;
+    border-radius: var(--bs-border-radius-xl) var(--bs-border-radius-xl) 0 0;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45);
+  }
+}

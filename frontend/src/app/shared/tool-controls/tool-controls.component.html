@@ -35,8 +35,8 @@
   </div>
 }
 
-<div class="d-flex flex-wrap gap-2 mt-4">
-  <button type="button" class="btn btn-primary" [disabled]="!pagina.listo" (click)="pagina.ejecutar()"
+<div class="acciones d-flex flex-wrap gap-2 mt-4">
+  <button type="button" class="btn btn-primary accion-principal" [disabled]="!pagina.listo" (click)="pagina.ejecutar()"
     [attr.aria-describedby]="pagina.motivoBloqueo ? 'motivo-bloqueo' : null">
     @if (pagina.procesando) {
       <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
@@ -48,16 +48,19 @@
   </button>
 
   @if (pagina.archivos.length > 0) {
+    <!-- En el móvil, sólo el icono: el sitio es para el botón principal. -->
     <button type="button" class="btn btn-outline-secondary"
-      [disabled]="pagina.ocupado" (click)="pagina.empezarDeCero()">
-      Empezar de cero
+      [disabled]="pagina.ocupado" (click)="pagina.empezarDeCero()"
+      aria-label="Empezar de cero" title="Empezar de cero">
+      <i class="bi bi-arrow-counterclockwise d-sm-none" aria-hidden="true"></i>
+      <span class="d-none d-sm-inline">Empezar de cero</span>
     </button>
   }
 
   @if (pagina.pendientes.length > 0 && !pagina.ocupado) {
     <button type="button" class="btn btn-outline-warning ms-auto"
       (click)="pagina.reintentar()">
-      <i class="bi bi-arrow-clockwise me-1"></i>Reintentar la subida
+      <i class="bi bi-arrow-clockwise me-1"></i>Reintentar<span class="d-none d-sm-inline"> la subida</span>
     </button>
   }
 </div>

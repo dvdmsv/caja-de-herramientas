@@ -33,13 +33,6 @@
   line-height: 1;
 }
 
-/* En estrecho la barra no tiene sitio para las cifras: quedan el icono y la
-   barrita, y el detalle en el panel. */
-@media (max-width: 575.98px) {
-  .uso__cifras {
-    display: none;
-  }
-}
 
 .uso__barra {
   display: block;
@@ -104,6 +97,51 @@
 
 .progress {
   height: 0.4rem;
+}
+
+/*
+ * Móvil en vertical (`ESTRECHA` en core/pantalla.ts).
+ *
+ * El botón: sin cifras, y la barrita debajo del icono en vez de al lado. Así
+ * ocupa lo que cualquier otro botón de la barra (44 px) y la barra superior
+ * cabe en una línea; las cifras están en el panel.
+ *
+ * El panel: a todo el ancho, colgado de la barra superior y no del botón.
+ * Anclado al botón —que ya no está en el borde, lo siguen el tema y el menú—
+ * se salía 70 px por la izquierda a 360 px. Con el host sin posicionar, quien
+ * lo contiene es `.navbar`, que es `sticky`.
+ *
+ * No va como hoja inferior, que es el patrón de los desplegables en móvil: la
+ * barra superior es su propio contexto de apilamiento (sticky con z-index) y la
+ * barra de acción de cada herramienta, pegada abajo, quedaría por encima de él.
+ */
+@media (max-width: 575.98px) {
+  :host {
+    position: static;
+  }
+
+  .uso__boton {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.3rem;
+    min-width: 2.75rem;
+    padding: 0 0.25rem;
+  }
+
+  .uso__cifras {
+    display: none;
+  }
+
+  .uso__barra {
+    width: 1.6rem;
+  }
+
+  .uso__panel {
+    top: 100%;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

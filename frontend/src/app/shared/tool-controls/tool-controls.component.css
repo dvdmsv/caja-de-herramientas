@@ -1,0 +1,47 @@
+:host {
+  display: block;
+}
+
+/*
+ * Móvil en vertical (`ESTRECHA` en core/pantalla.ts): la barra se pega al borde
+ * de abajo mientras se rellena el formulario. En el móvil las opciones ocupan
+ * varias pantallas, y con el botón al final había que bajar hasta él para
+ * descubrir que faltaba algo; así la acción y su motivo de bloqueo están
+ * siempre a la vista y al alcance del pulgar.
+ *
+ * Es el propio elemento el que se pega, y lo hace dentro de su padre: por eso
+ * `<app-tool-controls>` va directamente en el marco de la herramienta y no
+ * dentro de un bloque suyo, o dejaría de pegarse al salir de ese bloque.
+ */
+@media (max-width: 575.98px) {
+  :host {
+    position: sticky;
+    bottom: 0;
+    z-index: 1020;
+    /* A todo el ancho de la pantalla, por encima del margen del contenedor. */
+    margin-inline: calc(var(--bs-gutter-x, 1.5rem) * -0.5);
+    margin-top: 1.5rem;
+    padding: 0.75rem calc(var(--bs-gutter-x, 1.5rem) * 0.5);
+    background-color: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+    box-shadow: 0 -0.5rem 1rem -0.75rem rgba(0, 0, 0, 0.25);
+  }
+
+  /* Lo de arriba ya lo separa el relleno de la barra. */
+  :host > :first-child {
+    margin-top: 0 !important;
+  }
+
+  .acciones {
+    flex-wrap: nowrap !important;
+  }
+
+  .acciones:not(:first-child) {
+    margin-top: 0.75rem !important;
+  }
+
+  .accion-principal {
+    flex: 1;
+    min-width: 0;
+  }
+}

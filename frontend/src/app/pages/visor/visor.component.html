@@ -1,172 +1,186 @@
 <div class="visor" [class.visor--oscuro]="oscuro">
 
-  <!-- Barra de herramientas -->
+  <!--
+  Barra de herramientas, en tres grupos: a dónde ir, qué hacer con el documento
+  y guardarlo. Guardar y deshacer no se desplazan nunca, y en un móvil en
+  vertical las herramientas bajan a su propia barra, al alcance del pulgar
+  (visor.component.css). Por eso el orden aquí es el del teclado y no el de la
+  pantalla.
+  -->
   <header class="barra">
-    <a class="barra__marca" routerLink="/" title="Volver a las herramientas">
-      <i class="bi bi-arrow-left"></i>
-    </a>
+    <div class="barra__ir">
+      <a class="barra__marca" routerLink="/" title="Volver a las herramientas">
+        <i class="bi bi-arrow-left"></i>
+      </a>
 
-    <button type="button" class="boton" [class.boton--activo]="panelAbierto"
-      [disabled]="!documento" (click)="alternarPanel()" title="Panel lateral">
-      <i class="bi bi-layout-sidebar"></i>
-    </button>
+      <button type="button" class="boton" [class.boton--activo]="panelAbierto"
+        [disabled]="!documento" (click)="alternarPanel()" title="Panel lateral">
+        <i class="bi bi-layout-sidebar"></i>
+      </button>
+
+      @if (documento) {
+        <span class="contador">
+          <input type="number" class="contador__campo" min="1" [max]="medidas.length"
+            aria-label="Página actual"
+            [ngModel]="paginaActual" (ngModelChange)="irAPagina(+$event)">
+          <span class="text-body-secondary">/ {{ medidas.length }}</span>
+        </span>
+      }
+    </div>
 
     @if (documento) {
-      <span class="contador">
-        <input type="number" class="contador__campo" min="1" [max]="medidas.length"
-          aria-label="Página actual"
-          [ngModel]="paginaActual" (ngModelChange)="irAPagina(+$event)">
-        <span class="text-body-secondary">/ {{ medidas.length }}</span>
-      </span>
-      <span class="separador"></span>
-      <button type="button" class="boton" (click)="aplicarZoom(0.8)" title="Alejar">
-        <i class="bi bi-zoom-out"></i>
-      </button>
-      <span class="zoom">{{ (escala * 100).toFixed(0) }} %</span>
-      <button type="button" class="boton" (click)="aplicarZoom(1.25)" title="Acercar">
-        <i class="bi bi-zoom-in"></i>
-      </button>
-      <button type="button" class="boton" [class.boton--activo]="modoZoom === 'ancho'"
-        (click)="ajustar('ancho')" title="Ajustar al ancho">
-        <i class="bi bi-arrows"></i>
-      </button>
-      <button type="button" class="boton" [class.boton--activo]="modoZoom === 'pagina'"
-        (click)="ajustar('pagina')" title="Ajustar la página entera">
-        <i class="bi bi-aspect-ratio"></i>
-      </button>
-      <button type="button" class="boton" [class.boton--activo]="columnas === 2"
-        (click)="alternarColumnas()" title="Dos páginas">
-        <i class="bi bi-book"></i>
-      </button>
-      <button type="button" class="boton" [class.boton--activo]="oscuro"
-        (click)="alternarOscuro()" title="Modo oscuro">
-        <i class="bi bi-moon-stars"></i>
-      </button>
-      <span class="separador"></span>
-      <!-- Herramientas de marcado -->
-      <button type="button" class="boton" [class.boton--activo]="herramienta === 'leer'"
-        (click)="elegirHerramienta('leer')" title="Leer">
-        <i class="bi bi-hand-index"></i>
-      </button>
-      <button type="button" class="boton" [class.boton--activo]="herramienta === 'subrayar'"
-        (click)="elegirHerramienta('subrayar')" title="Subrayar el texto que selecciones">
-        <i class="bi bi-highlighter"></i>
-      </button>
-      @if (herramienta === 'subrayar') {
-        <span class="colores">
-          <button type="button" class="color color--amarillo" [class.color--elegido]="colorSubrayado === 'amarillo'"
-          (click)="colorSubrayado = 'amarillo'" title="Amarillo"></button>
-          <button type="button" class="color color--verde" [class.color--elegido]="colorSubrayado === 'verde'"
-          (click)="colorSubrayado = 'verde'" title="Verde"></button>
-          <button type="button" class="color color--azul" [class.color--elegido]="colorSubrayado === 'azul'"
-          (click)="colorSubrayado = 'azul'" title="Azul"></button>
-          <button type="button" class="color color--rosa" [class.color--elegido]="colorSubrayado === 'rosa'"
-          (click)="colorSubrayado = 'rosa'" title="Rosa"></button>
-        </span>
-      }
-      <button type="button" class="boton" [class.boton--activo]="herramienta === 'tachar'"
-        (click)="elegirHerramienta('tachar')" title="Eliminar del PDF el texto que selecciones">
-        <i class="bi bi-eraser"></i>
-      </button>
-      @if (herramienta === 'tachar') {
-        <span class="colores">
-          <button type="button" class="color color--negro" [class.color--elegido]="colorTachado === 'negro'"
-          (click)="colorTachado = 'negro'" title="Tapar en negro"></button>
-          <button type="button" class="color color--blanco" [class.color--elegido]="colorTachado === 'blanco'"
-          (click)="colorTachado = 'blanco'" title="Dejarlo en blanco"></button>
-        </span>
-      }
-      <button type="button" class="boton" [disabled]="!documento || buscandoDatos"
-        (click)="tacharDatosPersonales()"
-        title="Buscar DNI, teléfonos, correos y cuentas, y marcarlos para revisarlos">
-        <i class="bi" [class.bi-eye-slash]="!buscandoDatos"
-          [class.bi-hourglass-split]="buscandoDatos"></i>
-      </button>
-      <button type="button" class="boton" [class.boton--activo]="herramienta === 'texto'"
-        (click)="elegirHerramienta('texto')"
-        title="Escribir sobre el documento: pulsa donde esté el hueco">
-        <i class="bi bi-fonts"></i>
-      </button>
-      @if (herramienta === 'texto') {
-        <span class="escritura">
-          <select class="escritura__fuente" [ngModel]="estiloEscritura.fuente"
-            (ngModelChange)="cambiarEstilo({ fuente: $event })" title="Tipo de letra">
-            @for (f of fuentes; track f) {
-              <option [value]="f.valor">{{ f.nombre }}</option>
-            }
-          </select>
-          <input type="number" class="escritura__tamano" [min]="tamanoMinimo" [max]="tamanoMaximo"
-            [ngModel]="estiloEscritura.tamano" (ngModelChange)="cambiarTamano($event)"
-            title="Tamaño de la letra, en puntos">
-          <button type="button" class="boton boton--letra" [class.boton--activo]="estiloEscritura.negrita"
-            (click)="cambiarEstilo({ negrita: !estiloEscritura.negrita })" title="Negrita">
-            <strong>N</strong>
-          </button>
-          <button type="button" class="boton boton--letra" [class.boton--activo]="estiloEscritura.cursiva"
-            (click)="cambiarEstilo({ cursiva: !estiloEscritura.cursiva })" title="Cursiva">
-            <em>K</em>
-          </button>
+      <div class="barra__herramientas desplazable-x" role="toolbar" aria-label="Herramientas del visor">
+        <button type="button" class="boton" (click)="aplicarZoom(0.8)" title="Alejar">
+          <i class="bi bi-zoom-out"></i>
+        </button>
+        <span class="zoom">{{ (escala * 100).toFixed(0) }} %</span>
+        <button type="button" class="boton" (click)="aplicarZoom(1.25)" title="Acercar">
+          <i class="bi bi-zoom-in"></i>
+        </button>
+        <button type="button" class="boton" [class.boton--activo]="modoZoom === 'ancho'"
+          (click)="ajustar('ancho')" title="Ajustar al ancho">
+          <i class="bi bi-arrows"></i>
+        </button>
+        <button type="button" class="boton" [class.boton--activo]="modoZoom === 'pagina'"
+          (click)="ajustar('pagina')" title="Ajustar la página entera">
+          <i class="bi bi-aspect-ratio"></i>
+        </button>
+        <button type="button" class="boton" [class.boton--activo]="columnas === 2"
+          (click)="alternarColumnas()" title="Dos páginas">
+          <i class="bi bi-book"></i>
+        </button>
+        <button type="button" class="boton" [class.boton--activo]="oscuro"
+          (click)="alternarOscuro()" title="Modo oscuro">
+          <i class="bi bi-moon-stars"></i>
+        </button>
+        <span class="separador"></span>
+        <!-- Herramientas de marcado -->
+        <button type="button" class="boton" [class.boton--activo]="herramienta === 'leer'"
+          (click)="elegirHerramienta('leer')" title="Leer">
+          <i class="bi bi-hand-index"></i>
+        </button>
+        <button type="button" class="boton" [class.boton--activo]="herramienta === 'subrayar'"
+          (click)="elegirHerramienta('subrayar')" title="Subrayar el texto que selecciones">
+          <i class="bi bi-highlighter"></i>
+        </button>
+        @if (herramienta === 'subrayar') {
           <span class="colores">
-            @for (tinta of coloresTexto; track tinta) {
-              <button type="button" class="color color--tinta-{{ tinta }}"
-                [class.color--elegido]="estiloEscritura.color === tinta"
-              [title]="'Escribir en ' + tinta" (click)="cambiarEstilo({ color: tinta })"></button>
-            }
+            <button type="button" class="color color--amarillo" [class.color--elegido]="colorSubrayado === 'amarillo'"
+            (click)="colorSubrayado = 'amarillo'" title="Amarillo"></button>
+            <button type="button" class="color color--verde" [class.color--elegido]="colorSubrayado === 'verde'"
+            (click)="colorSubrayado = 'verde'" title="Verde"></button>
+            <button type="button" class="color color--azul" [class.color--elegido]="colorSubrayado === 'azul'"
+            (click)="colorSubrayado = 'azul'" title="Azul"></button>
+            <button type="button" class="color color--rosa" [class.color--elegido]="colorSubrayado === 'rosa'"
+            (click)="colorSubrayado = 'rosa'" title="Rosa"></button>
           </span>
+        }
+        <button type="button" class="boton" [class.boton--activo]="herramienta === 'tachar'"
+          (click)="elegirHerramienta('tachar')" title="Eliminar del PDF el texto que selecciones">
+          <i class="bi bi-eraser"></i>
+        </button>
+        @if (herramienta === 'tachar') {
+          <span class="colores">
+            <button type="button" class="color color--negro" [class.color--elegido]="colorTachado === 'negro'"
+            (click)="colorTachado = 'negro'" title="Tapar en negro"></button>
+            <button type="button" class="color color--blanco" [class.color--elegido]="colorTachado === 'blanco'"
+            (click)="colorTachado = 'blanco'" title="Dejarlo en blanco"></button>
+          </span>
+        }
+        <button type="button" class="boton" [disabled]="!documento || buscandoDatos"
+          (click)="tacharDatosPersonales()"
+          title="Buscar DNI, teléfonos, correos y cuentas, y marcarlos para revisarlos">
+          <i class="bi" [class.bi-eye-slash]="!buscandoDatos"
+            [class.bi-hourglass-split]="buscandoDatos"></i>
+        </button>
+        <button type="button" class="boton" [class.boton--activo]="herramienta === 'texto'"
+          (click)="elegirHerramienta('texto')"
+          title="Escribir sobre el documento: pulsa donde esté el hueco">
+          <i class="bi bi-fonts"></i>
+        </button>
+        @if (herramienta === 'texto') {
+          <span class="escritura">
+            <select class="escritura__fuente" [ngModel]="estiloEscritura.fuente"
+              (ngModelChange)="cambiarEstilo({ fuente: $event })" title="Tipo de letra">
+              @for (f of fuentes; track f) {
+                <option [value]="f.valor">{{ f.nombre }}</option>
+              }
+            </select>
+            <input type="number" class="escritura__tamano" [min]="tamanoMinimo" [max]="tamanoMaximo"
+              [ngModel]="estiloEscritura.tamano" (ngModelChange)="cambiarTamano($event)"
+              title="Tamaño de la letra, en puntos">
+            <button type="button" class="boton boton--letra" [class.boton--activo]="estiloEscritura.negrita"
+              (click)="cambiarEstilo({ negrita: !estiloEscritura.negrita })" title="Negrita">
+              <strong>N</strong>
+            </button>
+            <button type="button" class="boton boton--letra" [class.boton--activo]="estiloEscritura.cursiva"
+              (click)="cambiarEstilo({ cursiva: !estiloEscritura.cursiva })" title="Cursiva">
+              <em>K</em>
+            </button>
+            <span class="colores">
+              @for (tinta of coloresTexto; track tinta) {
+                <button type="button" class="color color--tinta-{{ tinta }}"
+                  [class.color--elegido]="estiloEscritura.color === tinta"
+                [title]="'Escribir en ' + tinta" (click)="cambiarEstilo({ color: tinta })"></button>
+              }
+            </span>
+          </span>
+        }
+        @if (hayCampos) {
+          <button type="button" class="boton"
+            [class.boton--activo]="conFormulario" (click)="alternarFormulario()"
+            title="Rellenar los campos del formulario">
+            <i class="bi bi-ui-checks"></i>
+          </button>
+        }
+        <button type="button" class="boton" [class.boton--activo]="menuAlSeleccionar"
+          (click)="alternarMenuAlSeleccionar()"
+          title="Preguntar qué hacer al seleccionar texto">
+          <i class="bi bi-menu-button-wide"></i>
+        </button>
+        <span class="separador"></span>
+        <!--
+        Abrir otro documento. La ventana nueva es un enlace de verdad y no un
+        `window.open`: abierta desde código después de una pregunta, el
+        navegador la tomaría por emergente y la bloquearía.
+        -->
+        <span class="abrir-otro">
+          <button type="button" class="boton" [class.boton--activo]="preguntandoDonde"
+            (click)="alternarDondeAbrir()" title="Abrir otro PDF">
+            <i class="bi bi-folder2-open"></i>
+          </button>
+          @if (preguntandoDonde) {
+            <span class="abrir-otro__donde">
+              <span class="abrir-otro__pregunta">¿Dónde?</span>
+              <button type="button" class="btn btn-sm btn-outline-primary"
+              (click)="abrirEnEstaVentana(selector)">Aquí</button>
+              <a class="btn btn-sm btn-outline-secondary" href="/visor" target="_blank"
+              rel="noopener" (click)="cerrarPreguntaDespues()">En otra ventana</a>
+            </span>
+          }
+          <input type="file" accept=".pdf" hidden #selector (change)="alElegirArchivo($event)">
         </span>
-      }
-      @if (hayCampos) {
-        <button type="button" class="boton"
-          [class.boton--activo]="conFormulario" (click)="alternarFormulario()"
-          title="Rellenar los campos del formulario">
-          <i class="bi bi-ui-checks"></i>
+      </div>
+
+      <div class="barra__archivo">
+        <button type="button" class="boton" [disabled]="!cambios.sePuedeDeshacer"
+          (click)="deshacer()" title="Deshacer (Ctrl+Z)" aria-label="Deshacer">
+          <i class="bi bi-arrow-counterclockwise"></i>
         </button>
-      }
-      <button type="button" class="boton" [class.boton--activo]="menuAlSeleccionar"
-        (click)="alternarMenuAlSeleccionar()"
-        title="Preguntar qué hacer al seleccionar texto">
-        <i class="bi bi-menu-button-wide"></i>
-      </button>
-      <span class="separador"></span>
-      <!--
-      Abrir otro documento. La ventana nueva es un enlace de verdad y no un
-      `window.open`: abierta desde código después de una pregunta, el
-      navegador la tomaría por emergente y la bloquearía.
-      -->
-      <span class="abrir-otro">
-        <button type="button" class="boton" [class.boton--activo]="preguntandoDonde"
-          (click)="alternarDondeAbrir()" title="Abrir otro PDF">
-          <i class="bi bi-folder2-open"></i>
-        </button>
-        @if (preguntandoDonde) {
-          <span class="abrir-otro__donde">
-            <span class="abrir-otro__pregunta">¿Dónde?</span>
-            <button type="button" class="btn btn-sm btn-outline-primary"
-            (click)="abrirEnEstaVentana(selector)">Aquí</button>
-            <a class="btn btn-sm btn-outline-secondary" href="/visor" target="_blank"
-            rel="noopener" (click)="cerrarPreguntaDespues()">En otra ventana</a>
-          </span>
+        @if (resultado) {
+          <button type="button" class="btn btn-sm btn-outline-success"
+            (click)="descargar()" aria-label="Descargar">
+            <i class="bi bi-download"></i><span class="d-none d-sm-inline ms-1">Descargar</span>
+          </button>
         }
-        <input type="file" accept=".pdf" hidden #selector (change)="alElegirArchivo($event)">
-      </span>
-      <button type="button" class="boton" [disabled]="!cambios.sePuedeDeshacer"
-        (click)="deshacer()" title="Deshacer (Ctrl+Z)">
-        <i class="bi bi-arrow-counterclockwise"></i>
-      </button>
-      <span class="barra__hueco"></span>
-      @if (resultado) {
-        <button type="button" class="btn btn-sm btn-outline-success"
-          (click)="descargar()">
-          <i class="bi bi-download me-1"></i>Descargar
+        <button type="button" class="btn btn-sm btn-primary" [disabled]="!hayCambios || guardando"
+          (click)="guardar()">
+          @if (guardando) {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+          }
+          Guardar
         </button>
-      }
-      <button type="button" class="btn btn-sm btn-primary" [disabled]="!hayCambios || guardando"
-        (click)="guardar()">
-        @if (guardando) {
-          <span class="spinner-border spinner-border-sm me-1"></span>
-        }
-        Guardar
-      </button>
+      </div>
     }
   </header>
 
@@ -204,7 +218,8 @@
           <i class="bi bi-file-earmark-pdf"></i>
           <h1 class="h4 mt-3">Visor de PDF</h1>
           <p class="text-body-secondary">
-            Arrastra aquí un PDF para leerlo, buscar dentro, subrayarlo o quitarle páginas.
+            <span class="sin-tactil">Arrastra aquí un PDF</span><span class="solo-tactil">Elige un PDF</span>
+            para leerlo, buscar dentro, subrayarlo o quitarle páginas.
           </p>
           <label class="btn btn-primary">
             Elegir un PDF

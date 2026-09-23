@@ -78,3 +78,43 @@
   color: var(--bs-warning-text-emphasis);
   font-weight: 600;
 }
+
+/*
+ * Móvil en vertical (`ESTRECHA`): el nombre en su propia línea, con el quitar a
+ * su lado, y el peso y el estado debajo. En una sola fila, a 360 px el nombre
+ * se quedaba en una docena de letras, y el nombre de una foto de móvil
+ * («IMG_20260923_…») no se distingue de otra hasta el final.
+ */
+@media (max-width: 575.98px) {
+  .cola__fila {
+    flex-wrap: wrap;
+    row-gap: 0.1rem !important;
+  }
+
+  .cola__nombre {
+    flex: 1 1 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .cola__peso,
+  .cola__estado {
+    order: 1;
+  }
+
+  /* Debajo del nombre, no debajo del asa. */
+  .cola__peso {
+    margin-left: 0;
+  }
+
+  .cola__asa ~ .cola__peso {
+    margin-left: 1.5rem;
+  }
+
+  /* El salto de línea: ocupa el resto de la primera fila. */
+  .cola__fila::after {
+    content: '';
+    order: 0;
+    flex-basis: 100%;
+  }
+}

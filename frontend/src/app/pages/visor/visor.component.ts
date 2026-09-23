@@ -6,6 +6,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { COMPACTA, cumple } from '../../core/pantalla';
 import { TraspasoService } from '../../core/traspaso.service';
 import { ApiService, ArchivoServidor, ZonasAnonimizado } from '../../core/api.service';
 import { MemoriaDocumentoService } from '../../core/memoria-documento.service';
@@ -88,10 +89,10 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
    *
    * En pantalla ancha se enseña la página entera: ajustar al ancho hace que una
    * A4 salga al 190 % y sólo se vea el tercio de arriba, que no es forma de
-   * empezar a leer. En una pantalla estrecha manda el ancho, porque la página
-   * completa dejaría el texto ilegible.
+   * empezar a leer. En una pantalla compacta manda el ancho, porque la página
+   * completa dejaría el texto ilegible (y en un móvil apaisado, diminuta).
    */
-  modoZoom: ModoZoom = window.innerWidth < 768 ? 'ancho' : 'pagina';
+  modoZoom: ModoZoom = cumple(COMPACTA) ? 'ancho' : 'pagina';
   columnas = 1;
   oscuro = false;
   paginaActual = 1;
@@ -131,8 +132,11 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   resultado: ArchivoServidor | null = null;
 
   // --- panel y búsqueda -------------------------------------------------
-  /** En pantallas estrechas el documento manda: el panel se abre a mano. */
-  panelAbierto = window.innerWidth >= 768;
+  /**
+   * En pantallas compactas el documento manda: el panel se abre a mano. Cuenta
+   * también el móvil apaisado, que por ancho parecería un escritorio.
+   */
+  panelAbierto = !cumple(COMPACTA);
   pestana: Pestana = 'paginas';
   consulta = '';
   resultados: Coincidencia[] = [];
@@ -458,7 +462,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   /** Ir a una página desde el panel: en móvil, además, lo cierra. */
   irAPaginaDesdePanel(numero: number): void {
     this.irAPagina(numero);
-    if (window.innerWidth < 768) {
+    if (cumple(COMPACTA)) {
       this.panelAbierto = false;
     }
   }

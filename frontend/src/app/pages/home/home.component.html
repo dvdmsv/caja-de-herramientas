@@ -1,7 +1,8 @@
 <header class="portada">
   <h1 class="portada__titulo">Herramientas para PDF e imágenes</h1>
   <p class="portada__subtitulo text-body-secondary">
-    Sin registro y sin instalar nada. Busca lo que necesitas o suelta un archivo.
+    Sin registro y sin instalar nada. Busca lo que necesitas o
+    <span class="sin-tactil">suelta</span><span class="solo-tactil">elige</span> un archivo.
   </p>
 
   <div class="buscador" role="search">
@@ -10,7 +11,7 @@
       placeholder="Unir, firmar, comprimir…"
       aria-label="Buscar una herramienta" aria-describedby="atajo-buscar"
       [(ngModel)]="busqueda" (keydown.enter)="abrirPrimera()" autocomplete="off">
-    <kbd class="buscador__atajo d-none d-md-inline" id="atajo-buscar" title="Pulsa / para buscar">/</kbd>
+    <kbd class="buscador__atajo d-none d-md-inline sin-tactil" id="atajo-buscar" title="Pulsa / para buscar">/</kbd>
   </div>
 
   <div class="soltar">
@@ -19,7 +20,7 @@
       <i class="bi bi-folder2-open me-1" aria-hidden="true"></i>Elige uno
       <input type="file" class="visually-hidden" multiple (change)="alElegir($event)">
     </label>
-    <span class="text-body-secondary d-none d-md-inline">o suéltalo en cualquier parte de la página</span>
+    <span class="text-body-secondary d-none d-md-inline sin-tactil">o suéltalo en cualquier parte de la página</span>
   </div>
 </header>
 

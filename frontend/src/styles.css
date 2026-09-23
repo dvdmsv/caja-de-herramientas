@@ -32,6 +32,50 @@ main {
   margin-inline: auto;
 }
 
+/* ─── Móvil ────────────────────────────────────────────────────────────────
+   Las consultas son las de core/pantalla.ts, repetidas a mano porque un CSS
+   no puede importarlas. Cada componente trae su propio apartado móvil; aquí
+   sólo lo que no es de ninguno. */
+
+/* Textos que dependen de si hay dedo o ratón: «Arrastra aquí» no le sirve de
+   nada a quien no puede arrastrar un archivo, y «toca» no se dice a un ratón.
+   Van los dos en el DOM y se oculta uno, así que el lector de pantalla sólo
+   lee el que se ve. */
+@media (pointer: coarse) {
+  .sin-tactil {
+    display: none !important;
+  }
+}
+
+@media not (pointer: coarse) {
+  .solo-tactil {
+    display: none !important;
+  }
+}
+
+/* Una fila que se desliza de lado, con sombra en el borde por donde queda más:
+   en táctil no hay barra de desplazamiento que avise de que hay más. Las capas
+   `local` viajan con el contenido y tapan la sombra al llegar al extremo; las
+   `scroll` se quedan quietas. Sin JavaScript que mire el desplazamiento. El
+   contenido tiene que ser transparente, o taparía las sombras. */
+.desplazable-x {
+  overflow-x: auto;
+  background:
+    linear-gradient(to right, var(--bs-body-bg) 30%, transparent) left / 2rem 100% no-repeat local,
+    linear-gradient(to left, var(--bs-body-bg) 30%, transparent) right / 2rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.2), transparent) left / 0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.2), transparent) right / 0.75rem 100% no-repeat scroll,
+    var(--bs-body-bg);
+}
+
+@media (max-width: 575.98px) {
+  /* La barra de acción de cada herramienta va pegada abajo (tool-controls):
+     sin esto, el campo que recibe el foco puede quedarse debajo de ella. */
+  html {
+    scroll-padding-bottom: 8rem;
+  }
+}
+
 /* Respeta a quien haya pedido menos animación en su sistema. */
 @media (prefers-reduced-motion: reduce) {
   *,

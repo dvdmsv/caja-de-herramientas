@@ -5,8 +5,10 @@ import {
   ChangeDetectionStrategy
 } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 
 import { ApiService, ArchivoServidor } from '../../core/api.service';
+import { TraspasoService } from '../../core/traspaso.service';
 import { PesoPipe } from '../peso.pipe';
 import { TipoVistaPrevia, tipoDeVistaPrevia } from '../tipos-archivo';
 import { avisoError, mensajeDeError } from '../notify';
@@ -20,6 +22,10 @@ import { avisoError, mensajeDeError } from '../notify';
  * Los PDF los enseña el visor del propio navegador dentro de un `iframe`. Es a
  * propósito: esta ventana la usan las quince herramientas, y traer pdf.js aquí
  * le costaría ~105 kB a las once que hoy no lo cargan.
+ *
+ * Pero Chrome en Android no tiene ese visor: el `iframe` sale en blanco. Lo
+ * dice `navigator.pdfViewerEnabled`, y entonces se ofrece abrir el archivo en
+ * el visor de la aplicación, que sí trae pdf.js y ya sabe recibir traspasos.
  */
 
 /** Por encima de esto el texto se recorta: un `<pre>` de diez megas cuelga la página. */
@@ -35,6 +41,11 @@ const MAXIMO_TEXTO = 1024 * 1024;
 export class VistaPreviaComponent implements OnChanges, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly router = inject(Router);
+  private readonly traspaso = inject(TraspasoService);
+
+  /** Si el navegador pinta PDF en un `iframe`. Sin la propiedad, se supone que sí. */
+  readonly pdfEnLinea = navigator.pdfViewerEnabled !== false;
 
   @ViewChild('botonCerrar') botonCerrar?: ElementRef<HTMLButtonElement>;
 
@@ -43,6 +54,9 @@ export class VistaPreviaComponent implements OnChanges, OnDestroy {
 
   tipo: TipoVistaPrevia | null = null;
   cargando = false;
+
+  /** Lo descargado, para poder pasárselo al visor sin volver a pedirlo. */
+  private contenido: Blob | null = null;
 
   /** Object URL del archivo; hay que revocarlo al cerrar. */
   private url = '';
@@ -107,7 +121,18 @@ export class VistaPreviaComponent implements OnChanges, OnDestroy {
     });
   }
 
+  /** Para el navegador que no enseña PDF: abrirlo en el visor de la aplicación. */
+  abrirEnVisor(): void {
+    if (!this.archivo || !this.contenido) {
+      return;
+    }
+    this.traspaso.dejar([new File([this.contenido], this.archivo.name, { type: 'application/pdf' })]);
+    this.cerrado.emit();
+    this.router.navigateByUrl('/visor');
+  }
+
   private mostrar(blob: Blob): void {
+    this.contenido = blob;
     if (this.tipo === 'texto') {
       blob.slice(0, MAXIMO_TEXTO).text().then(texto => {
         this.texto = texto;
@@ -130,6 +155,7 @@ export class VistaPreviaComponent implements OnChanges, OnDestroy {
       URL.revokeObjectURL(this.url);
     }
     this.url = '';
+    this.contenido = null;
     this.urlSegura = null;
     this.imagen = '';
     this.texto = '';

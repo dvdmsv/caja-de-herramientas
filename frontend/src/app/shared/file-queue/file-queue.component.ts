@@ -12,6 +12,7 @@ import { avisoInfo } from '../notify';
 import { destinosPara } from '../../core/tools';
 import { ColaReceptora, MARCO_HERRAMIENTA } from '../marco-herramienta';
 import { encaja, explicarRechazo } from '../tipos-archivo';
+import { ayudaTactil } from '../tactil';
 
 export type EstadoArchivo = 'local' | 'subiendo' | 'subido' | 'error';
 
@@ -57,6 +58,11 @@ export class FileQueueComponent implements OnInit, ColaReceptora {
   @Input() ordenable = false;
   @Input() deshabilitado = false;
   @Input() ayuda = 'Arrastra tus archivos aquí o haz clic para elegirlos';
+
+  /** La misma ayuda para una pantalla táctil, donde no hay nada que arrastrar. */
+  get ayudaParaElDedo(): string {
+    return ayudaTactil(this.ayuda);
+  }
 
   @Output() itemsChange = new EventEmitter<ArchivoEnCola[]>();
   /** Se emite sólo con los archivos recién añadidos. */

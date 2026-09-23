@@ -58,3 +58,49 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* El navegador no pinta PDF (Chrome en Android): en su lugar, ir al visor. */
+.sin-visor {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+}
+
+.sin-visor .bi {
+  font-size: 2.5rem;
+  color: var(--acento-texto);
+}
+
+/*
+ * Móvil en vertical (`ESTRECHA`): a pantalla completa. Con el margen y la
+ * ventana flotando, a una imagen o un texto le quedaban 300 px de ancho.
+ */
+@media (max-width: 575.98px) {
+  .fondo {
+    padding: 0;
+  }
+
+  .ventana {
+    max-width: none;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  /* Centrado en vertical con márgenes y no con `justify-content`: éste corta
+     por arriba lo que no cabe, y un texto largo perdería el principio. */
+  .cuerpo {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cuerpo > * {
+    margin-block: auto;
+  }
+
+  .marco {
+    flex: 1;
+    height: auto;
+  }
+}

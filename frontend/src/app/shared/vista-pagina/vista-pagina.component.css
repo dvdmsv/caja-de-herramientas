@@ -19,3 +19,16 @@
   max-width: 100%;
   height: auto;
 }
+
+/*
+ * Móvil en vertical (`ESTRECHA`): la página entera a la vista. A lo ancho, una
+ * A4 vertical mide casi pantalla y media, y con la barra de acción pegada abajo
+ * la parte de abajo —donde suele ir la numeración— se quedaba siempre tapada.
+ */
+@media (max-width: 575.98px) {
+  .pagina {
+    max-height: 65vh;
+    max-height: 65svh;
+    width: auto;
+  }
+}

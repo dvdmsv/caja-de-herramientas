@@ -383,9 +383,14 @@ html body .swal2-icon.swal2-info {
     justify-content: center;
   }
 
-  /* Las opciones en tarjeta ocupan todo el ancho y alinean su texto a la izquierda. */
+  /* Las opciones en tarjeta ocupan todo el ancho y alinean su texto a la
+     izquierda. Van en columna: son un título en bloque y su detalle debajo, y
+     con el `inline-flex` de arriba el `d-block` del título no cuenta y salía
+     todo en una línea, «Pantalla96 ppp · archivos ligeros». */
   .btn.text-start {
-    justify-content: flex-start;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
   }
 
   /* El deslizador mide 24 px de alto; el área de toque, 44. */

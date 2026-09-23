@@ -5,3 +5,35 @@
 .nombre-zip {
   max-width: 18rem;
 }
+
+/*
+ * Móvil en vertical (`ESTRECHA`): el nombre ocupa la primera línea entera y el
+ * peso y los botones van debajo. En una fila, con cuatro botones al lado, el
+ * nombre se quedaba en «muest…» y no había forma de saber cuál era cuál.
+ */
+@media (max-width: 575.98px) {
+  .resultado:not(.resultado--editando) {
+    flex-wrap: wrap;
+    row-gap: 0.25rem !important;
+  }
+
+  .resultado__nombre {
+    flex-basis: calc(100% - 1.5rem);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* Debajo del nombre, no del icono. */
+  .resultado__peso {
+    margin-left: 1.5rem;
+  }
+
+  /* Renombrar va con el nombre y el peso; las acciones, al otro lado. */
+  .resultado__renombrar {
+    margin-right: auto;
+  }
+
+  .nombre-zip {
+    max-width: none;
+  }
+}

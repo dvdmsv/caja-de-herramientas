@@ -81,12 +81,6 @@
 <app-tool-controls [pagina]="pagina" accion="Guardar el documento" icono="bi-check2-square">
 </app-tool-controls>
 
-@if (paginas.length > 0 && !hayCambios) {
-  <p class="small text-body-secondary mt-2 mb-0">
-    Mueve, gira o quita alguna página para poder guardar.
-  </p>
-}
-
 <app-result-list [archivos]="resultados"></app-result-list>
 
 </app-tool-page>

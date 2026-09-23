@@ -16,7 +16,10 @@
   (drop)="alSoltar($event)">
   @if (!compacta) {
     <i class="bi bi-cloud-arrow-up fs-2 text-primary" aria-hidden="true"></i>
-    <p class="mb-0 mt-2">{{ ayuda }}</p>
+    <p class="mb-0 mt-2">
+      <span class="sin-tactil">{{ ayuda }}</span>
+      <span class="solo-tactil">{{ ayudaParaElDedo }}</span>
+    </p>
     @if (aceptados) {
       <p class="small text-body-secondary mb-0 formatos">
         Formatos admitidos: {{ formatosLegibles }}
@@ -25,7 +28,7 @@
   } @else {
     <i class="bi {{ multiple ? 'bi-plus-lg' : 'bi-arrow-repeat' }} text-primary" aria-hidden="true"></i>
     <span>{{ multiple ? 'Añadir más archivos' : 'Cambiar de archivo' }}</span>
-    <span class="small text-body-secondary d-none d-sm-inline">{{ multiple ? 'o suéltalos aquí' : 'o suéltalo aquí' }}</span>
+    <span class="small text-body-secondary d-none d-sm-inline sin-tactil">{{ multiple ? 'o suéltalos aquí' : 'o suéltalo aquí' }}</span>
   }
 </div>
 
@@ -34,15 +37,15 @@
     cdkDropList [cdkDropListDisabled]="!ordenable || deshabilitado"
     (cdkDropListDropped)="reordenar($event)">
     @for (item of items; track item; let i = $index) {
-      <li class="list-group-item d-flex align-items-center gap-2"
+      <li class="list-group-item d-flex align-items-center gap-2 cola__fila"
         cdkDrag [cdkDragDisabled]="!ordenable || deshabilitado">
         @if (ordenable) {
-          <i class="bi bi-grip-vertical text-body-secondary asa"
+          <i class="bi bi-grip-vertical text-body-secondary asa cola__asa"
           aria-hidden="true" cdkDragHandle></i>
         }
-        <span class="text-truncate flex-grow-1" [title]="item.file.name">{{ item.file.name }}</span>
-        <span class="small text-body-secondary flex-shrink-0">{{ item.file.size | peso }}</span>
-        <span class="badge flex-shrink-0"
+        <span class="text-truncate flex-grow-1 cola__nombre" [title]="item.file.name">{{ item.file.name }}</span>
+        <span class="small text-body-secondary flex-shrink-0 cola__peso">{{ item.file.size | peso }}</span>
+        <span class="badge flex-shrink-0 cola__estado"
           [class.text-bg-secondary]="item.estado === 'local'"
           [class.text-bg-info]="item.estado === 'subiendo'"
           [class.text-bg-success]="item.estado === 'subido'"

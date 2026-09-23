@@ -991,7 +991,7 @@ errores siempre responden `{"error": "mensaje para el usuario"}`.
 
 ## Añadir una herramienta nueva
 
-Cuatro pasos, ninguno toca la configuración de nginx ni el arranque.
+Cinco pasos, ninguno toca la configuración de nginx ni el arranque.
 
 **1. Backend** — crea `backend/api/tools/mi_herramienta.py`:
 
@@ -1085,6 +1085,17 @@ opciones, o `pages/tools/unir-pdf/` si no las tiene.
 Con eso ya tiene su color de categoría, recibe archivos de otras herramientas
 y se ofrece en «Usar en…» sin hacer nada más. Si redefines `listo` con
 requisitos propios, redefine también `motivoBloqueo` para decir cuál falta.
+
+**5. Móvil** — no está terminada hasta que funciona en un móvil. Toda pieza de
+interfaz trae su apartado móvil: pruébala a 360 × 780 y a 844 × 390 con
+emulación táctil, sin desplazamiento lateral y con 44 px en todo lo que se
+toca. La mayor parte ya la resuelven las piezas comunes —la barra de acción se
+pega abajo, las listas enseñan el nombre entero, «Usar en…» sale como hoja
+inferior—, siempre que `<app-tool-controls>` vaya directamente dentro de
+`<app-tool-page>`. Lo propio de tu página va al final de su CSS, en un
+`@media` con las consultas de `core/pantalla.ts` y un comentario que diga qué
+cambia y por qué. Si un texto dice «arrastra» o «haz clic», dale su versión
+táctil con `.sin-tactil` / `.solo-tactil`.
 
 ## Pruebas
 
