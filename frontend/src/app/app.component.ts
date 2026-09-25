@@ -22,10 +22,13 @@ export class AppComponent {
   private readonly router = inject(Router);
   readonly tema = inject(TemaService);
 
+  /** Dentro de la aplicación de Windows; en la web, inactivo. */
+  readonly escritorio = inject(EscritorioService);
+
   constructor() {
     // Dentro de la aplicación de Windows, recoge lo abierto con «Abrir con…».
     // En la web no hace nada.
-    inject(EscritorioService).iniciar();
+    this.escritorio.iniciar();
   }
 
   get iconoTema(): string {

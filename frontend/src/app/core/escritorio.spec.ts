@@ -1,5 +1,6 @@
 import {
   PuenteTauri, esFaltaDePermiso, guardarConDialogo, nombreDeRuta, puente, recogerAbiertos,
+  versionDeLaAplicacion,
 } from './escritorio';
 
 /** Un Tauri de mentira que apunta lo que le piden. */
@@ -53,6 +54,13 @@ describe('escritorio', () => {
     expect(archivos.map(a => a.name)).toEqual(['contrato firmado.pdf', 'IMG_0001.HEIC']);
     expect(llamadas.filter(l => l.comando === 'leer_archivo').map(l => l.argumentos))
       .toEqual([{ ruta: 'C:\\Users\\ana\\Documents\\contrato firmado.pdf' }, { ruta: 'D:/fotos/IMG_0001.HEIC' }]);
+  });
+
+  it('pregunta la versión a Tauri, que la saca de tauri.conf.json', async () => {
+    const { falso, llamadas } = tauriFalso({ 'plugin:app|version': () => '0.1.0' });
+
+    expect(await versionDeLaAplicacion(falso)).toBe('0.1.0');
+    expect(llamadas[0].comando).toBe('plugin:app|version');
   });
 
   it('el nombre sale de rutas con barras de los dos lados', () => {

@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+
+import { EscritorioService } from '../../core/escritorio.service';
 
 /** Una pieza de fuera que hace parte del trabajo, con su licencia. */
 interface Pieza {
@@ -20,6 +22,9 @@ interface Pieza {
   styleUrl: './acerca-de.component.css',
 })
 export class AcercaDeComponent {
+  /** Sólo en la aplicación de Windows, que sabe qué versión es; la web no la tiene. */
+  version: string | null = null;
+
   readonly autor = 'dvdmsv';
   readonly perfil = 'https://github.com/dvdmsv';
   readonly codigo = 'https://github.com/dvdmsv/caja-de-herramientas';
@@ -38,4 +43,8 @@ export class AcercaDeComponent {
     { nombre: 'pdf.js', para: 'el visor', licencia: 'Apache-2.0' },
     { nombre: 'Angular, Bootstrap y Flask', para: 'la aplicación en sí', licencia: 'MIT · BSD-3-Clause' },
   ];
+
+  constructor() {
+    inject(EscritorioService).version().then(version => (this.version = version));
+  }
 }

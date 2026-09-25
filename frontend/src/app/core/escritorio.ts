@@ -47,6 +47,11 @@ export async function guardarConDialogo(tauri: PuenteTauri, blob: Blob, nombre: 
   return guardado === true;
 }
 
+/** La versión instalada, la de `tauri.conf.json`. Sirve para decirla al pedir ayuda. */
+export async function versionDeLaAplicacion(tauri: PuenteTauri): Promise<string> {
+  return String(await tauri.invoke('plugin:app|version'));
+}
+
 /** Los archivos que han llegado con «Abrir con…» y aún no se han recogido. */
 export async function recogerAbiertos(tauri: PuenteTauri): Promise<File[]> {
   const rutas = (await tauri.invoke('archivos_pendientes')) as string[];

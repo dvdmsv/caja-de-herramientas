@@ -42,7 +42,14 @@
 @if ((pantallaCompleta | async) === false) {
   <footer class="border-top py-3 mt-auto">
     <div class="container text-center text-body-secondary small">
-      <p class="mb-1">Tus archivos se borran del servidor 2 horas después de tu última actividad. · {{ anio }}</p>
+      <p class="mb-1">
+        @if (escritorio.activo) {
+          Tus archivos se quedan en tu equipo y se borran al volver a abrir la aplicación.
+        } @else {
+          Tus archivos se borran del servidor 2 horas después de tu última actividad.
+        }
+        · {{ anio }}
+      </p>
       <p class="mb-0 creditos">
         Hecha por <a [href]="perfilAutor" target="_blank" rel="noopener">dvdmsv</a>
         · <a routerLink="/acerca-de">Acerca de</a>

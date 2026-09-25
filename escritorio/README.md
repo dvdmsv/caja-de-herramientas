@@ -124,6 +124,8 @@ que son añadidos pequeños y sin efecto en la web.
 | `backend/errors.py` | los mensajes de memoria dicen `config.DONDE` («este equipo» / «este servidor») |
 | `frontend/src/app/core/api.service.ts` | `descargar()` pasa por `EscritorioService.guardar()` |
 | `frontend/src/app/app.component.ts`, `pages/home/home.component.ts` | recoger lo abierto con «Abrir con…» |
+| `frontend/src/app/app.component.html` | el aviso del pie cambia en la aplicación: allí no hay servidor ni caducidad de 2 h |
+| `frontend/src/app/pages/acerca-de/` | la versión instalada, que sólo sabe la aplicación |
 | `backend/tests/test_limites.py`, `test_arranque.py` | los `skipif` de Windows y el fallo nativo con `faulthandler` |
 | `scripts/barrido.py` | la variable `TOKEN` |
 

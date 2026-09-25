@@ -1,6 +1,9 @@
 <article class="acerca">
   <header class="mb-4">
     <h1 class="h2 mb-2">Acerca de</h1>
+    @if (version) {
+      <p class="text-body-secondary small mb-2">Aplicación para Windows, versión {{ version }}</p>
+    }
     <p class="lead text-body-secondary mb-0">
       Herramientas para PDF e imágenes, gratis y de código abierto. Sin cuentas, sin
       anuncios y sin guardar tus archivos más de lo necesario.

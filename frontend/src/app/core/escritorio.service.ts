@@ -2,7 +2,9 @@ import { Injectable, NgZone, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 
-import { EVENTO_ABIERTOS, esFaltaDePermiso, guardarConDialogo, puente, recogerAbiertos } from './escritorio';
+import {
+  EVENTO_ABIERTOS, esFaltaDePermiso, guardarConDialogo, puente, recogerAbiertos, versionDeLaAplicacion,
+} from './escritorio';
 
 /**
  * La aplicación de escritorio vista desde Angular (la lógica, en `escritorio.ts`).
@@ -37,6 +39,18 @@ export class EscritorioService {
     // llega por `eval`: se vuelve a la zona para que se pinte.
     window.addEventListener(EVENTO_ABIERTOS, () => this.zona.run(() => this.recoger()));
     this.recoger();
+  }
+
+  /** La versión instalada, o `null` en la web o si no se puede saber. */
+  async version(): Promise<string | null> {
+    if (!this.tauri) {
+      return null;
+    }
+    try {
+      return await versionDeLaAplicacion(this.tauri);
+    } catch {
+      return null;
+    }
   }
 
   /** Lo que haya llegado mientras la portada no estaba. Se entrega una vez. */
