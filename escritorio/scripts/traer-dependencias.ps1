@@ -135,9 +135,12 @@ function Extraer([string]$instalador, [string]$carpeta) {
 }
 
 New-Item -ItemType Directory -Force $Descargas | Out-Null
+# Rutas absolutas y sin `..`: msiexec no abre un paquete con una ruta relativa
+# o con saltos atrás (sale con 1619, "no se puede abrir el paquete").
+$Descargas = [IO.Path]::GetFullPath($Descargas)
+$Destino = [IO.Path]::GetFullPath($Destino)
 if (Test-Path $Destino) { Remove-Item $Destino -Recurse -Force }
 New-Item -ItemType Directory -Force $Destino | Out-Null
-$Destino = (Resolve-Path $Destino).Path
 $licencias = New-Item -ItemType Directory -Force (Join-Path $Destino 'licencias')
 
 # --- Tesseract -----------------------------------------------------------------
@@ -205,6 +208,10 @@ Remove-Item $extraido -Recurse -Force -ErrorAction SilentlyContinue
 
 # --- Pango, de MSYS2 -------------------------------------------------------------
 $bash = Join-Path $Msys 'usr\bin\bash.exe'
+# En modo MINGW64: con el MSYS de serie, /mingw64/bin no está en el PATH de
+# bash y no se encontraría ntldd.
+$env:MSYSTEM = 'MINGW64'
+$env:CHERE_INVOKING = '1'
 & $bash -lc 'pacman -S --noconfirm --needed mingw-w64-x86_64-pango mingw-w64-x86_64-ntldd' | Out-Host
 $binMsys = Join-Path $Msys 'mingw64\bin'
 $gtk = New-Item -ItemType Directory -Force (Join-Path $Destino 'gtk\bin')
