@@ -14,7 +14,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "publisher": "dvdmsv",
     "homepage": "https://github.com/dvdmsv/caja-de-herramientas",
     "copyright": "AGPL-3.0-or-later",
@@ -33,10 +35,25 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["Spanish", "English"],
+        "languages": [
+          "Spanish",
+          "English"
+        ],
         "displayLanguageSelector": false,
         "compression": "lzma",
         "installerHooks": "windows/ganchos.nsh"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZEMDkzNjdDNjQ3NDY2QjAKUldTd1puUmtmRFlKL1lkVTdRZWIySlQzaUJ2bm0rSFJmMXNMbjJBSU94b1JDUUM1OTNwemZ6NWkK",
+      "endpoints": [
+        "https://github.com/dvdmsv/caja-de-herramientas/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

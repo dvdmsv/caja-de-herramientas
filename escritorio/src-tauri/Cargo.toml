@@ -14,6 +14,11 @@ tauri = { version = "2.11.6", features = [] }
 tauri-plugin-single-instance = "2.4.5"
 tauri-plugin-opener = "2.5.5"
 tauri-plugin-dialog = "2.7.3"
+# Con el TLS de Windows (Schannel) y no con rustls: usa los certificados y el
+# proxy del sistema, como cualquier otro programa del equipo, y se ahorra ring,
+# que necesita compilar C. Sin `zip`: en Windows se descarga el instalador tal
+# cual.
+tauri-plugin-updater = { version = "2.12.0", default-features = false, features = ["native-tls", "system-proxy"] }
 percent-encoding = "2.3.2"
 getrandom = "0.3"
 serde_json = "1"

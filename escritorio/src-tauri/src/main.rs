@@ -40,7 +40,7 @@ use std::thread;
 
 use tauri::webview::NewWindowResponse;
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 const VENTANA: &str = "principal";
 
@@ -102,6 +102,7 @@ fn main() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Abiertos::default())
         .invoke_handler(tauri::generate_handler![guardar_como, archivos_pendientes, leer_archivo])
         .setup({
@@ -133,6 +134,7 @@ fn main() {
 
                 let backend = arrancar_backend(app.handle(), ventana, puerto)?;
                 app.manage(backend);
+                buscar_actualizacion(app.handle().clone());
                 Ok(())
             }
         })
@@ -176,6 +178,47 @@ fn es_propia(url: &Url, puerto: &Arc<Mutex<Option<u16>>>) -> bool {
         "blob" | "data" | "about" => true,
         _ => false,
     }
+}
+
+// --- Actualizaciones ---------------------------------------------------------
+
+/// Mira si hay una versión nueva en GitHub Releases y, si la hay, pregunta.
+///
+/// Preguntando y no por su cuenta: instalar cierra la aplicación, y alguien
+/// puede estar a mitad de un trabajo. Sin red, o sin versión nueva, no se dice
+/// nada. La descarga la comprueba el plugin con la clave pública de
+/// `tauri.conf.json` antes de ejecutar nada: un instalador que no esté firmado
+/// con la privada (que sólo tiene la CI) se rechaza.
+///
+/// En Windows, instalar lanza el instalador y cierra este proceso; el job se
+/// lleva el backend por delante.
+fn buscar_actualizacion(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_updater::UpdaterExt;
+
+        let Ok(actualizador) = app.updater() else { return };
+        let Ok(Some(nueva)) = actualizador.check().await else { return };
+        let texto = format!(
+            "Hay una versión nueva de la Caja de herramientas: la {}. Tienes la {}.\n\n\
+             ¿La instalo ahora? La aplicación se cerrará un momento y volverá a abrirse.",
+            nueva.version, nueva.current_version
+        );
+        let para_instalar = app.clone();
+        app.dialog()
+            .message(texto)
+            .title("Actualización disponible")
+            .kind(MessageDialogKind::Info)
+            .buttons(MessageDialogButtons::OkCancelCustom("Actualizar".into(), "Ahora no".into()))
+            .show(move |acepta| {
+                if acepta {
+                    tauri::async_runtime::spawn(async move {
+                        if nueva.download_and_install(|_, _| {}, || {}).await.is_ok() {
+                            para_instalar.restart();
+                        }
+                    });
+                }
+            });
+    });
 }
 
 // --- Comandos del frontend ----------------------------------------------------
