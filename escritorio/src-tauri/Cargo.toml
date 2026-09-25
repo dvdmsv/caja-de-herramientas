@@ -1,6 +1,6 @@
 [package]
 name = "caja-de-herramientas"
-version = "0.1.0"
+version = "0.1.1"
 description = "Caja de herramientas para PDF e imágenes, como aplicación de Windows"
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/dvdmsv/caja-de-herramientas"
