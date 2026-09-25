@@ -104,3 +104,20 @@
     transition: none;
   }
 }
+
+/* El crédito del pie: los enlaces con el color del texto de alrededor y
+   subrayados, que es lo que los distingue en una línea tan discreta. */
+.creditos a {
+  color: inherit;
+}
+
+/* TACTIL (core/pantalla.ts): dos enlaces pequeños en una línea no llegan a
+   los 44 px para el dedo; se les da alto sin agrandar la letra. */
+@media (pointer: coarse) {
+  .creditos a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 0.25rem;
+  }
+}

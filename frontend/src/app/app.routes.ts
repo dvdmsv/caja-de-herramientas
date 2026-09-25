@@ -233,5 +233,12 @@ export const routes: Routes = [
     data: { pantallaCompleta: true },
     loadComponent: () => import('./pages/visor/visor.component').then(m => m.VisorComponent),
   },
+  {
+    // No es una herramienta: no va en el catálogo (core/tools.ts).
+    path: 'acerca-de',
+    title: 'Acerca de',
+    loadComponent: () =>
+      import('./pages/acerca-de/acerca-de.component').then(m => m.AcercaDeComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

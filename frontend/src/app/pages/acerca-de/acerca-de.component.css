@@ -1,0 +1,70 @@
+/* Una columna de lectura: a todo el ancho del contenedor las líneas de texto
+   serían demasiado largas para leerse bien. */
+.acerca {
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+/* Icono a la izquierda y texto al lado, como las tarjetas de la portada. */
+.bloque {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.piezas__titulo {
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+}
+
+/* Nombre, para qué sirve y licencia en una fila, alineados en columnas. */
+.pieza {
+  display: grid;
+  grid-template-columns: 13rem 1fr auto;
+  gap: 0.25rem 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+.pieza__nombre {
+  font-weight: 600;
+}
+
+.pieza__licencia {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* TACTIL (core/pantalla.ts): el nombre del autor es un enlace dentro del
+   título y medía 25 px de alto; se le dan los 44 para el dedo sin agrandar la
+   letra. */
+@media (pointer: coarse) {
+  .bloque h2 a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+}
+
+/* ESTRECHA (core/pantalla.ts): a 360 px las tres columnas no caben —el «para
+   qué» se quedaba en dos palabras por línea—, así que cada pieza pasa a dos
+   renglones: nombre y licencia arriba, para qué debajo. Y el botón de cada
+   bloque, a todo el ancho, que es como van las acciones en el móvil. */
+@media (max-width: 575.98px) {
+  .pieza {
+    grid-template-columns: 1fr auto;
+  }
+
+  .pieza__para {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .bloque {
+    gap: 0.75rem;
+  }
+
+  .bloque .btn {
+    width: 100%;
+  }
+}

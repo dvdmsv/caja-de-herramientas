@@ -1,0 +1,69 @@
+<article class="acerca">
+  <header class="mb-4">
+    <h1 class="h2 mb-2">Acerca de</h1>
+    <p class="lead text-body-secondary mb-0">
+      Herramientas para PDF e imágenes, gratis y de código abierto. Sin cuentas, sin
+      anuncios y sin guardar tus archivos más de lo necesario.
+    </p>
+  </header>
+
+  <section class="card mb-3">
+    <div class="card-body bloque">
+      <span class="pastilla" aria-hidden="true"><i class="bi bi-person-badge"></i></span>
+      <div>
+        <h2 class="h5 mb-1">Hecha por <a [href]="perfil" target="_blank" rel="noopener">{{ autor }}</a></h2>
+        <p class="mb-0 text-body-secondary">
+          La dejo gratis para quien la necesite. Si te resulta útil, dar una
+          estrella al repositorio ayuda a que más gente la encuentre.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card mb-3">
+    <div class="card-body bloque">
+      <span class="pastilla" aria-hidden="true"><i class="bi bi-book"></i></span>
+      <div>
+        <h2 class="h5 mb-1">Código fuente</h2>
+        <p class="mb-2 text-body-secondary">
+          Licencia <strong>AGPL-3.0</strong>: puedes usarla, estudiarla, cambiarla y
+          compartirla, siempre que quien reciba tu versión pueda hacer lo mismo.
+        </p>
+        <a class="btn btn-outline-primary btn-sm" [href]="codigo" target="_blank" rel="noopener">
+          <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>Ver el código en GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="card mb-4">
+    <div class="card-body bloque">
+      <span class="pastilla" aria-hidden="true"><i class="bi bi-pc-display"></i></span>
+      <div>
+        <h2 class="h5 mb-1">Aplicación para Windows</h2>
+        <p class="mb-2 text-body-secondary">
+          Las mismas herramientas instaladas en tu equipo: los documentos no salen de
+          él. Windows 10 y 11 de 64 bits.
+        </p>
+        <a class="btn btn-outline-primary btn-sm" [href]="descargaWindows" rel="noopener">
+          <i class="bi bi-download me-1" aria-hidden="true"></i>Descargar para Windows
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="h6 text-uppercase text-body-secondary piezas__titulo">
+      <i class="bi bi-award me-1" aria-hidden="true"></i>Hecha con
+    </h2>
+    <ul class="list-unstyled piezas">
+      @for (pieza of piezas; track pieza.nombre) {
+        <li class="pieza">
+          <span class="pieza__nombre">{{ pieza.nombre }}</span>
+          <span class="pieza__para text-body-secondary">{{ pieza.para }}</span>
+          <span class="pieza__licencia text-body-secondary">{{ pieza.licencia }}</span>
+        </li>
+      }
+    </ul>
+  </section>
+</article>
