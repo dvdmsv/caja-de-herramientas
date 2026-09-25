@@ -30,6 +30,28 @@ Pensada para usarse, no sólo para funcionar:
 - **Accesible.** Sin fallos serios ni críticos de axe-core en claro, oscuro,
   escritorio y móvil, navegable con teclado y con áreas táctiles de 44 px.
 
+## Aplicación para Windows
+
+Las mismas herramientas, instalables en tu equipo y **sin servidor**: los
+documentos no salen de tu ordenador. Trae dentro todo lo que necesita
+(LibreOffice, el reconocimiento de texto…), así que no hay que instalar nada más.
+
+**[Descargar para Windows](https://github.com/dvdmsv/caja-de-herramientas/releases/latest/download/CajaDeHerramientas-setup.exe)**
+· Windows 10 y 11 de 64 bits · unos 310 MB · [todas las versiones](https://github.com/dvdmsv/caja-de-herramientas/releases)
+
+- **Se instala sin permisos de administrador**, sólo para tu usuario, y se
+  desinstala desde *Configuración → Aplicaciones*.
+- **Todavía no está firmada**, así que la primera vez Windows avisará con
+  «Windows protegió su PC». Para instalarla: *Más información* → *Ejecutar de
+  todas formas*.
+- **Se actualiza sola**: al abrirla mira si hay una versión nueva y pregunta
+  antes de instalarla.
+- Aparece en **«Abrir con…»** del Explorador para PDF, imágenes y documentos, sin
+  hacerse programa predeterminado de nada.
+
+Se desarrolla en la rama [`escritorio`](https://github.com/dvdmsv/caja-de-herramientas/tree/escritorio),
+que explica en `escritorio/README.md` cómo está hecha y cómo compilarla.
+
 ## Herramientas
 
 | Herramienta | Qué hace | Opciones |
