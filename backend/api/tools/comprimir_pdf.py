@@ -160,8 +160,14 @@ def _comprimir(origen: str, destino: str, ajustes: dict | None, para_web: bool,
         # Limpiar la estructura y escribirlo entero no es despreciable en un
         # PDF grande, y no se puede contar: se dice al menos qué está pasando.
         progreso.fase('Guardando el documento', cancelable=False)
+        # `no_new_id`: conservar el /ID del original en vez de inventar uno. El
+        # que inventa MuPDF son 16 bytes al azar que unas veces escribe en
+        # hexadecimal y otras como texto con escapes, así que el mismo documento
+        # comprimido dos veces pesaba uno o dos bytes distinto. Y eso rompía la
+        # promesa de `/minimo`: quien pedía justo el mínimo podía quedarse sin
+        # él por un byte. Medido: el mismo PDF dio 68380 y 68381.
         documento.save(destino, garbage=4, deflate=True, deflate_images=True,
-                       deflate_fonts=True, clean=True, linear=para_web)
+                       deflate_fonts=True, clean=True, linear=para_web, no_new_id=True)
 
 
 def _hasta_tamano(origen: str, destino: str, objetivo: int, para_web: bool) -> bool:
