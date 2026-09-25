@@ -315,7 +315,7 @@ jobs:
           $etiqueta = '${{ github.ref_name }}'
           $version = (Get-Content escritorio\src-tauri\tauri.conf.json -Raw | ConvertFrom-Json).version
           if ($etiqueta -ne "v$version") {
-            throw "La etiqueta es $etiqueta pero tauri.conf.json dice $version: sube la versión antes de etiquetar."
+            throw "La etiqueta es $etiqueta pero tauri.conf.json dice ${version}: sube la versión antes de etiquetar."
           }
           # Sin espacios: GitHub los cambia por puntos al subirlo, y la URL de
           # latest.json dejaría de apuntar al archivo.
