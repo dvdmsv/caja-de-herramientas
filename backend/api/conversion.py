@@ -200,8 +200,12 @@ def _esperar(orden: list[str], tiempo_limite: int, programa: str, no_disponible:
         #
         # `CREATE_NO_WINDOW`: sin él, desde la aplicación de escritorio cada
         # conversión abriría y cerraría una consola negra delante del usuario.
-        proceso = subprocess.Popen(resolver(orden), stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE, encoding='utf-8',
+        # `stdin` nulo y no heredado: si el backend no tiene una entrada válida
+        # (en Windows, lanzado sin consola), el programa la heredaría rota y
+        # ocrmypdf fallaría al lanzar Ghostscript con «controlador no válido».
+        # Visto en una VM limpia. Y así nadie se queda esperando entrada.
+        proceso = subprocess.Popen(resolver(orden), stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8',
                                    errors='replace', env=entorno_de_programas(),
                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     except FileNotFoundError as err:  # falta el programa en la imagen

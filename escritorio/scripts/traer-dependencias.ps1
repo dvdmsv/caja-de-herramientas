@@ -50,6 +50,25 @@ $ProgressPreference = 'SilentlyContinue'   # sin esto Invoke-WebRequest va diez 
 #
 # Al subir una versión: cambiar la URL, descargarla, `Get-FileHash` y pegar la
 # suma. Y comprobar en la CI que el barrido sigue en verde.
+# El runtime de Visual C++ que necesitan Ghostscript y LibreOffice, **entero**.
+# En un Windows recién instalado no está (lo instala el vcredist de otros
+# programas), y la CI no lo nota porque su máquina sí lo trae: con sólo msvcp140
+# y vcruntime140, LibreOffice salía con 0xC0000135 (DLL no encontrada) en una VM
+# limpia, porque también usa msvcp140_1 y msvcp140_2. Se copian las del sistema
+# que compila, junto a cada programa, que es como Microsoft permite
+# redistribuirlas.
+$RuntimeVisualC = @(
+  'msvcp140.dll', 'msvcp140_1.dll', 'msvcp140_2.dll', 'msvcp140_atomic_wait.dll',
+  'msvcp140_codecvt_ids.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'concrt140.dll'
+)
+function CopiarRuntime([string]$carpeta) {
+  foreach ($dll in $RuntimeVisualC) {
+    $origen = Join-Path $env:SystemRoot "System32\$dll"
+    $destino = Join-Path $carpeta $dll
+    if ((Test-Path $origen) -and -not (Test-Path $destino)) { Copy-Item $origen $destino }
+  }
+}
+
 $Paquetes = @{
   tesseract = @{
     url = 'https://github.com/tesseract-ocr/tesseract/releases/download/5.5.3/tesseract-ocr-w64-setup-5.5.3.20260724.exe'
@@ -167,13 +186,10 @@ Extraer (Traer 'ghostscript') $gs
 Remove-Item (Join-Path $gs 'doc'), (Join-Path $gs 'examples'), (Join-Path $gs 'vcredist_x64.exe') `
   -Recurse -Force -ErrorAction SilentlyContinue
 Get-ChildItem $gs -Filter '*.nsis' | Remove-Item
-# Ghostscript está compilado con Visual C++ y necesita su runtime, que en un
-# equipo limpio puede no estar: su instalador lo instalaba con vcredist_x64.exe.
-# Aquí va junto al programa, que es como Microsoft permite redistribuirlo (lo
-# que sí trae Windows 10 y 11 es la parte universal, las api-ms-win-crt-*).
-foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
-  Copy-Item (Join-Path $env:SystemRoot "System32\$dll") (Join-Path $gs 'bin')
-}
+# Su instalador traía el runtime de Visual C++ en vcredist_x64.exe; aquí va
+# junto al programa (ver $RuntimeVisualC). Lo que sí trae Windows 10 y 11 es la
+# parte universal, las api-ms-win-crt-*.
+CopiarRuntime (Join-Path $gs 'bin')
 # Es AGPL, igual que este proyecto.
 "Ghostscript 10.08 — GNU AGPL 3.0`nhttps://www.ghostscript.com/licensing/" |
   Set-Content (Join-Path $licencias 'ghostscript.txt') -Encoding utf8NoBOM
@@ -213,15 +229,9 @@ foreach ($nivel in (Get-ChildItem $libreoffice -Directory), (Get-ChildItem (Join
   } | Sort-Object MB -Descending | Select-Object -First 12 | Format-Table -AutoSize | Out-String | Write-Host
 }
 Copy-Item (Join-Path $libreoffice 'LICENSE*') $licencias -ErrorAction SilentlyContinue
-# El mismo runtime de Visual C++ que Ghostscript. Instalado de verdad, el MSI lo
-# pone en System32; extraído con `/a`, no, y en un equipo limpio no arrancaría.
-foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
-  $destinoDll = Join-Path $libreoffice "program\$dll"
-  if (-not (Test-Path $destinoDll)) {
-    Copy-Item (Join-Path $env:SystemRoot "System32\$dll") $destinoDll
-    Write-Host "LibreOffice no traía ${dll}: copiada."
-  }
-}
+# El mismo runtime. Instalado de verdad, el MSI lo pone en System32; extraído
+# con `/a`, no, y en un equipo limpio no arrancaría.
+CopiarRuntime (Join-Path $libreoffice 'program')
 Remove-Item $extraido -Recurse -Force -ErrorAction SilentlyContinue
 
 # --- Pango, de MSYS2 -------------------------------------------------------------
