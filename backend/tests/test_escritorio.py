@@ -262,3 +262,17 @@ def test_en_la_aplicacion_los_mensajes_no_hablan_de_servidor(monkeypatch):
     assert fallo.value.status == 413
     assert 'servidor' not in fallo.value.message
     assert 'cierra otros programas' in fallo.value.message
+
+
+def test_lo_que_lanza_ocrmypdf_no_hereda_entrada_ni_salida():
+    """WinError 6 al lanzar Ghostscript desde ocrmypdf empaquetado: con entrada
+    y salida nulas explícitas no hay descriptores heredados que duplicar."""
+    import subprocess
+
+    import escritorio
+
+    assert escritorio.sin_heredar({'stderr': subprocess.PIPE}) == {
+        'stdin': subprocess.DEVNULL, 'stdout': subprocess.DEVNULL, 'stderr': subprocess.PIPE}
+    # Lo que ya se dice no se toca.
+    assert escritorio.sin_heredar({'stdout': subprocess.PIPE})['stdout'] == subprocess.PIPE
+    assert escritorio.sin_heredar({'stdin': None})['stdin'] == subprocess.DEVNULL

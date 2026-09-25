@@ -187,10 +187,45 @@ def servir_frontend(app, carpeta: str) -> None:
         return send_from_directory(carpeta, 'index.html')
 
 
+def sin_heredar(argumentos: dict) -> dict:
+    """Los argumentos de un `Popen` con entrada y salida nulas si no se dicen.
+
+    Cuando ocrmypdf lanza Ghostscript sólo le redirige la salida de errores, y
+    para las otras dos `subprocess` pide al sistema las de este proceso y las
+    duplica. En Windows, desde el backend empaquetado, eso fallaba a veces con
+    «controlador no válido» (WinError 6) y PDF/A u OCR se caían: visto en la CI y
+    en una VM limpia, y no siempre. Con una nula explícita no hay nada que
+    duplicar. La salida de errores sí se hereda: es donde queda el diagnóstico.
+    """
+    import subprocess
+
+    for flujo in ('stdin', 'stdout'):
+        if argumentos.get(flujo) is None:
+            argumentos[flujo] = subprocess.DEVNULL
+    return argumentos
+
+
+def _popen_sin_heredar() -> None:
+    """Aplica `sin_heredar` a todo lo que se lance desde este proceso."""
+    import subprocess
+
+    original = subprocess.Popen.__init__
+
+    def __init__(self, args, *resto, **argumentos):
+        # Sólo cuando se llama con palabras clave, que es como lo hacen ocrmypdf
+        # y pdf2docx: con posicionales, `stdin` podría venir ya en `resto`.
+        if not resto:
+            sin_heredar(argumentos)
+        original(self, args, *resto, **argumentos)
+
+    subprocess.Popen.__init__ = __init__
+
+
 def lanzar_programa(nombre: str, argumentos: list[str]) -> None:
     """Arranca ocrmypdf o pdf2docx como si fuera su script de consola."""
     from api.conversion import PROGRAMAS_DE_PYTHON
 
+    _popen_sin_heredar()
     modulo, funcion = PROGRAMAS_DE_PYTHON[nombre].split(':')
     sys.argv = [nombre, *argumentos]
     resultado = getattr(importlib.import_module(modulo), funcion)()
