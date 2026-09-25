@@ -192,7 +192,7 @@ def test_el_vendor_dice_donde_esta_cada_programa(monkeypatch, tmp_path):
     # Puestas y quitadas con monkeypatch para que las restaure al acabar: si
     # no, `usar_vendor` las dejaría puestas para el resto de la batería.
     for nombre in ('TESSDATA_PREFIX', 'WEASYPRINT_DLL_DIRECTORIES', 'FONTCONFIG_FILE',
-                   'RUTA_SOFFICE'):
+                   'RUTA_SOFFICE', 'RUTA_GS', 'PATH_PROGRAMAS'):
         monkeypatch.setenv(nombre, '-')
         monkeypatch.delenv(nombre)
     monkeypatch.setenv('PATH', 'sistema')
@@ -200,11 +200,24 @@ def test_el_vendor_dice_donde_esta_cada_programa(monkeypatch, tmp_path):
 
     escritorio.usar_vendor(vendor)
 
-    ruta = os.environ['PATH'].split(os.pathsep)
-    assert ruta[:2] == [os.path.join(vendor, 'tesseract'), os.path.join(vendor, 'gs', 'bin')], \
-        'los del paquete van delante de los del sistema'
-    assert not any('libreoffice' in parte for parte in ruta), \
-        'LibreOffice trae su propio python.exe y no puede ir en el PATH'
+    assert os.environ['PATH'] == 'sistema', \
+        'Tesseract trae sus propias DLL de GTK y taparían las de WeasyPrint'
+    assert os.environ['PATH_PROGRAMAS'].split(os.pathsep) == [
+        os.path.join(vendor, 'tesseract'), os.path.join(vendor, 'gs', 'bin')]
+    assert os.environ['RUTA_GS'] == os.path.join(vendor, 'gs', 'bin', 'gswin64c.exe')
     assert os.environ['RUTA_SOFFICE'].endswith(os.path.join('libreoffice', 'program', 'soffice.exe'))
     assert os.environ['TESSDATA_PREFIX'] == os.path.join(vendor, 'tesseract', 'tessdata')
     assert os.environ['FONTCONFIG_FILE'] == os.path.join(vendor, 'fonts.conf')
+
+
+def test_los_programas_reciben_su_path_y_el_backend_no(monkeypatch):
+    from api import conversion
+
+    monkeypatch.setenv('PATH', 'sistema')
+    monkeypatch.delenv('PATH_PROGRAMAS', raising=False)
+    assert conversion.entorno_de_programas() is None, 'la web no cambia'
+
+    monkeypatch.setenv('PATH_PROGRAMAS', 'tesseract')
+    entorno = conversion.entorno_de_programas()
+    assert entorno['PATH'] == os.pathsep.join(['tesseract', 'sistema'])
+    assert os.environ['PATH'] == 'sistema'

@@ -75,20 +75,25 @@ def carpeta_vendor() -> str | None:
 def usar_vendor(vendor: str) -> None:
     """Le dice a cada programa externo dónde está lo suyo.
 
-    - Tesseract y Ghostscript van **delante** en el PATH: ocrmypdf los busca por
-      nombre, y si el usuario tiene otra versión instalada no debe ser ésa la
-      que se use.
-    - LibreOffice **no** va en el PATH: su carpeta `program` trae un `python.exe`
-      propio que taparía cualquier otro. Se usa `RUTA_SOFFICE`.
+    - **Tesseract y Ghostscript no van en el PATH del backend.** Tesseract trae
+      sus propias copias de las bibliotecas de GTK (libgobject, libharfbuzz,
+      libcairo…), y WeasyPrint busca las suyas por nombre en el PATH: con la
+      carpeta de Tesseract delante cargaba su libgobject, que fuera de esa
+      carpeta no encuentra sus dependencias, y el backend no arrancaba. Van en
+      `PATH_PROGRAMAS`, que `conversion.ejecutar` antepone sólo en el entorno de
+      los programas que lanza: ocrmypdf los busca por nombre.
+    - Ghostscript, cuando se llama directamente, con su ruta (`RUTA_GS`).
+    - LibreOffice tampoco va en el PATH, ni en el de los hijos: su carpeta
+      `program` trae un `python.exe` propio. Se usa `RUTA_SOFFICE`.
     - WeasyPrint lee `WEASYPRINT_DLL_DIRECTORIES` al importarse, y fontconfig su
       `FONTCONFIG_FILE`, que sólo ve las letras del paquete.
 
-    Con `setdefault`, salvo el PATH: quien lance el backend puede señalar otra
-    cosa a propósito.
+    Con `setdefault`: quien lance el backend puede señalar otra cosa a propósito.
     """
     tesseract = os.path.join(vendor, 'tesseract')
     gs = os.path.join(vendor, 'gs', 'bin')
-    os.environ['PATH'] = os.pathsep.join([tesseract, gs, os.environ.get('PATH', '')])
+    os.environ.setdefault('PATH_PROGRAMAS', os.pathsep.join([tesseract, gs]))
+    os.environ.setdefault('RUTA_GS', os.path.join(gs, 'gswin64c.exe'))
     os.environ.setdefault('TESSDATA_PREFIX', os.path.join(tesseract, 'tessdata'))
     os.environ.setdefault('RUTA_SOFFICE',
                           os.path.join(vendor, 'libreoffice', 'program', 'soffice.exe'))

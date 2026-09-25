@@ -118,6 +118,21 @@ def resolver(orden: list[str]) -> list[str]:
     return orden
 
 
+def entorno_de_programas() -> dict | None:
+    """El entorno de los programas externos: el del backend con `PATH_PROGRAMAS`
+    delante, o el mismo sin tocar (`None`) si no lo hay, que es la web.
+
+    Existe por la aplicación de escritorio: Tesseract y Ghostscript tienen que
+    estar en el PATH de ocrmypdf, que los busca por nombre, y **no** en el del
+    backend, porque Tesseract trae sus propias bibliotecas de GTK y taparían las
+    de WeasyPrint (ver `escritorio.usar_vendor`).
+    """
+    extra = os.environ.get('PATH_PROGRAMAS', '').strip()
+    if not extra:
+        return None
+    return {**os.environ, 'PATH': os.pathsep.join([extra, os.environ.get('PATH', '')])}
+
+
 def en_palabras(segundos: int) -> str:
     """El plazo dicho como lo diría una persona.
 
@@ -187,7 +202,7 @@ def _esperar(orden: list[str], tiempo_limite: int, programa: str, no_disponible:
         # conversión abriría y cerraría una consola negra delante del usuario.
         proceso = subprocess.Popen(resolver(orden), stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE, encoding='utf-8',
-                                   errors='replace',
+                                   errors='replace', env=entorno_de_programas(),
                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     except FileNotFoundError as err:  # falta el programa en la imagen
         current_app.logger.error('%s no está instalado: %s', programa, err)
