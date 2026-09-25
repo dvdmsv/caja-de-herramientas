@@ -88,6 +88,14 @@ Releases el instalador (con su versión en el nombre y también como
 novedades: los commits desde la versión anterior. Las instalaciones que ya hay
 lo ofrecen al abrirse.
 
+**Lo que ve quien actualiza**: al abrirla, un aviso con «Actualizar» y «Ahora
+no». Al aceptar, una capa sobre la página con la descarga (porcentaje y MB) y la
+misma barra en el icono de la barra de tareas; después, «Instalando…» y la
+ventana de progreso de NSIS, y la aplicación se vuelve a abrir sola. Si la
+descarga falla, se dice y se sigue con la versión que hay. La capa está en
+`src-tauri/src/actualizacion.js`. **Cuidado al probarlo**: lo que se ve lo decide
+la versión que ya está instalada, no la nueva.
+
 Si la prueba falla, el número se queda gastado (commit y etiqueta existen, la
 release no): se arregla y se vuelve a pulsar, y sale el siguiente.
 

@@ -40,8 +40,10 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use tauri::webview::NewWindowResponse;
+use tauri::window::{ProgressBarState, ProgressBarStatus};
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
@@ -214,14 +216,84 @@ fn buscar_actualizacion(app: AppHandle) {
             .buttons(MessageDialogButtons::OkCancelCustom("Actualizar".into(), "Ahora no".into()))
             .show(move |acepta| {
                 if acepta {
-                    tauri::async_runtime::spawn(async move {
-                        if nueva.download_and_install(|_, _| {}, || {}).await.is_ok() {
-                            para_instalar.restart();
-                        }
-                    });
+                    tauri::async_runtime::spawn(instalar(para_instalar, nueva));
                 }
             });
     });
+}
+
+/// Descarga e instala, enseñando en todo momento qué está pasando.
+///
+/// Sin esto, tras pulsar «Actualizar» no se veía nada durante la descarga
+/// (~310 MB) y después la ventana desaparecía de golpe. Ahora hay una capa sobre
+/// la página (`actualizacion.js`) y la barra de progreso en el icono de la barra
+/// de tareas, que se ve aunque la ventana esté minimizada.
+///
+/// Al terminar la descarga, el plugin lanza el instalador NSIS en modo pasivo
+/// —con su propia ventana de progreso— y cierra este proceso con
+/// `process::exit`; NSIS vuelve a abrir la aplicación al acabar. Por eso aquí no
+/// hay un `restart()`: en Windows no llegaría a ejecutarse.
+async fn instalar(app: AppHandle, nueva: tauri_plugin_updater::Update) {
+    let Some(ventana) = app.get_webview_window(VENTANA) else { return };
+    let version = nueva.version.clone();
+
+    let mut descargado: u64 = 0;
+    let mut ultimo_pintado: Option<Instant> = None;
+    let para_progreso = ventana.clone();
+    let para_fin = ventana.clone();
+    let version_fin = version.clone();
+
+    let resultado = nueva
+        .download_and_install(
+            move |trozo, total| {
+                descargado += trozo as u64;
+                // Llega un aviso por cada trozo descargado: se pinta como mucho
+                // cada 200 ms, que es fluido y no inunda la página de `eval`.
+                let toca = ultimo_pintado.map_or(true, |antes| antes.elapsed() >= Duration::from_millis(200));
+                if !toca {
+                    return;
+                }
+                ultimo_pintado = Some(Instant::now());
+                pintar(&para_progreso, serde_json::json!({
+                    "fase": "descargando", "version": version, "descargado": descargado, "total": total,
+                }));
+                let porcentaje = total.filter(|t| *t > 0).map(|t| (descargado * 100 / t).min(100));
+                let _ = para_progreso.set_progress_bar(ProgressBarState {
+                    status: Some(if porcentaje.is_some() { ProgressBarStatus::Normal } else { ProgressBarStatus::Indeterminate }),
+                    progress: porcentaje,
+                });
+            },
+            move || {
+                pintar(&para_fin, serde_json::json!({ "fase": "instalando", "version": version_fin }));
+                let _ = para_fin.set_progress_bar(ProgressBarState {
+                    status: Some(ProgressBarStatus::Indeterminate),
+                    progress: None,
+                });
+            },
+        )
+        .await;
+
+    // Si se llega aquí con éxito es que no se ha cerrado (fuera de Windows);
+    // en Windows sólo se llega si ha fallado.
+    if let Err(error) = resultado {
+        pintar(&ventana, serde_json::json!({
+            "fase": "error",
+            "mensaje": format!("La descarga ha fallado ({error})."),
+        }));
+        let _ = ventana.set_progress_bar(ProgressBarState {
+            status: Some(ProgressBarStatus::Error),
+            progress: Some(100),
+        });
+    }
+}
+
+/// Llama a la capa de `actualizacion.js`, definiéndola si hace falta.
+fn pintar(ventana: &WebviewWindow, estado: serde_json::Value) {
+    let _ = ventana.eval(&format!(
+        "{}\n;window.__cajaActualizacion({});",
+        include_str!("actualizacion.js"),
+        estado
+    ));
 }
 
 // --- Comandos del frontend ----------------------------------------------------
