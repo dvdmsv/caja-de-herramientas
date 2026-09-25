@@ -22,7 +22,9 @@ LibreOffice o un ocrmypdf. El cálculo de workers de `config.py` reserva sitio
 para un trabajo pesado por worker, y esto es lo que hace que esa cuenta se
 cumpla.
 """
+import os
 import subprocess
+import sys
 import threading
 import time
 
@@ -64,6 +66,51 @@ ESPERA_MAXIMA = config.entorno_entero('CONVERSION_QUEUE_TIMEOUT_SECONDS', 45)
 LATIDO = 0.5
 
 
+# En Windows un proceso que revienta no muere «por una señal»: sale con el
+# código de la excepción nativa, que Python da como un entero positivo enorme.
+# Son los mismos casos que el código negativo de Linux —sin memoria, violación
+# de segmento— y se traducen igual.
+FALLOS_NATIVOS_WINDOWS = {
+    0xC0000005,  # violación de acceso: la violación de segmento de Windows
+    0xC0000017,  # sin memoria
+    0xC00000FD,  # desbordamiento de pila
+    0xC0000409,  # la pila se ha corrompido (lo que da un abort de C)
+}
+
+# Los programas que en realidad son paquetes de Python. En Linux y en un
+# entorno de desarrollo son un ejecutable más en el PATH; en la aplicación de
+# escritorio no existe ese ejecutable —PyInstaller no crea los scripts de
+# consola—, así que se llama al propio backend empaquetado y él los arranca
+# (ver `escritorio.py`, `--programa`). La tabla dice dónde está su `main`.
+PROGRAMAS_DE_PYTHON = {
+    'ocrmypdf': 'ocrmypdf.__main__:run',
+    'pdf2docx': 'pdf2docx.main:main',
+}
+
+# Los que en Windows se llaman de otra manera. Ghostscript instala `gswin64c`
+# (la «c» es la versión de consola; `gswin64` abriría una ventana).
+NOMBRES_EN_WINDOWS = {'gs': 'gswin64c'}
+
+
+def murio_por_fallo(codigo: int) -> bool:
+    """Si el programa no terminó mal, sino que lo mató el sistema."""
+    return codigo < 0 or (os.name == 'nt' and codigo in FALLOS_NATIVOS_WINDOWS)
+
+
+def resolver(orden: list[str]) -> list[str]:
+    """La orden tal y como hay que lanzarla en esta plataforma.
+
+    En Linux, fuera del paquete de escritorio, no cambia nada: es lo que evita
+    que el escritorio le cueste algo al servicio web.
+    """
+    programa, *resto = orden
+    if getattr(sys, 'frozen', False) and programa in PROGRAMAS_DE_PYTHON:
+        return [sys.executable, '--programa', programa, *resto]
+    if os.name == 'nt' and programa in NOMBRES_EN_WINDOWS:
+        return [NOMBRES_EN_WINDOWS[programa], *resto]
+    return orden
+
+
 def en_palabras(segundos: int) -> str:
     """El plazo dicho como lo diría una persona.
 
@@ -98,14 +145,15 @@ def ejecutar(orden: list[str], tiempo_limite: int, programa: str, no_disponible:
     try:
         resultado = _esperar(orden, tiempo_limite, programa, no_disponible, trabajo,
                              vigilante or progreso.cancelado)
-        if resultado.returncode < 0:
-            # Código negativo = lo mató una señal, no terminó mal. Lo normal es
+        if murio_por_fallo(resultado.returncode):
+            # Código negativo = lo mató una señal, no terminó mal (en Windows,
+            # uno de `FALLOS_NATIVOS_WINDOWS`). Lo normal es
             # que se haya pasado del límite de memoria del worker, que hereda:
             # medido, pdf2docx con 512 MB se cae con violación de segmento (-11)
             # sin decir nada. Antes esto salía como "el archivo está dañado", que
             # manda a buscar el problema al sitio equivocado.
-            current_app.logger.warning('%s murió por la señal %d.', programa,
-                                       -resultado.returncode)
+            current_app.logger.warning('%s murió con el código %d.', programa,
+                                       resultado.returncode)
             raise ApiError(
                 f'{trabajo} se ha quedado sin memoria con este documento. '
                 'Prueba con uno más corto, o sube el tope de memoria por trabajo '
@@ -124,8 +172,16 @@ def _esperar(orden: list[str], tiempo_limite: int, programa: str, no_disponible:
     alarga solo.
     """
     try:
-        proceso = subprocess.Popen(orden, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                   text=True)
+        # UTF-8 explícito y sin reventar por un byte raro: con `text=True` a
+        # secas se decodifica con la codificación del sistema, que en Windows es
+        # cp1252 y no sabe leer lo que escriben tesseract o LibreOffice.
+        #
+        # `CREATE_NO_WINDOW`: sin él, desde la aplicación de escritorio cada
+        # conversión abriría y cerraría una consola negra delante del usuario.
+        proceso = subprocess.Popen(resolver(orden), stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, encoding='utf-8',
+                                   errors='replace',
+                                   creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     except FileNotFoundError as err:  # falta el programa en la imagen
         current_app.logger.error('%s no está instalado: %s', programa, err)
         raise ApiError(no_disponible, 500) from err
@@ -152,7 +208,17 @@ def _esperar(orden: list[str], tiempo_limite: int, programa: str, no_disponible:
 
 
 def _matar(proceso: subprocess.Popen, programa: str) -> None:
-    """Lo mata y lo entierra: sin el `communicate` final queda un zombi."""
+    """Lo mata y lo entierra: sin el `communicate` final queda un zombi.
+
+    En Windows hay que matar el **árbol**: `soffice.exe` es un lanzador que
+    arranca `soffice.bin`, y `kill()` sólo se lleva al lanzador. El que hace el
+    trabajo —y se come la memoria— seguiría vivo, y el siguiente LibreOffice
+    podría encontrárselo.
+    """
+    if os.name == 'nt':
+        subprocess.run(['taskkill', '/T', '/F', '/PID', str(proceso.pid)],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     proceso.kill()
     try:
         proceso.communicate(timeout=LATIDO)

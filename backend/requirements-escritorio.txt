@@ -1,0 +1,5 @@
+# Lo que añade la aplicación de escritorio a lo del servicio web.
+-r requirements.txt
+# gunicorn no funciona en Windows; con un solo usuario basta un servidor con hilos.
+waitress==3.0.2
+pyinstaller==6.22.3

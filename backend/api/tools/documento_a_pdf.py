@@ -16,6 +16,7 @@ su memoria vuelve entera al terminar, que en esta VM importa. Todo el lote va en
 convertir cada documento, décimas.
 """
 import os
+import pathlib
 import shutil
 import tempfile
 
@@ -98,7 +99,9 @@ def _convertir(origenes: list[str], carpeta_salida: str) -> None:
     with tempfile.TemporaryDirectory() as perfil:
         orden = [
             'soffice', '--headless', '--norestore', '--nolockcheck',
-            f'-env:UserInstallation=file://{perfil}',
+            # Como URL de verdad y no pegando `file://` delante: en Windows la
+            # ruta es `C:\...` y hace falta `file:///C:/...`.
+            f'-env:UserInstallation={pathlib.Path(perfil).as_uri()}',
             # Sin filtro: cada tipo de documento necesita el suyo (Writer,
             # Calc, Impress) y LibreOffice elige el que toca.
             '--convert-to', 'pdf',

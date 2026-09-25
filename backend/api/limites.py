@@ -105,6 +105,12 @@ class _Plazo:
     def __enter__(self):
         if self.segundos <= 0 or threading.current_thread() is not threading.main_thread():
             return self
+        # Windows no tiene `SIGALRM`: ni se puede armar ni se llega a necesitar,
+        # porque la aplicación de escritorio atiende con hilos y ya se habría
+        # salido arriba. Está por si algún día se llama desde el hilo principal:
+        # el `AttributeError` no lo recoge el `except` de abajo.
+        if not hasattr(signal, 'SIGALRM'):
+            return self
         try:
             signal.signal(signal.SIGALRM, self._salta)
             signal.setitimer(signal.ITIMER_REAL, self.segundos)

@@ -9,6 +9,10 @@ trabajo. Aquí se llama a la API de verdad, como lo haría el navegador.
     python3 scripts/barrido.py                    # contra http://localhost:8081
     BASE=http://192.168.1.103:8081 python3 scripts/barrido.py
 
+Contra la aplicación de escritorio, que exige su token en cada petición:
+
+    BASE=http://127.0.0.1:<puerto> TOKEN=<token> python3 scripts/barrido.py
+
 Devuelve 0 si todo responde y 1 en cuanto algo falla, para poder ponerlo en la
 integración continua.
 
@@ -30,11 +34,14 @@ import uuid
 
 BASE = os.environ.get('BASE', 'http://localhost:8081').rstrip('/')
 SESION = uuid.uuid4().hex
+TOKEN = os.environ.get('TOKEN', '')
 FALLOS = []
 
 
 def peticion(metodo, ruta, cuerpo=None, archivo=None, cabeceras=None):
     cab = {'X-Session-Id': SESION, **(cabeceras or {})}
+    if TOKEN:
+        cab['Cookie'] = f'escritorio={TOKEN}'
     if archivo:
         frontera = '----barrido'
         with open(archivo, 'rb') as fichero:

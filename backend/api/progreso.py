@@ -183,7 +183,7 @@ def terminar() -> None:
     for ruta in (_ruta(actual.session_id, actual.trabajo),
                  _ruta(actual.session_id, actual.trabajo, cancelacion=True)):
         try:
-            os.unlink(ruta)
+            _insistiendo(os.unlink, ruta)
         except OSError:
             pass
 
@@ -257,9 +257,29 @@ def _escribir(actual: _Trabajo, forzar: bool = False) -> bool:
         temporal = f'{ruta}.tmp'
         with open(temporal, 'w', encoding='utf-8') as fichero:
             json.dump(actual.como_json(), fichero)
-        os.replace(temporal, ruta)
+        _insistiendo(os.replace, temporal, ruta)
     except OSError:
         # El progreso es una cortesía: si no se puede escribir —disco lleno,
         # sesión ya borrada—, el trabajo sigue.
         return False
     return True
+
+
+def _insistiendo(operacion, *rutas, intentos: int = 5) -> None:
+    """Reintenta un momento si el archivo está abierto por quien lo lee.
+
+    Sólo pasa en Windows, que no deja renombrar encima de un archivo abierto ni
+    borrarlo: si la consulta del navegador lo está leyendo justo entonces, sale
+    un `PermissionError`. En el renombrado se perdería un parte, que da igual;
+    en el borrado de `terminar()`, no: el parte se quedaría diciendo que el
+    trabajo sigue vivo. La lectura dura microsegundos, así que basta con esperar
+    un poco. En Linux esto no reintenta nunca.
+    """
+    for intento in range(intentos):
+        try:
+            operacion(*rutas)
+            return
+        except PermissionError:
+            if intento == intentos - 1:
+                raise
+            time.sleep(0.02)

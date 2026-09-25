@@ -183,6 +183,10 @@ def nucleos_por_trabajo() -> int:
     return nucleos()
 
 
+# Sólo en la aplicación de escritorio (`escritorio.py`): el secreto que tiene
+# que traer cada petición. Vacío es el servicio web de siempre.
+ESCRITORIO_TOKEN = os.environ.get('ESCRITORIO_TOKEN', '').strip()
+
 # Carpeta raíz donde vive el almacenamiento temporal de todas las sesiones.
 UPLOAD_ROOT = os.environ.get('UPLOAD_ROOT', 'uploads')
 

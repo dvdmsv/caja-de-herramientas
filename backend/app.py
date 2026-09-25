@@ -53,9 +53,16 @@ def create_app(servicio: str | None = None) -> Flask:
     app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
     app.config['SERVICIO'] = papel
 
-    # En producción el frontend se sirve tras el mismo nginx, así que CORS sólo
-    # hace falta para el `ng serve` de desarrollo.
-    CORS(app, expose_headers=['Content-Disposition'])
+    if config.ESCRITORIO_TOKEN:
+        # La aplicación de escritorio sirve el frontend ella misma y exige su
+        # token en cada petición. Sin CORS: aquí no hay otro origen legítimo, y
+        # abrirlo dejaría a cualquier web leer las respuestas.
+        import escritorio
+        escritorio.proteger(app, config.ESCRITORIO_TOKEN)
+    else:
+        # En producción el frontend se sirve tras el mismo nginx, así que CORS
+        # sólo hace falta para el `ng serve` de desarrollo.
+        CORS(app, expose_headers=['Content-Disposition'])
 
     register_error_handlers(app)
 
@@ -100,6 +107,11 @@ def create_app(servicio: str | None = None) -> Flask:
     # y no sobreviviría al fork de cada petición.
     if papel in ('todo', 'web'):
         start_cleanup_thread(storage, config.CLEANUP_INTERVAL_SECONDS, app.logger)
+
+    # Después de todas las rutas de la API, aunque en Flask el orden no decide:
+    # lo que va aquí es la ruta comodín que devuelve `index.html`.
+    if config.ESCRITORIO_TOKEN:
+        escritorio.servir_frontend(app, escritorio.carpeta_del_frontend())
 
     app.logger.info('Servicio "%s" listo con %d rutas.', papel,
                     len(list(app.url_map.iter_rules())))
