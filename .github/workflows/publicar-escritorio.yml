@@ -1,0 +1,64 @@
+name: Publicar versión de escritorio
+
+# El botón para sacar una versión de la aplicación de Windows: Actions →
+# «Publicar versión de escritorio» → Run workflow, con la rama `escritorio`.
+#
+# Sube el número (parche por defecto), hace el commit, crea la etiqueta y llama
+# al workflow de siempre (escritorio.yml), que lo prueba todo en Windows y, sólo
+# si pasa, lo publica en Releases. Las instalaciones que ya hay lo ofrecerán al
+# abrirse.
+#
+# **Este archivo está también en `master`, y tiene que estarlo**: GitHub sólo
+# enseña el botón de un workflow manual si el archivo existe en la rama
+# principal. Es lo único de la aplicación de escritorio que hay allí, y no corre
+# en ninguna rama que no sea `escritorio`. Si se cambia, hay que cambiarlo en las
+# dos.
+on:
+  workflow_dispatch:
+    inputs:
+      tipo:
+        description: Qué número sube (parche 0.1.0 → 0.1.1 · menor → 0.2.0 · mayor → 1.0.0)
+        type: choice
+        options: [parche, menor, mayor]
+        default: parche
+
+# Dos pulsaciones seguidas no pueden sacar dos veces el mismo número.
+concurrency: publicar-escritorio
+
+jobs:
+  version:
+    name: Subir la versión
+    if: github.ref == 'refs/heads/escritorio'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      etiqueta: ${{ steps.subir.outputs.etiqueta }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Subir el número
+        id: subir
+        run: python3 escritorio/scripts/subir_version.py '${{ inputs.tipo }}' | tee -a "$GITHUB_OUTPUT"
+
+      # Con el token de Actions: este push no vuelve a lanzar escritorio.yml
+      # (GitHub no encadena workflows así), y por eso el job siguiente lo llama
+      # directamente. `--atomic`: o suben el commit y la etiqueta, o ninguno.
+      - name: Commit y etiqueta
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am "chore(escritorio): versión ${{ steps.subir.outputs.version }}"
+          git tag -a '${{ steps.subir.outputs.etiqueta }}' -m 'Caja de herramientas ${{ steps.subir.outputs.version }} para Windows'
+          git push --atomic origin HEAD:escritorio '${{ steps.subir.outputs.etiqueta }}'
+
+  compilar:
+    name: Probar y publicar
+    needs: version
+    uses: ./.github/workflows/escritorio.yml
+    with:
+      etiqueta: ${{ needs.version.outputs.etiqueta }}
+    secrets: inherit
+    permissions:
+      contents: write
+      actions: read
