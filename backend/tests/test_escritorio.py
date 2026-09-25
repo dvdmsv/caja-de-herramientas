@@ -221,3 +221,20 @@ def test_los_programas_reciben_su_path_y_el_backend_no(monkeypatch):
     entorno = conversion.entorno_de_programas()
     assert entorno['PATH'] == os.pathsep.join(['tesseract', 'sistema'])
     assert os.environ['PATH'] == 'sistema'
+
+
+def test_al_arrancar_se_borran_las_sesiones_anteriores_y_nada_mas(entorno):
+    """Lo que quede es de una ventana ya cerrada. Pero `UPLOAD_ROOT` se puede
+    cambiar, y lo que no tenga forma de sesión no lo ha creado la aplicación."""
+    config, modulo_storage = entorno()
+    import escritorio
+
+    raiz = modulo_storage.storage.root
+    anterior = os.path.join(raiz, 'b' * 32)
+    ajeno = os.path.join(raiz, 'mis-documentos')
+    os.makedirs(anterior)
+    os.makedirs(ajeno)
+
+    assert escritorio.borrar_sesiones_anteriores() == 1
+    assert not os.path.exists(anterior)
+    assert os.path.isdir(ajeno)

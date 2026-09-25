@@ -1,0 +1,11 @@
+{
+  "name": "caja-de-herramientas-escritorio",
+  "private": true,
+  "description": "Envoltorio de Tauri de la aplicación de escritorio. Sólo trae la CLI: la interfaz es el Angular de frontend/, que sirve el backend.",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.5"
+  }
+}

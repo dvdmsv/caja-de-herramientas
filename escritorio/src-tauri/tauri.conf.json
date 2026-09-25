@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Caja de herramientas",
+  "version": "0.1.0",
+  "identifier": "io.github.dvdmsv.cajadeherramientas",
+  "build": {
+    "frontendDist": "../arranque"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "dvdmsv",
+    "homepage": "https://github.com/dvdmsv/caja-de-herramientas",
+    "copyright": "AGPL-3.0-or-later",
+    "category": "Productivity",
+    "shortDescription": "Caja de herramientas para PDF e imágenes",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../dist/merge-pdf-backend/": "backend/",
+      "../dist/vendor/": "vendor/"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["Spanish", "English"],
+        "displayLanguageSelector": false,
+        "compression": "lzma"
+      }
+    }
+  }
+}

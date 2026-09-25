@@ -17,7 +17,7 @@ jobs:
   backend:
     name: Backend en Windows
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         shell: pwsh
@@ -166,6 +166,65 @@ jobs:
         if: always()
         run: Get-Content "$env:RUNNER_TEMP\errores-exe.txt" -ErrorAction SilentlyContinue | Select-Object -Last 200
 
+      # --- El instalador -------------------------------------------------------
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: escritorio/src-tauri
+
+      - name: Compilar el instalador
+        id: instalador
+        working-directory: escritorio
+        run: |
+          npm ci
+          npx tauri build
+          $nsis = Get-ChildItem src-tauri\target\release\bundle\nsis\*.exe | Select-Object -First 1
+          '{0}: {1:N0} MB' -f $nsis.Name, ($nsis.Length / 1MB)
+          "ruta=$($nsis.FullName)" >> $env:GITHUB_OUTPUT
+
+      # Instalado de verdad, como lo haría alguien: que el backend arranque desde
+      # la carpeta de instalación (encuentra vendor\ solo) y, sobre todo, que
+      # **muera con la aplicación aunque se la cierre de golpe**. Es lo que
+      # garantiza el job object de main.rs; sin él quedarían un Python y quizá
+      # un LibreOffice vivos y sin ventana.
+      - name: Instalar, abrir y cerrar de golpe
+        id: instalado
+        continue-on-error: true
+        run: |
+          $proceso = Start-Process '${{ steps.instalador.outputs.ruta }}' -ArgumentList '/S' -PassThru -Wait
+          if ($proceso.ExitCode -ne 0) { throw "El instalador salió con $($proceso.ExitCode)" }
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Caja de herramientas" -Filter 'caja-de-herramientas.exe' -Recurse | Select-Object -First 1
+          if (-not $exe) { throw 'No aparece la aplicación instalada.' }
+          "Instalada en $($exe.DirectoryName)"
+          $registro = "$env:LOCALAPPDATA\merge-pdf\backend.log"
+          $app = Start-Process $exe.FullName -PassThru
+          foreach ($i in 1..240) {
+            if ((Test-Path $registro) -and (Select-String -Path $registro -Pattern 'listo con \d+ rutas' -Quiet)) { break }
+            if ($app.HasExited) { break }
+            Start-Sleep -Milliseconds 500
+          }
+          Get-Content $registro -ErrorAction SilentlyContinue | Select-Object -Last 20
+          if (-not (Select-String -Path $registro -Pattern 'listo con \d+ rutas' -Quiet)) {
+            throw 'El backend de la aplicación instalada no ha arrancado.'
+          }
+          $backend = Get-Process merge-pdf-backend -ErrorAction SilentlyContinue
+          if (-not $backend) { throw 'No hay proceso del backend.' }
+          # De golpe, como el Administrador de tareas: sin dar ocasión a cerrar
+          # nada por las buenas.
+          Stop-Process -Id $app.Id -Force
+          Start-Sleep -Seconds 3
+          $vivo = Get-Process merge-pdf-backend -ErrorAction SilentlyContinue
+          if ($vivo) { throw 'El backend sigue vivo después de matar la aplicación.' }
+          'El backend ha muerto con la aplicación.'
+
+      - uses: actions/upload-artifact@v4
+        if: steps.instalador.outcome == 'success'
+        with:
+          name: instalador-windows
+          path: ${{ steps.instalador.outputs.ruta }}
+          # Ya va comprimido con LZMA: volver a comprimirlo sólo gasta tiempo.
+          compression-level: 0
+          retention-days: 14
+
       - name: Tamaño
         if: always()
         run: |
@@ -175,7 +234,7 @@ jobs:
           }
 
       - name: Resultado
-        if: always() && (steps.tests.outcome != 'success' || steps.barrido.outcome != 'success' || steps.empaquetado.outcome != 'success')
+        if: always() && (steps.tests.outcome != 'success' || steps.barrido.outcome != 'success' || steps.empaquetado.outcome != 'success' || steps.instalado.outcome != 'success')
         run: |
-          echo "Tests: ${{ steps.tests.outcome }} · Barrido: ${{ steps.barrido.outcome }} · Empaquetado: ${{ steps.empaquetado.outcome }}"
+          echo "Tests: ${{ steps.tests.outcome }} · Barrido: ${{ steps.barrido.outcome }} · Empaquetado: ${{ steps.empaquetado.outcome }} · Instalado: ${{ steps.instalado.outcome }}"
           exit 1

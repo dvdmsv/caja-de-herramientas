@@ -226,6 +226,29 @@ def preparar_entorno() -> tuple[str, bool]:
     return token, True
 
 
+def borrar_sesiones_anteriores() -> int:
+    """Al arrancar, lo que quede de la vez anterior se borra.
+
+    En la web las sesiones caducan a las dos horas; aquí hay una sola persona y
+    lo que quede en el disco es de una ventana ya cerrada —o que se cerró de
+    golpe—. Hacerlo al arrancar y no al salir es lo que lo hace fiable: al salir
+    puede no dar tiempo, y así Tauri no tiene que avisar a nadie.
+
+    Sólo carpetas con forma de sesión: `UPLOAD_ROOT` se puede cambiar por
+    entorno, y no se borra nada que no haya creado la aplicación.
+    """
+    from storage import ID_RE, storage
+
+    try:
+        nombres = os.listdir(storage.root)
+    except FileNotFoundError:
+        return 0
+    sesiones = [nombre for nombre in nombres if ID_RE.match(nombre)]
+    for sesion in sesiones:
+        storage.clear_session(sesion)
+    return len(sesiones)
+
+
 def main(argv: list[str]) -> None:
     # Lo primero de todo: ocrmypdf reparte las páginas en procesos, y en un
     # ejecutable congelado cada uno arranca este mismo `main`. Sin esto, cada
@@ -244,6 +267,7 @@ def main(argv: list[str]) -> None:
 
     from app import app
 
+    borrar_sesiones_anteriores()
     servidor = create_server(app, host='127.0.0.1', port=0, threads=6,
                              max_request_body_size=app.config['MAX_CONTENT_LENGTH'])
     puerto = servidor.effective_port
