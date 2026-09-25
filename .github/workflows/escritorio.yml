@@ -58,6 +58,12 @@ jobs:
       # (tauri.rapido.json y un perfil sin LTO), que prueba lo mismo en un
       # tercio del tiempo: medido, comprimir eran 8 min y compilar 3.
       PUBLICAR: ${{ startsWith(github.ref, 'refs/tags/v') || (inputs.etiqueta || '') != '' }}
+      # El perfil de Cargo de cada modo, aquí y no dentro del paso: así la caché
+      # de Rust de cada modo es distinta. Con una sola, el modo rápido recuperaba
+      # la compilada con LTO, la daba por buena («Cache up-to-date», sin
+      # guardar) y recompilaba las 285 dependencias cada vez.
+      CARGO_PROFILE_RELEASE_LTO: ${{ (startsWith(github.ref, 'refs/tags/v') || (inputs.etiqueta || '') != '') && 'true' || 'false' }}
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: ${{ (startsWith(github.ref, 'refs/tags/v') || (inputs.etiqueta || '') != '') && '1' || '16' }}
     defaults:
       run:
         shell: pwsh
@@ -125,11 +131,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-escritorio.txt -r requirements-dev.txt
 
+      # Con el Pango y las letras de vendor\, que son los que se reparten. Sin
+      # decírselo, WeasyPrint los busca en C:\msys64\mingw64\bin, y eso sólo
+      # funcionaba porque preparar vendor instalaba Pango ahí de paso: con
+      # vendor\ sacado de la caché, no hay nada.
       - name: Tests
         id: tests
         continue-on-error: true
         working-directory: backend
-        run: python -m pytest tests/ -q -p no:cacheprovider -rf
+        run: |
+          $env:WEASYPRINT_DLL_DIRECTORIES = (Resolve-Path ..\escritorio\vendor\gtk\bin).Path
+          $env:FONTCONFIG_FILE = (Resolve-Path ..\escritorio\vendor\fonts.conf).Path
+          python -m pytest tests/ -q -p no:cacheprovider -rf
 
       # Arrancar y barrer en el **mismo** paso: en Windows el runner mata todo
       # lo que un paso haya lanzado en cuanto ese paso acaba, así que un backend
@@ -230,6 +243,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: escritorio/src-tauri
+          # Una caché por modo (ver CARGO_PROFILE_RELEASE_* arriba).
+          key: publicar-${{ env.PUBLICAR }}
 
       - name: Compilar el instalador
         id: instalador
@@ -240,10 +255,9 @@ jobs:
             npx tauri build
           } else {
             # Modo rápido: sin comprimir (src-tauri/tauri.rapido.json, que se
-            # aplica encima de tauri.conf.json) y sin LTO. Lo que se instala es
-            # igual; sólo cambia cómo va empaquetado.
-            $env:CARGO_PROFILE_RELEASE_LTO = 'false'
-            $env:CARGO_PROFILE_RELEASE_CODEGEN_UNITS = '16'
+            # aplica encima de tauri.conf.json) y sin LTO (el perfil va en el
+            # entorno del trabajo). Lo que se instala es igual; sólo cambia cómo
+            # va empaquetado.
             npx tauri build --config src-tauri/tauri.rapido.json
           }
           $nsis = Get-ChildItem src-tauri\target\release\bundle\nsis\*.exe | Select-Object -First 1
