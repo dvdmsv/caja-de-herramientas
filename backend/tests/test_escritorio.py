@@ -183,3 +183,28 @@ def test_una_ruta_explicita_gana(monkeypatch):
     monkeypatch.setenv('RUTA_SOFFICE', r'C:\LibreOffice\program\soffice.exe')
     assert conversion.resolver(['soffice', '--headless']) == [
         r'C:\LibreOffice\program\soffice.exe', '--headless']
+
+
+def test_el_vendor_dice_donde_esta_cada_programa(monkeypatch, tmp_path):
+    """Lo que Tauri no tiene que saber: el backend se configura solo."""
+    import escritorio
+
+    # Puestas y quitadas con monkeypatch para que las restaure al acabar: si
+    # no, `usar_vendor` las dejaría puestas para el resto de la batería.
+    for nombre in ('TESSDATA_PREFIX', 'WEASYPRINT_DLL_DIRECTORIES', 'FONTCONFIG_FILE',
+                   'RUTA_SOFFICE'):
+        monkeypatch.setenv(nombre, '-')
+        monkeypatch.delenv(nombre)
+    monkeypatch.setenv('PATH', 'sistema')
+    vendor = str(tmp_path)
+
+    escritorio.usar_vendor(vendor)
+
+    ruta = os.environ['PATH'].split(os.pathsep)
+    assert ruta[:2] == [os.path.join(vendor, 'tesseract'), os.path.join(vendor, 'gs', 'bin')], \
+        'los del paquete van delante de los del sistema'
+    assert not any('libreoffice' in parte for parte in ruta), \
+        'LibreOffice trae su propio python.exe y no puede ir en el PATH'
+    assert os.environ['RUTA_SOFFICE'].endswith(os.path.join('libreoffice', 'program', 'soffice.exe'))
+    assert os.environ['TESSDATA_PREFIX'] == os.path.join(vendor, 'tesseract', 'tessdata')
+    assert os.environ['FONTCONFIG_FILE'] == os.path.join(vendor, 'fonts.conf')

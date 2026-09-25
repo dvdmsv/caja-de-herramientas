@@ -55,6 +55,47 @@ def carpeta_del_frontend() -> str:
                         '..', 'frontend', 'dist', 'merge-pdf', 'browser')
 
 
+def carpeta_vendor() -> str | None:
+    """Los programas externos que van en el instalador (`traer-dependencias.ps1`).
+
+    Instalado, queda al lado de la carpeta del backend:
+    `resources/backend/merge-pdf-backend.exe` y `resources/vendor/`. Fuera del
+    paquete no hay vendor salvo que se diga con `ESCRITORIO_VENDOR`, y entonces
+    se usan los programas del sistema, como en `python app.py`.
+    """
+    if os.environ.get('ESCRITORIO_VENDOR'):
+        return os.path.abspath(os.environ['ESCRITORIO_VENDOR'])
+    if getattr(sys, 'frozen', False):
+        junto = os.path.join(os.path.dirname(sys.executable), '..', 'vendor')
+        if os.path.isdir(junto):
+            return os.path.abspath(junto)
+    return None
+
+
+def usar_vendor(vendor: str) -> None:
+    """Le dice a cada programa externo dónde está lo suyo.
+
+    - Tesseract y Ghostscript van **delante** en el PATH: ocrmypdf los busca por
+      nombre, y si el usuario tiene otra versión instalada no debe ser ésa la
+      que se use.
+    - LibreOffice **no** va en el PATH: su carpeta `program` trae un `python.exe`
+      propio que taparía cualquier otro. Se usa `RUTA_SOFFICE`.
+    - WeasyPrint lee `WEASYPRINT_DLL_DIRECTORIES` al importarse, y fontconfig su
+      `FONTCONFIG_FILE`, que sólo ve las letras del paquete.
+
+    Con `setdefault`, salvo el PATH: quien lance el backend puede señalar otra
+    cosa a propósito.
+    """
+    tesseract = os.path.join(vendor, 'tesseract')
+    gs = os.path.join(vendor, 'gs', 'bin')
+    os.environ['PATH'] = os.pathsep.join([tesseract, gs, os.environ.get('PATH', '')])
+    os.environ.setdefault('TESSDATA_PREFIX', os.path.join(tesseract, 'tessdata'))
+    os.environ.setdefault('RUTA_SOFFICE',
+                          os.path.join(vendor, 'libreoffice', 'program', 'soffice.exe'))
+    os.environ.setdefault('WEASYPRINT_DLL_DIRECTORIES', os.path.join(vendor, 'gtk', 'bin'))
+    os.environ.setdefault('FONTCONFIG_FILE', os.path.join(vendor, 'fonts.conf'))
+
+
 def proteger(app, token: str) -> None:
     """Que sólo la ventana de la aplicación pueda hablar con el backend.
 
@@ -129,6 +170,9 @@ def preparar_entorno() -> tuple[str, bool]:
     """
     datos = carpeta_de_datos()
     os.environ['SERVICIO'] = 'todo'
+    vendor = carpeta_vendor()
+    if vendor:
+        usar_vendor(vendor)
     os.environ.setdefault('UPLOAD_ROOT', os.path.join(datos, 'uploads'))
     # Los topes de la web reparten un servidor entre muchos; aquí el disco y la
     # memoria son del propio usuario, y un PDF escaneado de 400 MB es normal.

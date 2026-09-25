@@ -3,10 +3,11 @@ name: Escritorio (Windows)
 # La aplicación de escritorio, en un Windows de verdad. Vive sólo en la rama
 # `escritorio`: la CI de la web (`ci.yml`) no se entera de esto.
 #
-# De momento es la fase 0 del plan: el backend **sin empaquetar**, con los
-# programas externos instalados a mano, para ver qué se rompe en Windows. La
-# misma máquina limpia en cada ejecución es justo lo que hace falta para eso:
-# nada de lo que haya instalado quien lo prueba se cuela en el resultado.
+# **No se instala nada en el sistema.** Los programas externos salen de
+# `escritorio/vendor/`, que es lo que irá dentro del instalador, y el backend los
+# encuentra solo (`escritorio.usar_vendor`). Si alguno se estuviera tomando del
+# sistema sin querer, aquí fallaría, porque en el sistema no hay ninguno: es la
+# misma situación que el equipo de quien lo instale.
 on:
   push:
     branches: [escritorio]
@@ -29,32 +30,26 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements*.txt
 
-      # Los mismos programas que instala el Dockerfile, en su versión de
-      # Windows. Aquí se instalan; en el instalador irán dentro (fase 2).
-      - name: Programas externos
-        run: |
-          choco install ghostscript tesseract libreoffice-fresh -y --no-progress
-          # WeasyPrint necesita Pango, que en Windows viene de MSYS2 (el runner
-          # ya lo trae en C:\msys64).
-          C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-x86_64-pango"
+      # Las descargas pesan ~500 MB (LibreOffice son 373). Se guardan por la
+      # suma del script: cambiar una versión en él invalida la caché.
+      - uses: actions/cache@v4
+        with:
+          path: escritorio/descargas
+          key: descargas-${{ hashFiles('escritorio/scripts/traer-dependencias.ps1') }}
 
-      - name: Tesseract en español
-        run: |
-          $tessdata = 'C:\Program Files\Tesseract-OCR\tessdata'
-          Invoke-WebRequest https://github.com/tesseract-ocr/tessdata_fast/raw/main/spa.traineddata -OutFile "$tessdata\spa.traineddata"
+      - name: Preparar vendor
+        run: ./escritorio/scripts/traer-dependencias.ps1
 
-      - name: Rutas de los programas
+      - name: Lo que hay en vendor responde
         run: |
-          $gs = (Get-ChildItem 'C:\Program Files\gs\*\bin' | Select-Object -First 1).FullName
-          "$gs" >> $env:GITHUB_PATH
-          'C:\Program Files\Tesseract-OCR' >> $env:GITHUB_PATH
-          # LibreOffice **no** va en el PATH: su carpeta trae un python.exe
-          # propio que taparía al de verdad. Se le dice al backend dónde está.
-          'RUTA_SOFFICE=C:\Program Files\LibreOffice\program\soffice.exe' >> $env:GITHUB_ENV
-          'WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin' >> $env:GITHUB_ENV
-          # Sin esto Fontconfig no encuentra su configuración y WeasyPrint no
-          # ve ninguna letra. En el instalador irá un fonts.conf propio.
-          'FONTCONFIG_PATH=C:\msys64\mingw64\etc\fonts' >> $env:GITHUB_ENV
+          $vendor = (Resolve-Path escritorio\vendor).Path
+          $env:TESSDATA_PREFIX = "$vendor\tesseract\tessdata"
+          & "$vendor\tesseract\tesseract.exe" --version
+          & "$vendor\tesseract\tesseract.exe" --list-langs
+          & "$vendor\gs\bin\gswin64c.exe" --version
+          & "$vendor\libreoffice\program\soffice.exe" --version
+          Get-ChildItem "$vendor\letras" | Select-Object -ExpandProperty Name
+          Get-Content "$vendor\VERSIONES.txt"
 
       - name: Dependencias de Python
         working-directory: backend
@@ -62,17 +57,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-escritorio.txt -r requirements-dev.txt
 
-      - name: Qué hay instalado
-        run: |
-          gswin64c --version
-          tesseract --version
-          tesseract --list-langs
-          & $env:RUTA_SOFFICE --version
-          python --version
-          python -c "import weasyprint; print('weasyprint', weasyprint.__version__)"
-
-      # Sin cortar en el primer fallo: en la fase 0 lo que se quiere es la
-      # lista completa de lo que no funciona, tests y barrido juntos.
       - name: Tests
         id: tests
         continue-on-error: true
@@ -88,6 +72,7 @@ jobs:
         working-directory: backend
         run: |
           $env:ESCRITORIO_TOKEN = 'ci'
+          $env:ESCRITORIO_VENDOR = '..\escritorio\vendor'
           $env:LOCALAPPDATA = "$env:RUNNER_TEMP\datos"
           $backend = Start-Process python -ArgumentList 'escritorio.py' -NoNewWindow -PassThru `
             -RedirectStandardOutput "$env:RUNNER_TEMP\salida.txt" `
@@ -113,7 +98,7 @@ jobs:
         if: always()
         run: Get-Content "$env:RUNNER_TEMP\errores.txt" -ErrorAction SilentlyContinue | Select-Object -Last 200
 
-      # --- Fase 3: el mismo backend, empaquetado con PyInstaller -------------
+      # --- El mismo backend, empaquetado con PyInstaller -----------------------
       #
       # El paquete lleva dentro el Angular compilado (lo sirve él mismo), así
       # que hay que compilarlo antes.
@@ -131,7 +116,12 @@ jobs:
 
       - name: Empaquetar el backend
         working-directory: escritorio
-        run: pyinstaller backend.spec --noconfirm
+        run: |
+          pyinstaller backend.spec --noconfirm
+          # Como quedará instalado: vendor\ al lado de la carpeta del backend.
+          # Así se prueba también que el .exe lo encuentra solo, sin
+          # ESCRITORIO_VENDOR.
+          Move-Item vendor dist\vendor
 
       # Lo mismo que antes, pero contra el .exe: es lo que recibe quien lo
       # instala, y lo que sólo falla empaquetado —un plugin que se carga por
@@ -168,13 +158,12 @@ jobs:
         if: always()
         run: Get-Content "$env:RUNNER_TEMP\errores-exe.txt" -ErrorAction SilentlyContinue | Select-Object -Last 200
 
-      - name: Tamaño del paquete
+      - name: Tamaño
         if: always()
         run: |
-          $carpeta = 'escritorio\dist\merge-pdf-backend'
-          if (Test-Path $carpeta) {
-            $mb = (Get-ChildItem $carpeta -Recurse | Measure-Object Length -Sum).Sum / 1MB
-            "Backend empaquetado: {0:N0} MB" -f $mb
+          foreach ($carpeta in Get-ChildItem escritorio\dist -Directory -ErrorAction SilentlyContinue) {
+            $mb = (Get-ChildItem $carpeta.FullName -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
+            '{0,-20} {1,6:N0} MB' -f $carpeta.Name, $mb
           }
 
       - name: Resultado
