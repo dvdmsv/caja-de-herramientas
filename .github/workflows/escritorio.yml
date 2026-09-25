@@ -1,0 +1,115 @@
+name: Escritorio (Windows)
+
+# La aplicación de escritorio, en un Windows de verdad. Vive sólo en la rama
+# `escritorio`: la CI de la web (`ci.yml`) no se entera de esto.
+#
+# De momento es la fase 0 del plan: el backend **sin empaquetar**, con los
+# programas externos instalados a mano, para ver qué se rompe en Windows. La
+# misma máquina limpia en cada ejecución es justo lo que hace falta para eso:
+# nada de lo que haya instalado quien lo prueba se cuela en el resultado.
+on:
+  push:
+    branches: [escritorio]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend en Windows
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      # Los mismos programas que instala el Dockerfile, en su versión de
+      # Windows. Aquí se instalan; en el instalador irán dentro (fase 2).
+      - name: Programas externos
+        run: |
+          choco install ghostscript tesseract libreoffice-fresh -y --no-progress
+          # WeasyPrint necesita Pango, que en Windows viene de MSYS2 (el runner
+          # ya lo trae en C:\msys64).
+          C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-x86_64-pango"
+
+      - name: Tesseract en español
+        run: |
+          $tessdata = 'C:\Program Files\Tesseract-OCR\tessdata'
+          Invoke-WebRequest https://github.com/tesseract-ocr/tessdata_fast/raw/main/spa.traineddata -OutFile "$tessdata\spa.traineddata"
+
+      - name: Rutas de los programas
+        run: |
+          $gs = (Get-ChildItem 'C:\Program Files\gs\*\bin' | Select-Object -First 1).FullName
+          "$gs" >> $env:GITHUB_PATH
+          'C:\Program Files\Tesseract-OCR' >> $env:GITHUB_PATH
+          'C:\Program Files\LibreOffice\program' >> $env:GITHUB_PATH
+          'WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin' >> $env:GITHUB_ENV
+
+      - name: Dependencias de Python
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-escritorio.txt -r requirements-dev.txt
+
+      - name: Qué hay instalado
+        run: |
+          gswin64c --version
+          tesseract --version
+          tesseract --list-langs
+          soffice --version
+          python -c "import weasyprint; print('weasyprint', weasyprint.__version__)"
+
+      # Sin cortar en el primer fallo: en la fase 0 lo que se quiere es la
+      # lista completa de lo que no funciona, tests y barrido juntos.
+      - name: Tests
+        id: tests
+        continue-on-error: true
+        working-directory: backend
+        run: python -m pytest tests/ -q -p no:cacheprovider -rf
+
+      - name: Arrancar el backend de escritorio
+        working-directory: backend
+        run: |
+          $env:ESCRITORIO_TOKEN = 'ci'
+          $env:LOCALAPPDATA = "$env:RUNNER_TEMP\datos"
+          Start-Process python -ArgumentList 'escritorio.py' -NoNewWindow `
+            -RedirectStandardOutput "$env:RUNNER_TEMP\salida.txt" `
+            -RedirectStandardError "$env:RUNNER_TEMP\errores.txt"
+          foreach ($i in 1..120) {
+            $linea = Get-Content "$env:RUNNER_TEMP\salida.txt" -ErrorAction SilentlyContinue |
+              Select-String 'LISTO (\d+)'
+            if ($linea) { break }
+            Start-Sleep -Milliseconds 500
+          }
+          if (-not $linea) {
+            Get-Content "$env:RUNNER_TEMP\errores.txt"
+            throw 'El backend no ha dicho LISTO en un minuto.'
+          }
+          $puerto = $linea.Matches[0].Groups[1].Value
+          "BASE=http://127.0.0.1:$puerto" >> $env:GITHUB_ENV
+
+      - name: Pasada por todas las herramientas
+        id: barrido
+        continue-on-error: true
+        env:
+          TOKEN: ci
+          # Sólo para la salida del barrido (✓ y ✗): la consola de Windows es
+          # cp1252. Al backend no se le pone, para que se vea si él depende de ello.
+          PYTHONIOENCODING: utf-8
+        run: python scripts/barrido.py
+
+      - name: Registro del backend
+        if: always()
+        run: Get-Content "$env:RUNNER_TEMP\errores.txt" -ErrorAction SilentlyContinue | Select-Object -Last 200
+
+      - name: Resultado
+        if: steps.tests.outcome == 'failure' || steps.barrido.outcome == 'failure'
+        run: |
+          echo "Tests: ${{ steps.tests.outcome }} · Barrido: ${{ steps.barrido.outcome }}"
+          exit 1
