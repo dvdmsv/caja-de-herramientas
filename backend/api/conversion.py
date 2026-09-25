@@ -75,6 +75,11 @@ FALLOS_NATIVOS_WINDOWS = {
     0xC0000017,  # sin memoria
     0xC00000FD,  # desbordamiento de pila
     0xC0000409,  # la pila se ha corrompido (lo que da un abort de C)
+    # Una excepción de C++ que nadie captura. Con el tope de memoria del job de
+    # la aplicación de escritorio es un `std::bad_alloc`: medido en una VM con
+    # 250 MB, LibreOffice convirtiendo un .xlsx salía así, y sin reconocerlo el
+    # usuario leía «puede estar dañado».
+    0xE06D7363,
 }
 
 # Los programas que en realidad son paquetes de Python. En Linux y en un
@@ -162,7 +167,8 @@ def ejecutar(orden: list[str], tiempo_limite: int, programa: str, no_disponible:
     latidos de medio segundo, y si dice que sí, el programa se mata.
     """
     if not _turno.acquire(timeout=ESPERA_MAXIMA):
-        raise ApiError('El servidor está ocupado procesando otro documento. '
+        ocupado = 'La aplicación' if config.ESCRITORIO_TOKEN else 'El servidor'
+        raise ApiError(f'{ocupado} está ocupado procesando otro documento. '
                        'Inténtalo de nuevo en un momento.', 503)
     try:
         resultado = _esperar(orden, tiempo_limite, programa, no_disponible, trabajo,
@@ -176,10 +182,12 @@ def ejecutar(orden: list[str], tiempo_limite: int, programa: str, no_disponible:
             # manda a buscar el problema al sitio equivocado.
             current_app.logger.warning('%s murió con el código %d.', programa,
                                        resultado.returncode)
+            remedio = ('cierra otros programas para dejarle más memoria'
+                       if config.ESCRITORIO_TOKEN
+                       else 'sube el tope de memoria por trabajo del servidor')
             raise ApiError(
                 f'{trabajo} se ha quedado sin memoria con este documento. '
-                'Prueba con uno más corto, o sube el tope de memoria por trabajo '
-                'del servidor.', 413)
+                f'Prueba con uno más corto, o {remedio}.', 413)
         return resultado
     finally:
         _turno.release()

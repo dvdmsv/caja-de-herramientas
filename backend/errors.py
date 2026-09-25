@@ -4,6 +4,8 @@ import errno
 from flask import jsonify
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
+import config
+
 
 class ApiError(Exception):
     """Error esperado: se traduce a una respuesta JSON con su código."""
@@ -32,7 +34,7 @@ def register_error_handlers(app):
         # pequeño, menos resolución).
         app.logger.warning('Trabajo sin memoria suficiente; se responde 413.')
         return jsonify({'error': 'El archivo es demasiado grande o complejo para '
-                                 'procesarlo en este servidor. Prueba con uno más '
+                                 f'procesarlo en {config.DONDE}. Prueba con uno más '
                                  'pequeño o con menos resolución.'}), 413
 
     @app.errorhandler(OSError)
@@ -60,7 +62,7 @@ def register_error_handlers(app):
         if es_falta_de_memoria(err):
             app.logger.warning('Trabajo sin memoria suficiente (%s); se responde 413.', err)
             return jsonify({'error': 'El archivo es demasiado grande o complejo para '
-                                     'procesarlo en este servidor. Prueba con menos '
+                                     f'procesarlo en {config.DONDE}. Prueba con menos '
                                      'resolución o con un documento más pequeño.'}), 413
 
         app.logger.exception('Error no controlado: %s', err)

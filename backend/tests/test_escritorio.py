@@ -160,6 +160,7 @@ def test_ghostscript_se_llama_distinto_en_windows(monkeypatch):
 
 
 @pytest.mark.parametrize('nombre,codigo,esperado', [
+    ('nt', 0xE06D7363, True),
     ('posix', -11, True),
     ('posix', 1, False),
     ('posix', 0xC0000005, False),
@@ -238,3 +239,26 @@ def test_al_arrancar_se_borran_las_sesiones_anteriores_y_nada_mas(entorno):
     assert escritorio.borrar_sesiones_anteriores() == 1
     assert not os.path.exists(anterior)
     assert os.path.isdir(ajeno)
+
+
+def test_en_la_aplicacion_los_mensajes_no_hablan_de_servidor(monkeypatch):
+    """Sin memoria, en la aplicación la solución es cerrar programas, no subir
+    el tope de un servidor que no existe."""
+    import sys
+
+    import flask
+
+    import config
+    from api import conversion
+    from errors import ApiError
+
+    monkeypatch.setattr(config, 'ESCRITORIO_TOKEN', 'x')
+    with flask.Flask(__name__).app_context():
+        with pytest.raises(ApiError) as fallo:
+            conversion.ejecutar(
+                [sys.executable, '-c', 'import faulthandler; faulthandler._read_null()'],
+                10, 'programa', 'no disponible', 'La conversión')
+
+    assert fallo.value.status == 413
+    assert 'servidor' not in fallo.value.message
+    assert 'cierra otros programas' in fallo.value.message

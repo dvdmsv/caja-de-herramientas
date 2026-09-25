@@ -30,6 +30,9 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(windows)]
+mod trabajo;
+
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
@@ -49,7 +52,7 @@ struct Backend {
     hijo: Mutex<Option<Child>>,
     /// Al soltarse cierra el job y Windows mata todo lo que haya dentro.
     #[cfg(windows)]
-    _trabajo: Option<win32job::Job>,
+    _trabajo: Option<trabajo::Trabajo>,
 }
 
 /// Los archivos que llegan con «Abrir con…», esperando a que el frontend los
@@ -320,8 +323,17 @@ fn arrancar_backend(
         format!("No se ha podido lanzar {}: {error}", ejecutable.display())
     })?;
 
+    // Si no se puede, se sigue sin él: la aplicación funciona igual, sólo que
+    // sin tope de memoria ni prioridad baja, y un cierre forzado dejaría el
+    // backend vivo. Queda en el registro para saberlo.
     #[cfg(windows)]
-    let trabajo = atar_al_proceso(&hijo);
+    let trabajo = match trabajo::atar(&hijo, trabajo::tope_de_memoria()) {
+        Ok(trabajo) => Some(trabajo),
+        Err(error) => {
+            let _ = fs::write(registro.with_extension("job.log"), &error);
+            None
+        }
+    };
 
     let salida = hijo.stdout.take().expect("la salida del backend va por tubería");
     let registro_texto = registro.display().to_string();
@@ -391,18 +403,4 @@ fn token_aleatorio() -> Result<String, Box<dyn std::error::Error>> {
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).map_err(|error| format!("sin azar del sistema: {error}"))?;
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
-}
-
-/// Mete el backend en un job que muere con este proceso. Si falla, se sigue sin
-/// él: la aplicación funciona igual, sólo que un cierre forzado dejaría el
-/// backend vivo.
-#[cfg(windows)]
-fn atar_al_proceso(hijo: &Child) -> Option<win32job::Job> {
-    use std::os::windows::io::AsRawHandle;
-
-    let mut limites = win32job::ExtendedLimitInfo::new();
-    limites.limit_kill_on_job_close();
-    let trabajo = win32job::Job::create_with_limit_info(&limites).ok()?;
-    trabajo.assign_process(hijo.as_raw_handle() as isize).ok()?;
-    Some(trabajo)
 }

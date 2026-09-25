@@ -387,7 +387,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
- "win32job",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4707,16 +4707,6 @@ dependencies = [
  "thiserror 2.0.21",
  "windows",
  "windows-core 0.61.2",
-]
-
-[[package]]
-name = "win32job"
-version = "2.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c6a6724ccfbf34154a8691bd868b0fcd2be2ca3f7b47b32614654f1a01b191c"
-dependencies = [
- "thiserror 1.0.69",
- "windows",
 ]
 
 [[package]]

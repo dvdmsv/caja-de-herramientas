@@ -22,6 +22,23 @@ Caja de herramientas.exe  (Tauri, Rust, ventana de WebView2)
    `http://127.0.0.1:<puerto>/?t=<token>`. El token pasa a una cookie y todo lo
    que no lo traiga, o traiga otro `Host`, recibe un 403.
 
+**Cuánto puede gastar.** En la web, cada trabajo corre en un proceso con
+límites de memoria y de CPU (`RLIMIT_*`, `gunicorn.trabajos.conf.py`). En Windows
+eso no existe, y lo sustituye el mismo job object (`src-tauri/src/trabajo.rs`):
+
+- **Prioridad por debajo de lo normal** para el backend y todo lo que lanza: el
+  OCR usa todos los núcleos, pero cede en cuanto el usuario hace otra cosa.
+- **Tope de memoria del conjunto**: el 60 % de la RAM, con un mínimo de 1,5 GB
+  (`CAJA_TOPE_MEMORIA_MB` lo cambia; 0 lo quita). Medido en una VM con un tope de
+  sólo 250 MB: pasa todo el barrido salvo LibreOffice, y el usuario lee «se ha
+  quedado sin memoria… cierra otros programas», no un error genérico. Con 600 MB
+  pasa entero.
+- Siguen valiendo los topes de la web que dependen del documento (megapíxeles,
+  tamaño descomprimido), el turno de un trabajo pesado a la vez y el plazo de los
+  programas externos. Lo que **no** hay es plazo para lo que corre dentro del
+  backend (en la web va con `SIGALRM`, que Windows no tiene): para eso está
+  cancelar.
+
 **Lo que sabe cada parte.** Tauri sólo arranca, enseña y mata. Dónde está cada
 programa externo y qué variables necesita lo decide el backend
 (`backend/escritorio.py`), porque así se prueba con el barrido de la CI sin

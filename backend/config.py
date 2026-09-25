@@ -187,6 +187,11 @@ def nucleos_por_trabajo() -> int:
 # que traer cada petición. Vacío es el servicio web de siempre.
 ESCRITORIO_TOKEN = os.environ.get('ESCRITORIO_TOKEN', '').strip()
 
+# Cómo se nombra dónde corre el trabajo en los mensajes al usuario. En la
+# aplicación de escritorio no hay servidor: la memoria que falta es la de su
+# propio equipo, y la solución es otra (cerrar programas, no subir un tope).
+DONDE = 'este equipo' if ESCRITORIO_TOKEN else 'este servidor'
+
 # Carpeta raíz donde vive el almacenamiento temporal de todas las sesiones.
 UPLOAD_ROOT = os.environ.get('UPLOAD_ROOT', 'uploads')
 

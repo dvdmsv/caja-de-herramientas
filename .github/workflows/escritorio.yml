@@ -216,6 +216,12 @@ jobs:
           }
           $backend = Get-Process merge-pdf-backend -ErrorAction SilentlyContinue
           if (-not $backend) { throw 'No hay proceso del backend.' }
+          # La prioridad baja la pone el job de src/trabajo.rs: si está, el job
+          # (con su tope de memoria) se ha aplicado.
+          if ($backend.PriorityClass -ne 'BelowNormal') {
+            throw "El backend corre con prioridad $($backend.PriorityClass): el job no se ha aplicado."
+          }
+          'El backend está en su job: prioridad baja y tope de memoria.'
           # De golpe, como el Administrador de tareas: sin dar ocasión a cerrar
           # nada por las buenas.
           Stop-Process -Id $app.Id -Force
