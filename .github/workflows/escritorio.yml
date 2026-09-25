@@ -15,6 +15,16 @@ on:
     # publica en Releases (ver «Publicar la versión»).
     tags: ['v*']
   workflow_dispatch:
+  # Lo llama el botón «Publicar versión de escritorio» (publicar-escritorio.yml)
+  # con la etiqueta que acaba de crear. Hace falta llamarlo así y no esperar al
+  # push de la etiqueta: lo que empuja un workflow con su token no dispara
+  # otros workflows.
+  workflow_call:
+    inputs:
+      etiqueta:
+        description: La versión que compilar y publicar (v0.1.1)
+        type: string
+        required: true
 
 jobs:
   backend:
@@ -38,6 +48,12 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Con el botón, la etiqueta recién creada; si no, lo que se ha empujado.
+          ref: ${{ inputs.etiqueta || github.ref }}
+          # Con la historia entera: las notas de la versión listan los cambios
+          # desde la anterior.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -308,11 +324,11 @@ jobs:
       # Sólo con una etiqueta `v*`, y sólo si todo lo anterior ha pasado: el paso
       # «Resultado» corta aquí si algo ha fallado.
       - name: Publicar la versión
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (inputs.etiqueta || '') != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $etiqueta = '${{ github.ref_name }}'
+          $etiqueta = '${{ inputs.etiqueta || github.ref_name }}'
           $version = (Get-Content escritorio\src-tauri\tauri.conf.json -Raw | ConvertFrom-Json).version
           if ($etiqueta -ne "v$version") {
             throw "La etiqueta es $etiqueta pero tauri.conf.json dice ${version}: sube la versión antes de etiquetar."
@@ -340,6 +356,18 @@ jobs:
           # nunca: releases/latest/download/CajaDeHerramientas-setup.exe lleva
           # siempre a la última. Es el que se enlaza desde el README de master.
           Copy-Item $nombre 'CajaDeHerramientas-setup.exe'
+          # Las novedades: los commits desde la versión anterior, sin los merges
+          # ni el propio cambio de número.
+          $anterior = git describe --tags --abbrev=0 "$etiqueta^" 2>$null
+          $rango = if ($anterior) { "$anterior..$etiqueta" } else { $etiqueta }
+          $cambios = git log --no-merges --format='- %s' $rango |
+            Where-Object { $_ -notmatch 'chore\(escritorio\): versión' }
+          $notas = @(
+            'Instalador para Windows 10 y 11 (64 bits). ' + $firmado
+            ''
+            if ($anterior) { "## Novedades desde $anterior" } else { '## Novedades' }
+            ''
+            $cambios
+          ) -join "`n"
           gh release create $etiqueta $nombre 'CajaDeHerramientas-setup.exe' latest.json `
-            --title "Caja de herramientas $version" `
-            --notes "Instalador para Windows 10 y 11 (64 bits). $firmado"
+            --title "Caja de herramientas $version" --notes $notas

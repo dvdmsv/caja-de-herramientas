@@ -71,16 +71,36 @@ del sistema.
 
 ## Publicar una versión
 
-1. Subir la versión en `src-tauri/tauri.conf.json` y `src-tauri/Cargo.toml`.
-2. `git tag v0.2.0 && git push origin v0.2.0` (desde la rama `escritorio`).
+Con un botón: **Actions → «Publicar versión de escritorio» → Run workflow**,
+eligiendo la rama `escritorio` y qué número sube (parche por defecto:
+0.1.0 → 0.1.1). O desde la terminal:
 
-La CI hace lo de siempre y, si todo pasa, publica en Releases el instalador (con
-su versión en el nombre y también como `CajaDeHerramientas-setup.exe`) y el
-`latest.json` que leen las instalaciones existentes. El enlace para descargar la
-última, que es el que va en el README de `master`, no cambia nunca:
-<https://github.com/dvdmsv/caja-de-herramientas/releases/latest/download/CajaDeHerramientas-setup.exe> Si la etiqueta no coincide
-con la versión, se para. La aplicación pregunta al arrancar si hay una nueva y,
-si se acepta, se reinstala sola.
+```bash
+gh workflow run publicar-escritorio.yml --ref escritorio            # parche
+gh workflow run publicar-escritorio.yml --ref escritorio -f tipo=menor
+```
+
+El botón sube el número en `tauri.conf.json`, `Cargo.toml` y `Cargo.lock`
+(`scripts/subir_version.py`), hace el commit, crea la etiqueta y llama a
+`escritorio.yml`, que lo prueba todo en Windows y, **sólo si pasa**, publica en
+Releases el instalador (con su versión en el nombre y también como
+`CajaDeHerramientas-setup.exe`), el `latest.json` del actualizador y las
+novedades: los commits desde la versión anterior. Las instalaciones que ya hay
+lo ofrecen al abrirse.
+
+Si la prueba falla, el número se queda gastado (commit y etiqueta existen, la
+release no): se arregla y se vuelve a pulsar, y sale el siguiente.
+
+Crear la etiqueta a mano (`git tag v0.2.0 && git push origin v0.2.0`, con la
+versión ya subida en los tres archivos) sigue funcionando igual.
+
+**El archivo del botón está también en `master`**: GitHub sólo enseña el botón
+de un workflow manual si existe en la rama principal. Es lo único de la
+aplicación que hay allí y no corre en otra rama; si se cambia, en las dos.
+
+El enlace para descargar la última, que es el que va en el README de `master`,
+no cambia nunca:
+<https://github.com/dvdmsv/caja-de-herramientas/releases/latest/download/CajaDeHerramientas-setup.exe>
 
 **Las dos firmas, que no son lo mismo:**
 
