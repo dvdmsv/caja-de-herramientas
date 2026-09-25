@@ -206,12 +206,17 @@ def test_un_programa_muerto_por_señal_no_se_confunde_con_un_archivo_dañado(con
     cómo se espere al proceso. Leer la dirección 0 es una violación de segmento
     en Linux (-11) y una violación de acceso en Windows (0xC0000005): el mismo
     fallo en las dos plataformas, y los dos tienen que acabar en el 413.
+
+    Con `faulthandler._read_null`, que es la ayuda de CPython para sus propias
+    pruebas, y no con `ctypes.string_at(0)`: en Windows ctypes atrapa la
+    violación y la convierte en un `OSError`, y el proceso sale con un 1 normal.
+    `_read_null` además apaga el diálogo de errores de Windows, que colgaría la CI.
     """
     from errors import ApiError
 
     with conversion() as modulo:
         with pytest.raises(ApiError) as fallo:
-            modulo.ejecutar([sys.executable, '-c', 'import ctypes; ctypes.string_at(0)'],
+            modulo.ejecutar([sys.executable, '-c', 'import faulthandler; faulthandler._read_null()'],
                             10, 'programa', 'no disponible')
 
     assert fallo.value.status == 413

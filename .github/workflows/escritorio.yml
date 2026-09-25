@@ -113,8 +113,72 @@ jobs:
         if: always()
         run: Get-Content "$env:RUNNER_TEMP\errores.txt" -ErrorAction SilentlyContinue | Select-Object -Last 200
 
-      - name: Resultado
-        if: steps.tests.outcome == 'failure' || steps.barrido.outcome == 'failure'
+      # --- Fase 3: el mismo backend, empaquetado con PyInstaller -------------
+      #
+      # El paquete lleva dentro el Angular compilado (lo sirve él mismo), así
+      # que hay que compilarlo antes.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Compilar el frontend
+        working-directory: frontend
         run: |
-          echo "Tests: ${{ steps.tests.outcome }} · Barrido: ${{ steps.barrido.outcome }}"
+          npm ci
+          npm run build
+
+      - name: Empaquetar el backend
+        working-directory: escritorio
+        run: pyinstaller backend.spec --noconfirm
+
+      # Lo mismo que antes, pero contra el .exe: es lo que recibe quien lo
+      # instala, y lo que sólo falla empaquetado —un plugin que se carga por
+      # nombre, un archivo de datos que PyInstaller no ve— sólo sale aquí.
+      - name: Pasada por todas las herramientas (empaquetado)
+        id: empaquetado
+        continue-on-error: true
+        run: |
+          $env:ESCRITORIO_TOKEN = 'ci'
+          $env:LOCALAPPDATA = "$env:RUNNER_TEMP\datos-exe"
+          $exe = 'escritorio\dist\merge-pdf-backend\merge-pdf-backend.exe'
+          $backend = Start-Process $exe -NoNewWindow -PassThru `
+            -RedirectStandardOutput "$env:RUNNER_TEMP\salida-exe.txt" `
+            -RedirectStandardError "$env:RUNNER_TEMP\errores-exe.txt"
+          foreach ($i in 1..240) {
+            $linea = Get-Content "$env:RUNNER_TEMP\salida-exe.txt" -ErrorAction SilentlyContinue |
+              Select-String 'LISTO (\d+)'
+            if ($linea -or $backend.HasExited) { break }
+            Start-Sleep -Milliseconds 500
+          }
+          if (-not $linea) { throw 'El backend empaquetado no ha dicho LISTO en dos minutos.' }
+          $env:BASE = "http://127.0.0.1:$($linea.Matches[0].Groups[1].Value)"
+          $env:TOKEN = 'ci'
+          $env:PYTHONIOENCODING = 'utf-8'
+          # La página también: el paquete sirve el frontend.
+          $pagina = Invoke-WebRequest "$env:BASE/?t=ci" -SessionVariable s
+          if ($pagina.Content -notmatch 'app-root') { throw 'El paquete no sirve el frontend.' }
+          python scripts\barrido.py
+          $resultado = $LASTEXITCODE
+          Stop-Process -Id $backend.Id -Force -ErrorAction SilentlyContinue
+          exit $resultado
+
+      - name: Registro del backend empaquetado
+        if: always()
+        run: Get-Content "$env:RUNNER_TEMP\errores-exe.txt" -ErrorAction SilentlyContinue | Select-Object -Last 200
+
+      - name: Tamaño del paquete
+        if: always()
+        run: |
+          $carpeta = 'escritorio\dist\merge-pdf-backend'
+          if (Test-Path $carpeta) {
+            $mb = (Get-ChildItem $carpeta -Recurse | Measure-Object Length -Sum).Sum / 1MB
+            "Backend empaquetado: {0:N0} MB" -f $mb
+          }
+
+      - name: Resultado
+        if: always() && (steps.tests.outcome != 'success' || steps.barrido.outcome != 'success' || steps.empaquetado.outcome != 'success')
+        run: |
+          echo "Tests: ${{ steps.tests.outcome }} · Barrido: ${{ steps.barrido.outcome }} · Empaquetado: ${{ steps.empaquetado.outcome }}"
           exit 1
