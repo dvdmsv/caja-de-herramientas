@@ -115,6 +115,14 @@ def test_sin_token_es_el_servicio_web_de_siempre(entorno, monkeypatch):
     assert cliente.get('/').status_code == 404
 
 
+@pytest.fixture(autouse=True)
+def sin_rutas_explicitas(monkeypatch):
+    """La CI de Windows pone `RUTA_SOFFICE`: aquí se prueba lo que pasa sin ella."""
+    for nombre in list(os.environ):
+        if nombre.startswith('RUTA_'):
+            monkeypatch.delenv(nombre)
+
+
 def test_programas_de_python_en_el_paquete(monkeypatch):
     """PyInstaller no trae los scripts de consola: se llama al propio backend."""
     import sys

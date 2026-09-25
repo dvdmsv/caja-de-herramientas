@@ -52,6 +52,9 @@ jobs:
           # propio que taparía al de verdad. Se le dice al backend dónde está.
           'RUTA_SOFFICE=C:\Program Files\LibreOffice\program\soffice.exe' >> $env:GITHUB_ENV
           'WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin' >> $env:GITHUB_ENV
+          # Sin esto Fontconfig no encuentra su configuración y WeasyPrint no
+          # ve ninguna letra. En el instalador irá un fonts.conf propio.
+          'FONTCONFIG_PATH=C:\msys64\mingw64\etc\fonts' >> $env:GITHUB_ENV
 
       - name: Dependencias de Python
         working-directory: backend
@@ -76,36 +79,35 @@ jobs:
         working-directory: backend
         run: python -m pytest tests/ -q -p no:cacheprovider -rf
 
-      - name: Arrancar el backend de escritorio
+      # Arrancar y barrer en el **mismo** paso: en Windows el runner mata todo
+      # lo que un paso haya lanzado en cuanto ese paso acaba, así que un backend
+      # arrancado en un paso ya no existe en el siguiente.
+      - name: Pasada por todas las herramientas
+        id: barrido
+        continue-on-error: true
         working-directory: backend
         run: |
           $env:ESCRITORIO_TOKEN = 'ci'
           $env:LOCALAPPDATA = "$env:RUNNER_TEMP\datos"
-          Start-Process python -ArgumentList 'escritorio.py' -NoNewWindow `
+          $backend = Start-Process python -ArgumentList 'escritorio.py' -NoNewWindow -PassThru `
             -RedirectStandardOutput "$env:RUNNER_TEMP\salida.txt" `
             -RedirectStandardError "$env:RUNNER_TEMP\errores.txt"
           foreach ($i in 1..120) {
             $linea = Get-Content "$env:RUNNER_TEMP\salida.txt" -ErrorAction SilentlyContinue |
               Select-String 'LISTO (\d+)'
-            if ($linea) { break }
+            if ($linea -or $backend.HasExited) { break }
             Start-Sleep -Milliseconds 500
           }
-          if (-not $linea) {
-            Get-Content "$env:RUNNER_TEMP\errores.txt"
-            throw 'El backend no ha dicho LISTO en un minuto.'
-          }
-          $puerto = $linea.Matches[0].Groups[1].Value
-          "BASE=http://127.0.0.1:$puerto" >> $env:GITHUB_ENV
-
-      - name: Pasada por todas las herramientas
-        id: barrido
-        continue-on-error: true
-        env:
-          TOKEN: ci
+          if (-not $linea) { throw 'El backend no ha dicho LISTO en un minuto.' }
+          $env:BASE = "http://127.0.0.1:$($linea.Matches[0].Groups[1].Value)"
+          $env:TOKEN = 'ci'
           # Sólo para la salida del barrido (✓ y ✗): la consola de Windows es
-          # cp1252. Al backend no se le pone, para que se vea si él depende de ello.
-          PYTHONIOENCODING: utf-8
-        run: python scripts/barrido.py
+          # cp1252. Al backend no se le pone, para que se vea si depende de ello.
+          $env:PYTHONIOENCODING = 'utf-8'
+          python ..\scripts\barrido.py
+          $resultado = $LASTEXITCODE
+          Stop-Process -Id $backend.Id -Force -ErrorAction SilentlyContinue
+          exit $resultado
 
       - name: Registro del backend
         if: always()

@@ -1,11 +1,19 @@
 """Los topes que protegen la máquina de un solo trabajo."""
 import io
+import signal
+import sys
 import time
 import zipfile
 
 import pytest
 
 from tests.conftest import SESION
+
+# El plazo en proceso va con `SIGALRM`, que Windows no tiene. Allí no se arma
+# (`PlazoMaximo` lo comprueba) y la aplicación de escritorio corta con el botón
+# de cancelar.
+con_sigalrm = pytest.mark.skipif(not hasattr(signal, 'SIGALRM'),
+                                 reason='sin SIGALRM no hay plazo en proceso')
 
 
 def test_tope_de_rasterizado_informa_medidas(entorno):
@@ -82,6 +90,7 @@ def test_lo_que_no_es_un_zip_lo_decide_la_herramienta(entorno, tmp_path):
     limites.comprobar_descomprimido(str(roto), 'roto.docx')
 
 
+@con_sigalrm
 def test_el_plazo_corta_el_trabajo(entorno):
     """El contexto avisa con `TiempoAgotado`; traducirlo es del decorador."""
     entorno()
@@ -92,6 +101,7 @@ def test_el_plazo_corta_el_trabajo(entorno):
             time.sleep(3)
 
 
+@con_sigalrm
 def test_el_plazo_se_traduce_a_504_con_su_mensaje(entorno):
     from errors import ApiError
 
@@ -109,6 +119,7 @@ def test_el_plazo_se_traduce_a_504_con_su_mensaje(entorno):
     assert '1 segundo' in fallo.value.message
 
 
+@con_sigalrm
 def test_el_plazo_se_desarma_al_salir(entorno):
     """Un plazo que se queda armado cortaría la petición siguiente."""
     import signal
@@ -135,6 +146,7 @@ def test_edad_de_la_peticion(entorno, cabecera, ahora, esperado):
     assert limites.edad_peticion(cabecera, ahora) == esperado
 
 
+@con_sigalrm
 def test_el_plazo_atraviesa_los_except_amplios(entorno):
     """Varias herramientas envuelven su trabajo en `except Exception`.
 
@@ -189,15 +201,18 @@ def test_un_programa_muerto_por_señal_no_se_confunde_con_un_archivo_dañado(con
     quedarse corto no da un error de memoria: da un proceso muerto a mitad. Sin
     traducirlo, el usuario leía «el archivo está dañado».
 
-    Se usa un proceso que se mata de verdad y no un `CompletedProcess` de
-    mentira: lo que hay que comprobar es que el código negativo llega, y eso
-    depende de cómo se espere al proceso.
+    Se usa un proceso que revienta de verdad y no un `CompletedProcess` de
+    mentira: lo que hay que comprobar es que el código llega, y eso depende de
+    cómo se espere al proceso. Leer la dirección 0 es una violación de segmento
+    en Linux (-11) y una violación de acceso en Windows (0xC0000005): el mismo
+    fallo en las dos plataformas, y los dos tienen que acabar en el 413.
     """
     from errors import ApiError
 
     with conversion() as modulo:
         with pytest.raises(ApiError) as fallo:
-            modulo.ejecutar(['sh', '-c', 'kill -9 $$'], 10, 'programa', 'no disponible')
+            modulo.ejecutar([sys.executable, '-c', 'import ctypes; ctypes.string_at(0)'],
+                            10, 'programa', 'no disponible')
 
     assert fallo.value.status == 413
     assert 'sin memoria' in fallo.value.message

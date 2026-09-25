@@ -21,6 +21,12 @@ import textwrap
 
 import pytest
 
+# Mide `RLIMIT_DATA` y el maestro precargado de gunicorn: la protección de
+# producción, que es de Linux. En Windows no hay ni `resource` ni gunicorn, y la
+# aplicación de escritorio no los usa.
+pytestmark = pytest.mark.skipif(sys.platform == 'win32',
+                                reason='RLIMIT_DATA y gunicorn son de Linux')
+
 RAIZ = __file__.rsplit('/tests/', 1)[0]
 
 
