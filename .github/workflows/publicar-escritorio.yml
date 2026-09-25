@@ -35,7 +35,7 @@ jobs:
     outputs:
       etiqueta: ${{ steps.subir.outputs.etiqueta }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Subir el número
         id: subir

@@ -17,9 +17,9 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # La versión sale del .nvmrc, para que no haya dos sitios que
           # mantener. Angular 22 exige 22.22.3 como mínimo.
@@ -52,7 +52,7 @@ jobs:
     name: Imágenes y pasada por las herramientas
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Construir es lo que valida el despliegue de verdad: el backend instala
       # LibreOffice y Tesseract, y el frontend compila con `npm ci` dentro.
@@ -86,9 +86,9 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           # ocrmypdf exige 3.11 o superior; la imagen usa 3.12.
           python-version: '3.12'
