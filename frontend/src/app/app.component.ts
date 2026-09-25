@@ -17,6 +17,7 @@ import { UsoSesionComponent } from './shared/uso-sesion/uso-sesion.component';
 })
 export class AppComponent {
   readonly anio = new Date().getFullYear();
+  readonly perfilAutor = 'https://github.com/dvdmsv';
 
   private readonly router = inject(Router);
   readonly tema = inject(TemaService);
