@@ -104,6 +104,13 @@ def resolver(orden: list[str]) -> list[str]:
     que el escritorio le cueste algo al servicio web.
     """
     programa, *resto = orden
+    # Una ruta explícita gana a todo: `RUTA_SOFFICE`, `RUTA_GS`… La aplicación
+    # de escritorio la usa porque LibreOffice no puede ir en el PATH: su
+    # carpeta `program` trae su propio `python.exe`, y con ella delante
+    # cualquier `python` del sistema pasa a ser el de LibreOffice.
+    explicita = os.environ.get(f'RUTA_{programa.upper()}', '').strip()
+    if explicita:
+        return [explicita, *resto]
     if getattr(sys, 'frozen', False) and programa in PROGRAMAS_DE_PYTHON:
         return [sys.executable, '--programa', programa, *resto]
     if os.name == 'nt' and programa in NOMBRES_EN_WINDOWS:

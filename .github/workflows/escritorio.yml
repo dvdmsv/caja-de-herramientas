@@ -48,7 +48,9 @@ jobs:
           $gs = (Get-ChildItem 'C:\Program Files\gs\*\bin' | Select-Object -First 1).FullName
           "$gs" >> $env:GITHUB_PATH
           'C:\Program Files\Tesseract-OCR' >> $env:GITHUB_PATH
-          'C:\Program Files\LibreOffice\program' >> $env:GITHUB_PATH
+          # LibreOffice **no** va en el PATH: su carpeta trae un python.exe
+          # propio que taparía al de verdad. Se le dice al backend dónde está.
+          'RUTA_SOFFICE=C:\Program Files\LibreOffice\program\soffice.exe' >> $env:GITHUB_ENV
           'WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin' >> $env:GITHUB_ENV
 
       - name: Dependencias de Python
@@ -62,7 +64,8 @@ jobs:
           gswin64c --version
           tesseract --version
           tesseract --list-langs
-          soffice --version
+          & $env:RUTA_SOFFICE --version
+          python --version
           python -c "import weasyprint; print('weasyprint', weasyprint.__version__)"
 
       # Sin cortar en el primer fallo: en la fase 0 lo que se quiere es la

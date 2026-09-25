@@ -166,3 +166,12 @@ def test_un_fallo_nativo_se_reconoce_en_las_dos_plataformas(monkeypatch, nombre,
 
     monkeypatch.setattr(os, 'name', nombre)
     assert conversion.murio_por_fallo(codigo) is esperado
+
+
+def test_una_ruta_explicita_gana(monkeypatch):
+    """LibreOffice no puede ir en el PATH: trae su propio `python.exe`."""
+    from api import conversion
+
+    monkeypatch.setenv('RUTA_SOFFICE', r'C:\LibreOffice\program\soffice.exe')
+    assert conversion.resolver(['soffice', '--headless']) == [
+        r'C:\LibreOffice\program\soffice.exe', '--headless']
