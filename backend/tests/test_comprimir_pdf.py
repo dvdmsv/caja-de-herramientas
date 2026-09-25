@@ -184,6 +184,27 @@ def pedir_minimo(cliente, ruta):
     return respuesta.get_json()
 
 
+def test_comprimir_dos_veces_da_los_mismos_bytes(tmp_path):
+    """Sin esto, `/minimo` y la compresión de verdad podían diferir en un byte.
+
+    MuPDF inventa al guardar un /ID de 16 bytes al azar, y según le salgan lo
+    escribe en hexadecimal o como texto con escapes: la longitud cambia. Se ve
+    en uno de cada pocos intentos, así que se repite hasta que salga.
+    """
+    from api.tools import comprimir_pdf
+    from app import app
+
+    origen = documento_pesado(tmp_path / 'origen.pdf')
+    with app.test_request_context():
+        resultados = set()
+        for vez in range(12):
+            salida = tmp_path / f'intento-{vez}.pdf'
+            comprimir_pdf._comprimir(str(origen), str(salida), comprimir_pdf.ESCALERA[-1], False)
+            resultados.add(salida.read_bytes())
+
+    assert len(resultados) == 1
+
+
 def test_el_minimo_es_lo_que_luego_entrega(cliente, tmp_path):
     import os
 
