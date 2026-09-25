@@ -68,7 +68,7 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Con el botón, la etiqueta recién creada; si no, lo que se ha empujado.
           ref: ${{ inputs.etiqueta || github.ref }}
@@ -76,7 +76,7 @@ jobs:
           # desde la anterior.
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -91,12 +91,12 @@ jobs:
       # siempre, que guarda al final, ya no lo encontraría.
       - name: Recuperar vendor
         id: vendor
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: escritorio/vendor
           key: vendor-${{ runner.os }}-${{ hashFiles('escritorio/scripts/traer-dependencias.ps1') }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: steps.vendor.outputs.cache-hit != 'true'
         with:
           path: escritorio/descargas
@@ -109,7 +109,7 @@ jobs:
 
       - name: Guardar vendor
         if: steps.vendor.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: escritorio/vendor
           key: ${{ steps.vendor.outputs.cache-primary-key }}
@@ -183,7 +183,7 @@ jobs:
       #
       # El paquete lleva dentro el Angular compilado (lo sirve él mismo), así
       # que hay que compilarlo antes.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: frontend/.nvmrc
           cache: npm
@@ -326,7 +326,7 @@ jobs:
           if (Test-Path $exe.FullName) { throw 'Desinstalada, el ejecutable sigue ahí.' }
           'Desinstalada sin dejar rastro en el registro.'
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         id: artefacto
         if: steps.instalador.outcome == 'success'
         with:
