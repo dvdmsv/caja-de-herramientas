@@ -11,6 +11,9 @@ name: Escritorio (Windows)
 on:
   push:
     branches: [escritorio]
+    # Un cambio que sólo toca documentación no necesita 10 minutos de Windows.
+    # (Con las etiquetas no se miran las rutas: siempre corre.)
+    paths-ignore: ['**.md', 'docs/**']
     # Una versión: `v0.2.0`. Lo mismo que en cada push y, si todo pasa, se
     # publica en Releases (ver «Publicar la versión»).
     tags: ['v*']
@@ -25,6 +28,13 @@ on:
         description: La versión que compilar y publicar (v0.1.1)
         type: string
         required: true
+
+# Un push nuevo a la rama cancela el anterior, que ya no interesa. Publicar no se
+# cancela nunca, ni lo cancela un push: va en su propio grupo (el evento de la
+# llamada del botón es workflow_dispatch, no push).
+concurrency:
+  group: escritorio-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   backend:
@@ -43,6 +53,11 @@ jobs:
       # SignPath, para la firma de código. Hasta que esté dado de alta, vacío:
       # entonces el instalador sale sin firmar y Windows avisa al abrirlo.
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      # Si esta ejecución publica (etiqueta o botón). Sólo entonces se empaqueta
+      # como para repartir: LZMA y Rust con LTO. En cada push, el modo rápido
+      # (tauri.rapido.json y un perfil sin LTO), que prueba lo mismo en un
+      # tercio del tiempo: medido, comprimir eran 8 min y compilar 3.
+      PUBLICAR: ${{ startsWith(github.ref, 'refs/tags/v') || (inputs.etiqueta || '') != '' }}
     defaults:
       run:
         shell: pwsh
@@ -63,14 +78,35 @@ jobs:
 
       # Las descargas pesan ~500 MB (LibreOffice son 373). Se guardan por la
       # suma del script: cambiar una versión en él invalida la caché.
+      # vendor\ ya preparado, no sólo las descargas: extraer LibreOffice,
+      # recortarlo y sacar Pango de MSYS2 eran 3-3,5 minutos en cada ejecución.
+      # Se rehace sólo cuando cambia el script. Restaurar y guardar van por
+      # separado porque vendor\ se mueve a dist\ más abajo, y la caché de
+      # siempre, que guarda al final, ya no lo encontraría.
+      - name: Recuperar vendor
+        id: vendor
+        uses: actions/cache/restore@v4
+        with:
+          path: escritorio/vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('escritorio/scripts/traer-dependencias.ps1') }}
+
       - uses: actions/cache@v4
+        if: steps.vendor.outputs.cache-hit != 'true'
         with:
           path: escritorio/descargas
           key: descargas-${{ hashFiles('escritorio/scripts/traer-dependencias.ps1') }}
 
       - name: Preparar vendor
+        if: steps.vendor.outputs.cache-hit != 'true'
         timeout-minutes: 30
         run: ./escritorio/scripts/traer-dependencias.ps1
+
+      - name: Guardar vendor
+        if: steps.vendor.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: escritorio/vendor
+          key: ${{ steps.vendor.outputs.cache-primary-key }}
 
       - name: Lo que hay en vendor responde
         run: |
@@ -200,7 +236,16 @@ jobs:
         working-directory: escritorio
         run: |
           npm ci
-          npx tauri build
+          if ($env:PUBLICAR -eq 'true') {
+            npx tauri build
+          } else {
+            # Modo rápido: sin comprimir (src-tauri/tauri.rapido.json, que se
+            # aplica encima de tauri.conf.json) y sin LTO. Lo que se instala es
+            # igual; sólo cambia cómo va empaquetado.
+            $env:CARGO_PROFILE_RELEASE_LTO = 'false'
+            $env:CARGO_PROFILE_RELEASE_CODEGEN_UNITS = '16'
+            npx tauri build --config src-tauri/tauri.rapido.json
+          }
           $nsis = Get-ChildItem src-tauri\target\release\bundle\nsis\*.exe | Select-Object -First 1
           '{0}: {1:N0} MB' -f $nsis.Name, ($nsis.Length / 1MB)
           "ruta=$($nsis.FullName)" >> $env:GITHUB_OUTPUT
@@ -273,8 +318,10 @@ jobs:
         with:
           name: instalador-windows
           path: ${{ steps.instalador.outputs.ruta }}
-          # Ya va comprimido con LZMA: volver a comprimirlo sólo gasta tiempo.
-          compression-level: 0
+          # Al publicar ya va comprimido con LZMA y recomprimirlo sólo gasta
+          # tiempo; el del modo rápido va sin comprimir, y una pasada ligera lo
+          # deja en algo razonable para descargarlo.
+          compression-level: ${{ env.PUBLICAR == 'true' && '0' || '1' }}
           retention-days: 14
 
       # --- Firma de código (SignPath) --------------------------------------------

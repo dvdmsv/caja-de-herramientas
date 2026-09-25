@@ -52,6 +52,15 @@ Todo esto lo hace la CI (`.github/workflows/escritorio.yml`) en cada push a la
 rama, y es la forma recomendada: en un Windows limpio, sin nada instalado que
 se cuele en el resultado. El instalador sale como artefacto de la ejecución.
 
+**Dos modos de la CI.** En cada push, el instalador sale **sin comprimir** y el
+Rust **sin LTO** (`src-tauri/tauri.rapido.json` y dos variables de Cargo): prueba
+exactamente lo mismo, porque el contenido es igual, en unos 10–12 minutos. Sólo
+al publicar (botón o etiqueta) se empaqueta como para repartir, con LZMA y LTO,
+que es lo que tarda: medido, comprimir 1,25 GB son 8 minutos y compilar 3.
+`vendor\` va cacheado ya preparado y sólo se rehace si cambia
+`traer-dependencias.ps1`. Los cambios que sólo tocan `*.md` o `docs/` no lanzan
+la CI de Windows, y un push nuevo cancela el anterior (una publicación, nunca).
+
 A mano, en Windows (no en WSL), con PowerShell 7, Python 3.12, Node y Rust:
 
 ```powershell
