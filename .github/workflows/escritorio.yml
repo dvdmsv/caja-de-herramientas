@@ -336,6 +336,10 @@ jobs:
           } | ConvertTo-Json -Depth 4 | Set-Content latest.json -Encoding utf8NoBOM
           $firmado = if ('${{ steps.firma.outcome }}' -eq 'success') { 'Firmado con SignPath.' } else {
             'Todavía **sin firmar**: Windows avisará al abrirlo («Más información» → «Ejecutar de todas formas»).' }
-          gh release create $etiqueta $nombre latest.json `
+          # Y una copia con nombre fijo, para que haya un enlace que no cambie
+          # nunca: releases/latest/download/CajaDeHerramientas-setup.exe lleva
+          # siempre a la última. Es el que se enlaza desde el README de master.
+          Copy-Item $nombre 'CajaDeHerramientas-setup.exe'
+          gh release create $etiqueta $nombre 'CajaDeHerramientas-setup.exe' latest.json `
             --title "Caja de herramientas $version" `
             --notes "Instalador para Windows 10 y 11 (64 bits). $firmado"

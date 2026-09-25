@@ -74,8 +74,11 @@ del sistema.
 1. Subir la versión en `src-tauri/tauri.conf.json` y `src-tauri/Cargo.toml`.
 2. `git tag v0.2.0 && git push origin v0.2.0` (desde la rama `escritorio`).
 
-La CI hace lo de siempre y, si todo pasa, publica en Releases el instalador y el
-`latest.json` que leen las instalaciones existentes. Si la etiqueta no coincide
+La CI hace lo de siempre y, si todo pasa, publica en Releases el instalador (con
+su versión en el nombre y también como `CajaDeHerramientas-setup.exe`) y el
+`latest.json` que leen las instalaciones existentes. El enlace para descargar la
+última, que es el que va en el README de `master`, no cambia nunca:
+<https://github.com/dvdmsv/caja-de-herramientas/releases/latest/download/CajaDeHerramientas-setup.exe> Si la etiqueta no coincide
 con la versión, se para. La aplicación pregunta al arrancar si hay una nueva y,
 si se acepta, se reinstala sola.
 
@@ -117,7 +120,8 @@ que son añadidos pequeños y sin efecto en la web.
 | `backend/api/limites.py` | el `hasattr(signal, 'SIGALRM')` de `PlazoMaximo` |
 | `backend/api/ocrmypdf.py` | el registro guarda el final de la salida, no el principio |
 | `backend/api/tools/documento_a_pdf.py` | el perfil de LibreOffice como `Path.as_uri()` |
-| `backend/app.py`, `backend/config.py` | el modo escritorio cuando hay `ESCRITORIO_TOKEN` |
+| `backend/app.py`, `backend/config.py` | el modo escritorio cuando hay `ESCRITORIO_TOKEN`, y `config.DONDE` |
+| `backend/errors.py` | los mensajes de memoria dicen `config.DONDE` («este equipo» / «este servidor») |
 | `frontend/src/app/core/api.service.ts` | `descargar()` pasa por `EscritorioService.guardar()` |
 | `frontend/src/app/app.component.ts`, `pages/home/home.component.ts` | recoger lo abierto con «Abrir con…» |
 | `backend/tests/test_limites.py`, `test_arranque.py` | los `skipif` de Windows y el fallo nativo con `faulthandler` |
