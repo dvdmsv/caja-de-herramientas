@@ -280,7 +280,7 @@ def main(argv: list[str]) -> None:
     # Tauri no se escribe: el registro acaba en un archivo del disco.
     if inventado:
         logging.getLogger(__name__).info(
-            'Abre http://127.0.0.1:%d/?%s=%s', puerto, PARAMETRO, token)
+            'Abre http://127.0.0.1:%s/?%s=%s', puerto, PARAMETRO, token)
     servidor.run()
 
 

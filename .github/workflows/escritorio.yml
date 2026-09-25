@@ -79,13 +79,6 @@ jobs:
         working-directory: backend
         run: python -m pytest tests/ -q -p no:cacheprovider -rf
 
-      # Temporal: en Windows el mínimo de «Comprimir PDF» y la compresión real
-      # difieren en un byte. Esto enseña dónde.
-      - name: Diagnóstico de Comprimir PDF
-        continue-on-error: true
-        working-directory: backend
-        run: python ..\escritorio\scripts\diagnostico_comprimir.py
-
       # Arrancar y barrer en el **mismo** paso: en Windows el runner mata todo
       # lo que un paso haya lanzado en cuanto ese paso acaba, así que un backend
       # arrancado en un paso ya no existe en el siguiente.
