@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Prepara escritorio\vendor\ con los programas externos que van dentro del
   instalador: Tesseract, Ghostscript, LibreOffice, Pango (para WeasyPrint) y las
@@ -32,6 +32,11 @@
 .PARAMETER Descargas
   Dónde se guardan las descargas, para no repetirlas (la CI la cachea).
 #>
+# PowerShell 7: usa `-Encoding utf8NoBOM` y `Kill($true)`, que la 5.1 de
+# Windows no tiene. Y el archivo va con BOM para que la 5.1 al menos lo lea
+# como UTF-8 y avise de esto, en vez de tropezar con una raya o una tilde.
+#Requires -Version 7
+
 param(
   [string]$Destino = (Join-Path $PSScriptRoot '..\vendor'),
   [string]$Descargas = (Join-Path $PSScriptRoot '..\descargas'),
@@ -193,7 +198,7 @@ foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
   $destinoDll = Join-Path $libreoffice "program\$dll"
   if (-not (Test-Path $destinoDll)) {
     Copy-Item (Join-Path $env:SystemRoot "System32\$dll") $destinoDll
-    Write-Host "LibreOffice no traía $dll: copiada."
+    Write-Host "LibreOffice no traía ${dll}: copiada."
   }
 }
 Remove-Item $extraido -Recurse -Force -ErrorAction SilentlyContinue
