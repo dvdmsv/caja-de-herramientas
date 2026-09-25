@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
+import { EscritorioService } from '../../core/escritorio.service';
 import { RecientesService } from '../../core/recientes.service';
 import {
   ClaveCategoria, Grupo, Herramienta, agruparPorCategoria, buscar, buscarPorSlug, claveDeCategoria,
@@ -34,6 +36,21 @@ export class HomeComponent {
 
   private readonly router = inject(Router);
   private readonly traspaso = inject(TraspasoService);
+
+  constructor() {
+    // En la aplicación de Windows, lo abierto con «Abrir con…» llega aquí como
+    // si se hubiera soltado en la portada: se ofrecen las herramientas que lo
+    // aceptan, igual que al soltar.
+    const escritorio = inject(EscritorioService);
+    const recibidos = escritorio.tomar();
+    if (recibidos.length) {
+      this.soltados = recibidos;
+    }
+    escritorio.llegan.pipe(takeUntilDestroyed()).subscribe(archivos => {
+      escritorio.tomar();
+      this.soltados = archivos;
+    });
+  }
 
   /** Leídas una vez al entrar: la lista no cambia mientras se está en la portada. */
   readonly recientes: Herramienta[] = inject(RecientesService).lista()

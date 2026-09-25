@@ -1,8 +1,9 @@
 import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { Observable, filter, map } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { Observable, filter, from, map, switchMap } from 'rxjs';
 
 import { EstadoTrabajo } from '../shared/progreso';
+import { EscritorioService } from './escritorio.service';
 
 /** Archivo tal y como lo describe el servidor. */
 export interface ArchivoServidor {
@@ -237,6 +238,8 @@ interface RespuestaSubida {
  */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
+  private readonly escritorio = inject(EscritorioService);
+
   constructor(private http: HttpClient) {}
 
   /** Sube archivos y va emitiendo el progreso hasta terminar. */
@@ -320,7 +323,17 @@ export class ApiService {
   descargar(archivo: ArchivoServidor): Observable<void> {
     return this.http
       .get(`/api/files/${archivo.id}/download`, { responseType: 'blob' })
-      .pipe(map(blob => guardarComo(blob, archivo.name)));
+      .pipe(switchMap(blob => from(this.guardar(blob, archivo.name))));
+  }
+
+  /**
+   * En la aplicación de escritorio, con el diálogo «Guardar como» de Windows;
+   * en el navegador, como una descarga. Cerrar el diálogo no es un error.
+   */
+  private async guardar(blob: Blob, nombre: string): Promise<void> {
+    if (!(await this.escritorio.guardar(blob, nombre))) {
+      guardarComo(blob, nombre);
+    }
   }
 
   /**

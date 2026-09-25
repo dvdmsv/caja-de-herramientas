@@ -3,6 +3,7 @@ import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
+import { EscritorioService } from './core/escritorio.service';
 import { TemaService } from './core/tema.service';
 import { MenuPrincipalComponent } from './shared/menu-principal/menu-principal.component';
 import { UsoSesionComponent } from './shared/uso-sesion/uso-sesion.component';
@@ -19,6 +20,12 @@ export class AppComponent {
 
   private readonly router = inject(Router);
   readonly tema = inject(TemaService);
+
+  constructor() {
+    // Dentro de la aplicación de Windows, recoge lo abierto con «Abrir con…».
+    // En la web no hace nada.
+    inject(EscritorioService).iniciar();
+  }
 
   get iconoTema(): string {
     return { sistema: 'bi-circle-half', claro: 'bi-sun', oscuro: 'bi-moon-stars' }[this.tema.preferencia];

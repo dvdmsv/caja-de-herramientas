@@ -35,7 +35,8 @@
         "installMode": "currentUser",
         "languages": ["Spanish", "English"],
         "displayLanguageSelector": false,
-        "compression": "lzma"
+        "compression": "lzma",
+        "installerHooks": "windows/ganchos.nsh"
       }
     }
   }

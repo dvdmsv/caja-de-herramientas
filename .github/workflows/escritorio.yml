@@ -216,6 +216,27 @@ jobs:
           if ($vivo) { throw 'El backend sigue vivo después de matar la aplicación.' }
           'El backend ha muerto con la aplicación.'
 
+          # «Abrir con…»: en la lista de los PDF, pero sin ser el predeterminado.
+          $lista = Get-ItemProperty 'HKCU:\Software\Classes\.pdf\OpenWithProgids' -ErrorAction SilentlyContinue
+          if (-not ($lista.PSObject.Properties.Name -contains 'CajaDeHerramientas.Archivo')) {
+            throw 'La aplicación no aparece en «Abrir con…» de los PDF.'
+          }
+          $predeterminado = (Get-ItemProperty 'HKCU:\Software\Classes\.pdf' -ErrorAction SilentlyContinue).'(default)'
+          if ($predeterminado -eq 'CajaDeHerramientas.Archivo') {
+            throw 'La aplicación se ha hecho programa predeterminado de los PDF.'
+          }
+          'En «Abrir con…» de los PDF, sin ser el predeterminado.'
+
+          # Y al desinstalar no queda nada de eso.
+          $desinstalador = Join-Path $exe.DirectoryName 'uninstall.exe'
+          Start-Process $desinstalador -ArgumentList '/S' -Wait
+          Start-Sleep -Seconds 5
+          if (Test-Path 'HKCU:\Software\Classes\CajaDeHerramientas.Archivo') {
+            throw 'Desinstalada, sigue registrada en «Abrir con…».'
+          }
+          if (Test-Path $exe.FullName) { throw 'Desinstalada, el ejecutable sigue ahí.' }
+          'Desinstalada sin dejar rastro en el registro.'
+
       - uses: actions/upload-artifact@v4
         if: steps.instalador.outcome == 'success'
         with:
