@@ -101,6 +101,36 @@ def usar_vendor(vendor: str) -> None:
     os.environ.setdefault('FONTCONFIG_FILE', os.path.join(vendor, 'fonts.conf'))
 
 
+# Las que abre WeasyPrint (weasyprint/text/ffi.py), en orden de dependencia.
+DLLS_DE_WEASYPRINT = ('libgobject-2.0-0.dll', 'libharfbuzz-0.dll', 'libfontconfig-1.dll',
+                      'libpango-1.0-0.dll', 'libpangoft2-1.0-0.dll',
+                      'libharfbuzz-subset-0.dll')
+_precargadas = []  # que no las libere el recolector
+
+
+def precargar_gtk(carpeta: str) -> None:
+    """Carga las DLL de Pango por su ruta antes de que WeasyPrint las pida.
+
+    WeasyPrint las abre **por nombre** con cffi, y en el paquete de PyInstaller
+    eso falla (0x7e): su arranque cambia el orden de búsqueda de DLL de Windows,
+    y la carpeta que WeasyPrint añade con `add_dll_directory` sólo cuenta si la
+    carga lo pide expresamente, y la de cffi no lo hace. Cargándolas aquí por su
+    ruta, con `LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR`, sus dependencias se buscan
+    primero en su propia carpeta; y cuando WeasyPrint las pida por nombre,
+    Windows le da las que ya están cargadas.
+
+    Eso último importa también por otra razón: el paquete de Python trae su
+    propio `libffi-8.dll`, con el mismo nombre que el de MSYS2 que usa gobject.
+    """
+    import ctypes
+
+    buscar_en_su_carpeta = 0x00000100 | 0x00001000  # DLL_LOAD_DIR | DEFAULT_DIRS
+    for nombre in DLLS_DE_WEASYPRINT:
+        ruta = os.path.join(carpeta, nombre)
+        if os.path.isfile(ruta):
+            _precargadas.append(ctypes.WinDLL(ruta, winmode=buscar_en_su_carpeta))
+
+
 def proteger(app, token: str) -> None:
     """Que sólo la ventana de la aplicación pueda hablar con el backend.
 
@@ -178,6 +208,8 @@ def preparar_entorno() -> tuple[str, bool]:
     vendor = carpeta_vendor()
     if vendor:
         usar_vendor(vendor)
+        if os.name == 'nt':
+            precargar_gtk(os.environ['WEASYPRINT_DLL_DIRECTORIES'])
     os.environ.setdefault('UPLOAD_ROOT', os.path.join(datos, 'uploads'))
     # Los topes de la web reparten un servidor entre muchos; aquí el disco y la
     # memoria son del propio usuario, y un PDF escaneado de 400 MB es normal.
