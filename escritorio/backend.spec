@@ -18,6 +18,10 @@ o se lee como archivo de datos, y eso es lo que se le dice aquí:
 - `pdf2docx` arranca con `fire`, y los módulos de sus comandos no los importa
   nadie de forma estática.
 - `pyhanko` y su validador cargan datos y submódulos a demanda.
+- `pypdfium2` es con lo que ocrmypdf rasteriza las páginas para el OCR. Lo
+  importa dentro de un `try` y sólo se queja al rasterizar, y su DLL y su
+  `version.json` son archivos de datos: sin recogerlo, PDF/A funciona —no
+  rasteriza— y el OCR falla.
 
 Añadir una herramienta que traiga un paquete así obliga a añadirlo aquí; si no,
 funcionará en desarrollo y fallará sólo en el instalado.
@@ -33,6 +37,7 @@ CON_DATOS_O_PLUGINS = [
     'ocrmypdf', 'markitdown', 'magika', 'weasyprint', 'pyphen', 'tinycss2',
     'cssselect2', 'pdf2docx', 'fire', 'pyhanko', 'pyhanko_certvalidator',
     'pymupdf', 'pikepdf', 'pillow_heif', 'zxingcpp', 'segno', 'uharfbuzz',
+    'pypdfium2', 'pypdfium2_raw', 'pypdfium2_cfg',
 ]
 
 datas = [(FRONTEND, 'frontend')]

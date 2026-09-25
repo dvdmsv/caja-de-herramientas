@@ -50,7 +50,9 @@ def ejecutar(opciones: list[str], origen: str, destino: str, tiempo_limite: int,
 
     tabla = {**ERRORES, **(errores or {})}
     mensaje, codigo = tabla.get(resultado.returncode, generico)
-    # El detalle de ocrmypdf va al registro, no a la pantalla del usuario.
+    # El detalle de ocrmypdf va al registro, no a la pantalla del usuario. El
+    # **final** y no el principio: cuando es una traza de Python, lo que dice
+    # qué ha fallado es la última línea, y el principio sólo dice por dónde iba.
     current_app.logger.warning('ocrmypdf salió con %s: %s', resultado.returncode,
-                               (resultado.stderr or '').strip()[:500])
+                               (resultado.stderr or '').strip()[-1500:])
     raise ApiError(mensaje, codigo)
