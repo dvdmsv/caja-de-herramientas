@@ -38,6 +38,7 @@ jobs:
           key: descargas-${{ hashFiles('escritorio/scripts/traer-dependencias.ps1') }}
 
       - name: Preparar vendor
+        timeout-minutes: 30
         run: ./escritorio/scripts/traer-dependencias.ps1
 
       - name: Lo que hay en vendor responde

@@ -13,10 +13,12 @@
   instalador sin que nadie se entere.
 
   Se ejecuta en la máquina que compila (la CI de Windows), no en la del usuario.
-  Por eso Tesseract y Ghostscript se instalan en silencio dentro de vendor\ con
-  sus propios instaladores: es lo más fiable, y lo que dejen en el registro de
-  esa máquina se tira con ella. LibreOffice se extrae con `msiexec /a`, que
-  desempaqueta el MSI sin instalar nada.
+  **Nada se instala: todo se extrae.** Tesseract y Ghostscript son instaladores
+  NSIS y 7-Zip los abre como un archivo cualquiera; LibreOffice es un MSI y
+  `msiexec /a` lo desempaqueta. Instalarlos en silencio parecía más fiable y no
+  lo es: el de Ghostscript lanza dentro el instalador del runtime de Visual C++
+  y se quedó colgado una hora en la CI. Y el de Tesseract descarga los idiomas
+  durante la instalación, así que los idiomas van aquí, fijados como lo demás.
 
   Pango no tiene un paquete fijado como los demás: sale de MSYS2 (el runner de
   GitHub ya lo trae en C:\msys64) y se copian sólo las DLL que WeasyPrint abre y
@@ -48,8 +50,12 @@ $Paquetes = @{
     url = 'https://github.com/tesseract-ocr/tesseract/releases/download/5.5.3/tesseract-ocr-w64-setup-5.5.3.20260724.exe'
     sha = 'bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4'
   }
-  # El instalador trae inglés; el español, de tessdata_fast como el paquete
-  # tesseract-ocr-spa de Debian.
+  # Los idiomas, de tessdata_fast como los paquetes tesseract-ocr-eng y -spa de
+  # Debian. El instalador no los trae dentro: los descarga al instalar.
+  ingles = @{
+    url = 'https://github.com/tesseract-ocr/tessdata_fast/raw/4.1.0/eng.traineddata'
+    sha = '7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2'
+  }
   espanol = @{
     url = 'https://github.com/tesseract-ocr/tessdata_fast/raw/4.1.0/spa.traineddata'
     sha = '6f2e04d02774a18f01bed44b1111f2cd7f3ba7ac9dc4373cd3f898a40ea6b464'
@@ -105,9 +111,22 @@ function Traer([string]$nombre) {
   return $archivo
 }
 
-function Esperar([string]$programa, [string[]]$argumentos) {
-  $proceso = Start-Process $programa -ArgumentList $argumentos -Wait -PassThru -NoNewWindow
+function Esperar([string]$programa, [string[]]$argumentos, [int]$minutos = 15) {
+  # Con plazo: un programa que se cuelga no puede dejar la CI una hora parada
+  # sin decir nada, que es lo que pasó con el instalador de Ghostscript.
+  $proceso = Start-Process $programa -ArgumentList $argumentos -PassThru -NoNewWindow
+  if (-not $proceso.WaitForExit($minutos * 60 * 1000)) {
+    $proceso.Kill($true)
+    throw "$programa no ha terminado en $minutos minutos."
+  }
   if ($proceso.ExitCode -ne 0) { throw "$programa salió con $($proceso.ExitCode)" }
+}
+
+$SieteZip = 'C:\Program Files\7-Zip\7z.exe'
+function Extraer([string]$instalador, [string]$carpeta) {
+  Esperar $SieteZip @('x', '-y', "-o$carpeta", "`"$instalador`"") | Out-Null
+  # Lo que es del instalador y no del programa.
+  Remove-Item (Join-Path $carpeta '$PLUGINSDIR') -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 New-Item -ItemType Directory -Force $Descargas | Out-Null
@@ -118,26 +137,43 @@ $licencias = New-Item -ItemType Directory -Force (Join-Path $Destino 'licencias'
 
 # --- Tesseract -----------------------------------------------------------------
 $tesseract = Join-Path $Destino 'tesseract'
-# /D tiene que ir el último y sin comillas: es como lo lee NSIS.
-Esperar (Traer 'tesseract') @('/S', "/D=$tesseract")
+Extraer (Traer 'tesseract') $tesseract
+Copy-Item (Traer 'ingles') (Join-Path $tesseract 'tessdata\eng.traineddata')
 Copy-Item (Traer 'espanol') (Join-Path $tesseract 'tessdata\spa.traineddata')
-# Lo que no se usa: el desinstalador, la documentación y las herramientas de
-# entrenamiento. Sólo hace falta tesseract.exe y sus DLL.
-Remove-Item (Join-Path $tesseract 'uninstall.exe'), (Join-Path $tesseract 'doc') -Recurse -Force -ErrorAction SilentlyContinue
-Get-ChildItem $tesseract -Filter '*.exe' | Where-Object Name -ne 'tesseract.exe' | Remove-Item
-Copy-Item (Join-Path $tesseract 'LICENSE*') (Join-Path $licencias 'tesseract.txt') -ErrorAction SilentlyContinue
+# Sólo hace falta tesseract.exe y sus DLL. Sobran las herramientas de
+# entrenamiento (son otros .exe), sus manuales en HTML, el visor en Java y la
+# documentación.
+Get-ChildItem $tesseract -File | Where-Object {
+  ($_.Extension -eq '.exe' -and $_.Name -ne 'tesseract.exe') -or $_.Extension -eq '.html'
+} | Remove-Item
+Get-ChildItem (Join-Path $tesseract 'tessdata') -Filter '*.jar' | Remove-Item
+Remove-Item (Join-Path $tesseract 'doc') -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem $tesseract -Filter '*.nsis' | Remove-Item
+# La licencia se escribe a mano: el instalador no la trae como archivo.
+"Tesseract OCR 5.5.3 — Apache License 2.0`nhttps://github.com/tesseract-ocr/tesseract/blob/main/LICENSE" |
+  Set-Content (Join-Path $licencias 'tesseract.txt') -Encoding utf8NoBOM
 
-# --- Ghostscript ---------------------------------------------------------------
+# --- Ghostscript -----------------------------------------------------------------
 $gs = Join-Path $Destino 'gs'
-Esperar (Traer 'ghostscript') @('/S', "/D=$gs")
-Remove-Item (Join-Path $gs 'uninstgs.exe'), (Join-Path $gs 'doc'), (Join-Path $gs 'examples') -Recurse -Force -ErrorAction SilentlyContinue
+Extraer (Traer 'ghostscript') $gs
+Remove-Item (Join-Path $gs 'doc'), (Join-Path $gs 'examples'), (Join-Path $gs 'vcredist_x64.exe') `
+  -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem $gs -Filter '*.nsis' | Remove-Item
+# Ghostscript está compilado con Visual C++ y necesita su runtime, que en un
+# equipo limpio puede no estar: su instalador lo instalaba con vcredist_x64.exe.
+# Aquí va junto al programa, que es como Microsoft permite redistribuirlo (lo
+# que sí trae Windows 10 y 11 es la parte universal, las api-ms-win-crt-*).
+foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+  Copy-Item (Join-Path $env:SystemRoot "System32\$dll") (Join-Path $gs 'bin')
+}
 # Es AGPL, igual que este proyecto.
-Copy-Item (Join-Path $gs 'LICENSE') (Join-Path $licencias 'ghostscript.txt') -ErrorAction SilentlyContinue
+"Ghostscript 10.08 — GNU AGPL 3.0`nhttps://www.ghostscript.com/licensing/" |
+  Set-Content (Join-Path $licencias 'ghostscript.txt') -Encoding utf8NoBOM
 
 # --- LibreOffice -----------------------------------------------------------------
 $extraido = Join-Path $env:TEMP 'libreoffice-extraido'
 if (Test-Path $extraido) { Remove-Item $extraido -Recurse -Force }
-Esperar 'msiexec.exe' @('/a', "`"$(Traer 'libreoffice')`"", '/qn', "TARGETDIR=`"$extraido`"")
+Esperar 'msiexec.exe' -minutos 20 -argumentos @('/a', "`"$(Traer 'libreoffice')`"", '/qn', "TARGETDIR=`"$extraido`"")
 # La instalación administrativa deja el árbol dentro de una o dos carpetas según
 # la versión: se busca soffice.exe en vez de suponer dónde está.
 $soffice = Get-ChildItem $extraido -Recurse -Filter 'soffice.exe' | Select-Object -First 1
@@ -151,6 +187,15 @@ foreach ($sobra in 'share\gallery', 'share\template', 'share\wizards', 'help', '
   Remove-Item (Join-Path $libreoffice $sobra) -Recurse -Force -ErrorAction SilentlyContinue
 }
 Copy-Item (Join-Path $libreoffice 'LICENSE*') $licencias -ErrorAction SilentlyContinue
+# El mismo runtime de Visual C++ que Ghostscript. Instalado de verdad, el MSI lo
+# pone en System32; extraído con `/a`, no, y en un equipo limpio no arrancaría.
+foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+  $destinoDll = Join-Path $libreoffice "program\$dll"
+  if (-not (Test-Path $destinoDll)) {
+    Copy-Item (Join-Path $env:SystemRoot "System32\$dll") $destinoDll
+    Write-Host "LibreOffice no traía $dll: copiada."
+  }
+}
 Remove-Item $extraido -Recurse -Force -ErrorAction SilentlyContinue
 
 # --- Pango, de MSYS2 -------------------------------------------------------------
