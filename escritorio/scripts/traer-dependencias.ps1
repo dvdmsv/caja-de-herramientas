@@ -194,6 +194,24 @@ $libreoffice = Join-Path $Destino 'libreoffice'
 foreach ($sobra in 'share\gallery', 'share\template', 'share\wizards', 'help', 'readmes') {
   Remove-Item (Join-Path $libreoffice $sobra) -Recurse -Force -ErrorAction SilentlyContinue
 }
+# La extracción administrativa saca **todas** las partes del MSI, no las que se
+# instalan de serie: las traducciones de la interfaz a un centenar de idiomas,
+# los diccionarios y las extensiones. Convertir a PDF sin interfaz no usa
+# ninguna (en Debian cada una es un paquete aparte que no se instala). Se queda
+# el español de la interfaz, por si algún mensaje llegara al registro.
+Get-ChildItem (Join-Path $libreoffice 'program\resource') -Directory -ErrorAction SilentlyContinue |
+  Where-Object Name -ne 'es' | Remove-Item -Recurse -Force
+Remove-Item (Join-Path $libreoffice 'share\extensions') -Recurse -Force -ErrorAction SilentlyContinue
+# De los juegos de iconos, sólo el de serie: sin interfaz no se pinta ninguno,
+# pero LibreOffice espera encontrar el suyo al arrancar.
+Get-ChildItem (Join-Path $libreoffice 'share\config') -Filter 'images_*.zip' |
+  Where-Object Name -ne 'images_colibre.zip' | Remove-Item
+# Qué ocupa lo que queda, para saber qué más recortar.
+foreach ($nivel in (Get-ChildItem $libreoffice -Directory), (Get-ChildItem (Join-Path $libreoffice 'share'), (Join-Path $libreoffice 'program') -Directory)) {
+  $nivel | ForEach-Object {
+    [pscustomobject]@{ MB = [math]::Round((Get-ChildItem $_.FullName -Recurse -File | Measure-Object Length -Sum).Sum / 1MB); Carpeta = $_.FullName.Substring($libreoffice.Length) }
+  } | Sort-Object MB -Descending | Select-Object -First 12 | Format-Table -AutoSize | Out-String | Write-Host
+}
 Copy-Item (Join-Path $libreoffice 'LICENSE*') $licencias -ErrorAction SilentlyContinue
 # El mismo runtime de Visual C++ que Ghostscript. Instalado de verdad, el MSI lo
 # pone en System32; extraído con `/a`, no, y en un equipo limpio no arrancaría.
@@ -215,12 +233,18 @@ $env:CHERE_INVOKING = '1'
 & $bash -lc 'pacman -S --noconfirm --needed mingw-w64-x86_64-pango mingw-w64-x86_64-ntldd' | Out-Host
 $binMsys = Join-Path $Msys 'mingw64\bin'
 $gtk = New-Item -ItemType Directory -Force (Join-Path $Destino 'gtk\bin')
-$lista = & $bash -lc "cd /mingw64/bin && ntldd -R $($DllsDeWeasyPrint -join ' ')"
-# De cada línea de ntldd se queda la ruta, y sólo las que son de MSYS2: las de
-# Windows (kernel32, ucrtbase…) ya están en cualquier equipo.
-$dlls = @($DllsDeWeasyPrint) + @($lista | ForEach-Object {
-  if ($_ -match '=>\s+(\S+\\mingw64\\bin\\\S+\.dll)') { [IO.Path]::GetFileName($Matches[1]) }
-}) | Sort-Object -Unique
+$lista = & $bash -lc "cd /mingw64/bin && ntldd -R $($DllsDeWeasyPrint -join ' ') 2>&1"
+$lista | Select-Object -First 5 | Write-Host
+# De la salida de ntldd se queda todo nombre de DLL que exista en la carpeta de
+# MSYS2, sin fiarse de cómo escriba las rutas (con barras de un lado o del otro,
+# en forma de Windows o de MSYS). Las de Windows —kernel32, ucrtbase…— no están
+# ahí, y ésas ya las tiene cualquier equipo.
+$dlls = @($DllsDeWeasyPrint) + @($lista | Select-String '[\w.+-]+\.dll' -AllMatches |
+  ForEach-Object { $_.Matches.Value } |
+  Where-Object { Test-Path (Join-Path $binMsys $_) }) | Sort-Object -Unique
+if ($dlls.Count -le $DllsDeWeasyPrint.Count) {
+  throw "ntldd no ha dado ninguna dependencia de Pango; su salida está arriba."
+}
 foreach ($dll in $dlls) { Copy-Item (Join-Path $binMsys $dll) $gtk }
 $versionPango = (& $bash -lc 'pacman -Q mingw-w64-x86_64-pango').Trim()
 
