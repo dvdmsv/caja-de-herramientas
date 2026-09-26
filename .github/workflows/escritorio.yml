@@ -279,9 +279,10 @@ jobs:
           if (-not $exe) { throw 'No aparece la aplicación instalada.' }
           "Instalada en $($exe.DirectoryName)"
           $registro = "$env:LOCALAPPDATA\merge-pdf\backend.log"
-          # Con el puerto de depuración de WebView2, para poder preguntarle a la
-          # página si llega a Tauri (escritorio/scripts/comprobar-puente.js).
-          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222'
+          # Con la autoprueba del puente (src-tauri/src/autoprueba.js): la página
+          # comprueba que llega a los comandos y deja aquí lo que ha visto.
+          $autoprueba = "$env:RUNNER_TEMP\autoprueba.json"
+          $env:CAJA_AUTOPRUEBA = $autoprueba
           $app = Start-Process $exe.FullName -PassThru
           foreach ($i in 1..240) {
             if ((Test-Path $registro) -and (Select-String -Path $registro -Pattern 'listo con \d+ rutas' -Quiet)) { break }
@@ -303,17 +304,23 @@ jobs:
 
           # La página tiene que poder llamar a los comandos de la aplicación.
           # Durante tres versiones no pudo («not allowed by ACL») y «Guardar» y
-          # «Abrir con…» fallaron en silencio sin que nada lo detectara.
-          # Qué hay del WebView2, para saber qué pasa si no contesta.
-          'Procesos de WebView2: ' + @(Get-Process msedgewebview2 -ErrorAction SilentlyContinue).Count
-          'Escuchando en 9222: ' + [bool](Get-NetTCPConnection -LocalPort 9222 -State Listen -ErrorAction SilentlyContinue)
-          'Runtime de WebView2: ' + (Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue).pv
-          'Sesión de la aplicación: ' + (Get-Process -Id $app.Id).SessionId
-          npm install --no-save --no-fund --no-audit --prefix "$env:RUNNER_TEMP\pw" playwright-core | Out-Null
-          $env:NODE_PATH = "$env:RUNNER_TEMP\pw\node_modules"
+          # «Abrir con…» fallaron en silencio sin que nada lo detectara. Se mira
+          # desde dentro porque el WebView2 de la CI no abre el puerto de
+          # depuración (en una VM sí: escritorio/scripts/comprobar-puente.js).
+          foreach ($i in 1..60) { if (Test-Path $autoprueba) { break }; Start-Sleep 1 }
+          if (-not (Test-Path $autoprueba)) {
+            throw 'La autoprueba no ha llegado: la página no tiene puente con Tauri o no ha cargado.'
+          }
+          $r = Get-Content $autoprueba -Raw | ConvertFrom-Json
+          $r | ConvertTo-Json -Depth 4
           $version = (Get-Content escritorio\src-tauri\tauri.conf.json -Raw | ConvertFrom-Json).version
-          node escritorio\scripts\comprobar-puente.js $version
-          if ($LASTEXITCODE -ne 0) { throw 'La página de la aplicación no llega a Tauri.' }
+          $fallos = @()
+          if ($r.version.ok -ne $version) { $fallos += "versión: $($r.version | ConvertTo-Json -Compress)" }
+          if ($r.pendientes.error) { $fallos += "archivos_pendientes: $($r.pendientes.error)" }
+          if ($r.leer.error -notmatch 'no se ha abierto con la aplicaci') { $fallos += "leer_archivo: $($r.leer | ConvertTo-Json -Compress)" }
+          if ($r.menu.error) { $fallos += "menu_contextual: $($r.menu.error)" }
+          if ($fallos) { throw ("El puente con Tauri no funciona:`n - " + ($fallos -join "`n - ")) }
+          'El puente con Tauri funciona: la página llega a los comandos de la aplicación.'
           # De golpe, como el Administrador de tareas: sin dar ocasión a cerrar
           # nada por las buenas.
           Stop-Process -Id $app.Id -Force

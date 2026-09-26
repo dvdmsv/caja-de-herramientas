@@ -183,6 +183,7 @@ fn main() {
             aplicar_menu_contextual,
             progreso_tarea,
             avisar_fin,
+            resultado_autoprueba,
         ])
         .setup({
             let puerto = puerto.clone();
@@ -492,6 +493,14 @@ fn avisar_fin(app: AppHandle, titulo: String, cuerpo: String) -> bool {
     app.notification().builder().title(titulo).body(cuerpo).show().is_ok()
 }
 
+/// Lo que ha visto la autoprueba desde la página, al archivo que dice
+/// `CAJA_AUTOPRUEBA`. Sin esa variable no hace nada: sólo la pone la CI.
+#[tauri::command]
+fn resultado_autoprueba(resultado: String) -> Result<(), String> {
+    let destino = std::env::var_os("CAJA_AUTOPRUEBA").ok_or("sin autoprueba")?;
+    fs::write(destino, resultado).map_err(|error| error.to_string())
+}
+
 /// Le dice al frontend que hay archivos nuevos esperando. Con un evento del DOM
 /// y no con los de Tauri: así el frontend no necesita su biblioteca.
 fn avisar_de_abiertos(ventana: &WebviewWindow) {
@@ -575,6 +584,12 @@ fn esperar_listo(
                 listo = true;
                 if let Ok(url) = Url::parse(&format!("http://127.0.0.1:{numero}/?t={token}")) {
                     let _ = ventana.navigate(url);
+                }
+                // La CI arranca la aplicación con CAJA_AUTOPRUEBA para saber si
+                // la página llega a los comandos (ver autoprueba.js). La prueba
+                // espera sola a que cargue la página del backend.
+                if std::env::var_os("CAJA_AUTOPRUEBA").is_some() {
+                    let _ = ventana.eval(include_str!("autoprueba.js"));
                 }
             }
         }

@@ -220,8 +220,11 @@ para que aparezcan en «Abrir con…».
   `allow-<comando>` (con guiones). Sin eso Tauri contesta «not allowed by ACL» y,
   durante tres versiones, «Guardar» cayó en silencio a Descargas y «Abrir con…»
   no llegó nunca. Al añadir un comando: a las dos listas. `tauri-build` falla si
-  la capacidad nombra un permiso que no existe, y la CI comprueba con
-  `scripts/comprobar-puente.js` que la página de verdad llega a los comandos.
+  la capacidad nombra un permiso que no existe, y la CI arranca la aplicación
+  instalada con `CAJA_AUTOPRUEBA`: la propia página (`src/autoprueba.js`) llama a
+  los comandos y deja lo que ha visto en un archivo. Desde fuera no se puede,
+  porque el WebView2 de la CI ignora el puerto de depuración; en una VM sí, y
+  `scripts/comprobar-puente.js` lo mira por ahí.
 - **`disable_drag_drop_handler()` en la ventana.** Sin él, en Windows Tauri se
   queda con los archivos soltados y la página no recibe el `drop` de HTML.
 

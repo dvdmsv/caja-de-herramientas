@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-resultado-autoprueba"
+description = "Enables the resultado_autoprueba command without any pre-configured scope."
+commands.allow = ["resultado_autoprueba"]
+
+[[permission]]
+identifier = "deny-resultado-autoprueba"
+description = "Denies the resultado_autoprueba command without any pre-configured scope."
+commands.deny = ["resultado_autoprueba"]

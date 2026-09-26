@@ -14,6 +14,7 @@ const COMANDOS: &[&str] = &[
     "aplicar_menu_contextual",
     "progreso_tarea",
     "avisar_fin",
+    "resultado_autoprueba",
 ];
 
 fn main() {

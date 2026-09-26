@@ -18,6 +18,7 @@
     "allow-menu-contextual",
     "allow-aplicar-menu-contextual",
     "allow-progreso-tarea",
-    "allow-avisar-fin"
+    "allow-avisar-fin",
+    "allow-resultado-autoprueba"
   ]
 }
