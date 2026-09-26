@@ -304,6 +304,11 @@ jobs:
           # La página tiene que poder llamar a los comandos de la aplicación.
           # Durante tres versiones no pudo («not allowed by ACL») y «Guardar» y
           # «Abrir con…» fallaron en silencio sin que nada lo detectara.
+          # Qué hay del WebView2, para saber qué pasa si no contesta.
+          'Procesos de WebView2: ' + @(Get-Process msedgewebview2 -ErrorAction SilentlyContinue).Count
+          'Escuchando en 9222: ' + [bool](Get-NetTCPConnection -LocalPort 9222 -State Listen -ErrorAction SilentlyContinue)
+          'Runtime de WebView2: ' + (Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue).pv
+          'Sesión de la aplicación: ' + (Get-Process -Id $app.Id).SessionId
           npm install --no-save --no-fund --no-audit --prefix "$env:RUNNER_TEMP\pw" playwright-core | Out-Null
           $env:NODE_PATH = "$env:RUNNER_TEMP\pw\node_modules"
           $version = (Get-Content escritorio\src-tauri\tauri.conf.json -Raw | ConvertFrom-Json).version
