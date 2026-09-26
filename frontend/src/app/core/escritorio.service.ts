@@ -1,10 +1,12 @@
 import { Injectable, NgZone, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
+import Swal from 'sweetalert2';
 
 import {
-  AVISO_DESDE_MS, EVENTO_ABIERTOS, aplicarMenuContextual, avisarFin, esFaltaDePermiso, guardarConDialogo,
-  leerMenuContextual, progresoTarea, puente, recogerAbiertos, textoDelAviso, versionDeLaAplicacion,
+  AVISO_DESDE_MS, EVENTO_ABIERTOS, aplicarMenuContextual, avisarFin, describirGuardado, esFaltaDePermiso,
+  guardarConDialogo, leerMenuContextual, mostrarGuardado, progresoTarea, puente, recogerAbiertos, textoDelAviso,
+  versionDeLaAplicacion,
 } from './escritorio';
 import { AvanceTrabajo } from '../shared/progreso';
 import { AjustesMenu, accionesMarcadas } from './menu-contextual';
@@ -75,7 +77,10 @@ export class EscritorioService {
       return false;
     }
     try {
-      await guardarConDialogo(this.tauri, blob, nombre);
+      const ruta = await guardarConDialogo(this.tauri, blob, nombre);
+      if (ruta) {
+        this.avisarGuardado(ruta);
+      }
       return true;
     } catch (error) {
       if (esFaltaDePermiso(error)) {
@@ -87,6 +92,35 @@ export class EscritorioService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Tras guardar, el diálogo de Windows se cierra y no se veía nada: aquí se
+   * dice dónde ha quedado, con un botón para abrir el Explorador ahí. Con el
+   * aspecto de los demás avisos (`shared/notify.ts`), pero con más tiempo y
+   * pausa al pasar por encima, porque trae algo que hacer.
+   */
+  private avisarGuardado(ruta: string): void {
+    const { archivo, carpeta } = describirGuardado(ruta);
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: `Guardado: ${archivo}`,
+      text: carpeta ? `En ${carpeta}` : undefined,
+      showConfirmButton: true,
+      confirmButtonText: 'Mostrar en la carpeta',
+      timer: 7000,
+      timerProgressBar: true,
+      didOpen: aviso => {
+        aviso.addEventListener('mouseenter', Swal.stopTimer);
+        aviso.addEventListener('mouseleave', Swal.resumeTimer);
+      },
+    }).then(respuesta => {
+      if (respuesta.isConfirmed && this.tauri) {
+        mostrarGuardado(this.tauri).catch(error => console.warn('No se ha podido abrir la carpeta.', error));
+      }
+    });
   }
 
   private ultimoProgreso = 0;

@@ -35,18 +35,35 @@ export function puente(ventana: unknown = globalThis): PuenteTauri | null {
 }
 
 /**
- * Guarda con «Guardar como». Devuelve `true` si lo ha guardado, `false` si la
+ * Guarda con «Guardar como». Devuelve dónde se ha guardado, `null` si la
  * persona ha cerrado el diálogo, y lanza si no se ha podido escribir.
  *
  * El contenido va en bruto y el nombre en una cabecera codificada como en una
  * URL: las cabeceras sólo admiten ASCII y los nombres llevan tildes.
  */
-export async function guardarConDialogo(tauri: PuenteTauri, blob: Blob, nombre: string): Promise<boolean> {
+export async function guardarConDialogo(tauri: PuenteTauri, blob: Blob, nombre: string): Promise<string | null> {
   const datos = new Uint8Array(await blob.arrayBuffer());
-  const guardado = await tauri.invoke('guardar_como', datos, {
+  const ruta = await tauri.invoke('guardar_como', datos, {
     headers: { 'x-nombre': encodeURIComponent(nombre) },
   });
-  return guardado === true;
+  return typeof ruta === 'string' ? ruta : null;
+}
+
+/** Abre el Explorador con lo último que se ha guardado, seleccionado. */
+export async function mostrarGuardado(tauri: PuenteTauri): Promise<void> {
+  await tauri.invoke('mostrar_guardado');
+}
+
+/**
+ * Una ruta de Windows partida para el aviso: el archivo y la carpeta donde ha
+ * quedado. La carpeta se acorta a sus dos últimos tramos, que es lo que se
+ * reconoce de un vistazo («Documentos\Contratos»), y no la ruta entera.
+ */
+export function describirGuardado(ruta: string): { archivo: string; carpeta: string } {
+  const partes = ruta.split(/[\\/]/).filter(Boolean);
+  const archivo = partes.pop() ?? ruta;
+  const carpeta = partes.length > 2 ? `…\\${partes.slice(-2).join('\\')}` : partes.join('\\');
+  return { archivo, carpeta };
 }
 
 /** La versión instalada, la de `tauri.conf.json`. Sirve para decirla al pedir ayuda. */

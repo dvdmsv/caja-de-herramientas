@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mostrar-guardado"
+description = "Enables the mostrar_guardado command without any pre-configured scope."
+commands.allow = ["mostrar_guardado"]
+
+[[permission]]
+identifier = "deny-mostrar-guardado"
+description = "Denies the mostrar_guardado command without any pre-configured scope."
+commands.deny = ["mostrar_guardado"]

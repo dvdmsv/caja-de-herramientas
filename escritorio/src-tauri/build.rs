@@ -8,6 +8,7 @@
 /// `capabilities/escritorio.json`; `tauri-build` falla si no existe.
 const COMANDOS: &[&str] = &[
     "guardar_como",
+    "mostrar_guardado",
     "archivos_pendientes",
     "leer_archivo",
     "menu_contextual",

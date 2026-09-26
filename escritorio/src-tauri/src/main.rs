@@ -175,8 +175,10 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Abiertos::default())
+        .manage(UltimoGuardado::default())
         .invoke_handler(tauri::generate_handler![
             guardar_como,
+            mostrar_guardado,
             archivos_pendientes,
             leer_archivo,
             menu_contextual,
@@ -377,14 +379,20 @@ fn pintar(ventana: &WebviewWindow, estado: serde_json::Value) {
 
 // --- Comandos del frontend ----------------------------------------------------
 
-/// Enseña «Guardar como» y escribe ahí el archivo. Devuelve si se ha guardado:
-/// cerrar el diálogo no es un error.
+/// Lo último que se ha guardado con «Guardar como», para «Mostrar en la
+/// carpeta». Se guarda aquí y no se recibe de la página: así ese comando sólo
+/// puede enseñar lo que la persona acaba de guardar, no cualquier ruta.
+#[derive(Default)]
+struct UltimoGuardado(Mutex<Option<PathBuf>>);
+
+/// Enseña «Guardar como» y escribe ahí el archivo. Devuelve dónde se ha
+/// guardado, o nada si se ha cerrado el diálogo, que no es un error.
 ///
 /// El contenido llega **en bruto** en el cuerpo de la llamada, no en JSON: un
 /// PDF escaneado puede pesar cientos de megas. El nombre va en una cabecera,
 /// codificado como en una URL porque las cabeceras sólo admiten ASCII.
 #[tauri::command]
-async fn guardar_como(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<bool, String> {
+async fn guardar_como(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<Option<String>, String> {
     let tauri::ipc::InvokeBody::Raw(datos) = request.body() else {
         return Err("el archivo tiene que llegar en bruto".into());
     };
@@ -408,11 +416,20 @@ async fn guardar_como(app: AppHandle, request: tauri::ipc::Request<'_>) -> Resul
         dialogo = dialogo.add_filter(extension.to_uppercase(), &[extension]);
     }
     let Some(elegida) = dialogo.blocking_save_file() else {
-        return Ok(false);
+        return Ok(None);
     };
     let ruta = elegida.into_path().map_err(|error| error.to_string())?;
     fs::write(&ruta, datos).map_err(|error| format!("No se ha podido guardar en {}: {error}", ruta.display()))?;
-    Ok(true)
+    let texto = ruta.display().to_string();
+    *app.state::<UltimoGuardado>().0.lock().unwrap() = Some(ruta);
+    Ok(Some(texto))
+}
+
+/// Abre el Explorador con lo último que se ha guardado, seleccionado.
+#[tauri::command]
+fn mostrar_guardado(guardado: tauri::State<'_, UltimoGuardado>) -> Result<(), String> {
+    let ruta = guardado.0.lock().unwrap().clone().ok_or("No se ha guardado nada todavía.")?;
+    tauri_plugin_opener::reveal_item_in_dir(ruta).map_err(|error| error.to_string())
 }
 
 /// Lo que ha llegado con «Abrir con…» o el menú del Explorador y aún no se ha

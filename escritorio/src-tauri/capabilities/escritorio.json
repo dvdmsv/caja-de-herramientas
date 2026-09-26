@@ -13,6 +13,7 @@
   "permissions": [
     "core:default",
     "allow-guardar-como",
+    "allow-mostrar-guardado",
     "allow-archivos-pendientes",
     "allow-leer-archivo",
     "allow-menu-contextual",

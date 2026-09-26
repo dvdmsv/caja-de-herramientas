@@ -1,6 +1,7 @@
 import {
   PuenteTauri, esFaltaDePermiso, guardarConDialogo, nombreDeRuta, puente, recogerAbiertos,
   versionDeLaAplicacion, leerMenuContextual, aplicarMenuContextual, textoDelAviso, progresoTarea,
+  describirGuardado,
 } from './escritorio';
 
 /** Un Tauri de mentira que apunta lo que le piden. */
@@ -24,11 +25,11 @@ describe('escritorio', () => {
   });
 
   it('guarda en bruto, con el nombre en una cabecera que sólo lleva ASCII', async () => {
-    const { falso, llamadas } = tauriFalso({ guardar_como: () => true });
+    const { falso, llamadas } = tauriFalso({ guardar_como: () => 'C:\\Users\\ana\\Documents\\Informe año 2026.pdf' });
 
     const guardado = await guardarConDialogo(falso, new Blob(['hola']), 'Informe año 2026.pdf');
 
-    expect(guardado).toBe(true);
+    expect(guardado).toBe('C:\\Users\\ana\\Documents\\Informe año 2026.pdf');
     const [llamada] = llamadas;
     expect(llamada.comando).toBe('guardar_como');
     expect(llamada.argumentos).toBeInstanceOf(Uint8Array);
@@ -39,8 +40,8 @@ describe('escritorio', () => {
   });
 
   it('cerrar el diálogo no es un error: sólo no se guarda', async () => {
-    const { falso } = tauriFalso({ guardar_como: () => false });
-    expect(await guardarConDialogo(falso, new Blob(['x']), 'a.pdf')).toBe(false);
+    const { falso } = tauriFalso({ guardar_como: () => null });
+    expect(await guardarConDialogo(falso, new Blob(['x']), 'a.pdf')).toBeNull();
   });
 
   it('recoge lo abierto con «Abrir con…» y el menú, cada llegada con su herramienta', async () => {
@@ -95,6 +96,12 @@ describe('escritorio', () => {
 
     expect(await versionDeLaAplicacion(falso)).toBe('0.1.0');
     expect(llamadas[0].comando).toBe('plugin:app|version');
+  });
+
+  it('el aviso de guardado dice el archivo y la carpeta, acortada', () => {
+    expect(describirGuardado('C:\\Users\\ana\\Documents\\Contratos\\contrato-comprimido.pdf'))
+      .toEqual({ archivo: 'contrato-comprimido.pdf', carpeta: '…\\Documents\\Contratos' });
+    expect(describirGuardado('D:\\Descargas\\a.pdf')).toEqual({ archivo: 'a.pdf', carpeta: 'D:\\Descargas' });
   });
 
   it('el nombre sale de rutas con barras de los dos lados', () => {
