@@ -279,6 +279,9 @@ jobs:
           if (-not $exe) { throw 'No aparece la aplicación instalada.' }
           "Instalada en $($exe.DirectoryName)"
           $registro = "$env:LOCALAPPDATA\merge-pdf\backend.log"
+          # Con el puerto de depuración de WebView2, para poder preguntarle a la
+          # página si llega a Tauri (escritorio/scripts/comprobar-puente.js).
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222'
           $app = Start-Process $exe.FullName -PassThru
           foreach ($i in 1..240) {
             if ((Test-Path $registro) -and (Select-String -Path $registro -Pattern 'listo con \d+ rutas' -Quiet)) { break }
@@ -297,6 +300,15 @@ jobs:
             throw "El backend corre con prioridad $($backend.PriorityClass): el job no se ha aplicado."
           }
           'El backend está en su job: prioridad baja y tope de memoria.'
+
+          # La página tiene que poder llamar a los comandos de la aplicación.
+          # Durante tres versiones no pudo («not allowed by ACL») y «Guardar» y
+          # «Abrir con…» fallaron en silencio sin que nada lo detectara.
+          npm install --no-save --no-fund --no-audit --prefix "$env:RUNNER_TEMP\pw" playwright-core | Out-Null
+          $env:NODE_PATH = "$env:RUNNER_TEMP\pw\node_modules"
+          $version = (Get-Content escritorio\src-tauri\tauri.conf.json -Raw | ConvertFrom-Json).version
+          node escritorio\scripts\comprobar-puente.js $version
+          if ($LASTEXITCODE -ne 0) { throw 'La página de la aplicación no llega a Tauri.' }
           # De golpe, como el Administrador de tareas: sin dar ocasión a cerrar
           # nada por las buenas.
           Stop-Process -Id $app.Id -Force

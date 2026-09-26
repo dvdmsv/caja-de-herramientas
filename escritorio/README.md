@@ -186,6 +186,18 @@ para que aparezcan en «Abrir con…».
 
 ## Trampas, todas vistas en la CI
 
+- **Cada comando propio de `main.rs` necesita su permiso en la capacidad.** La
+  página la sirve el backend en 127.0.0.1, que para Tauri es un origen remoto, y
+  ahí los comandos de la aplicación no se permiten solos: `build.rs` los declara
+  (`AppManifest::commands`) y `capabilities/escritorio.json` concede cada
+  `allow-<comando>` (con guiones). Sin eso Tauri contesta «not allowed by ACL» y,
+  durante tres versiones, «Guardar» cayó en silencio a Descargas y «Abrir con…»
+  no llegó nunca. Al añadir un comando: a las dos listas. `tauri-build` falla si
+  la capacidad nombra un permiso que no existe, y la CI comprueba con
+  `scripts/comprobar-puente.js` que la página de verdad llega a los comandos.
+- **`disable_drag_drop_handler()` en la ventana.** Sin él, en Windows Tauri se
+  queda con los archivos soltados y la página no recibe el `drop` de HTML.
+
 - **LibreOffice no puede ir en el PATH**: su carpeta `program` trae un
   `python.exe` propio que tapa a cualquier otro. Va por `RUTA_SOFFICE`.
 - **Tesseract tampoco, ni Ghostscript**: Tesseract trae sus propias copias de

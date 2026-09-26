@@ -1,10 +1,19 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "escritorio",
-  "description": "La página la sirve el backend en 127.0.0.1, así que para Tauri es remota: sin esto no podría llamar a los comandos de main.rs (guardar con el diálogo nativo y recoger los archivos de «Abrir con…»). Sólo ese origen; cualquier otro no ve la IPC.",
-  "windows": ["*"],
+  "description": "La página la sirve el backend en 127.0.0.1, así que para Tauri es remota: sin esto no podría llamar a nada. Los comandos propios de main.rs, además, necesitan cada uno su permiso allow-<comando> (los genera build.rs): con sólo core:default, Tauri los rechazaba y «Guardar» y «Abrir con…» fallaban en silencio. Sólo este origen; cualquier otro no ve la IPC.",
+  "windows": [
+    "*"
+  ],
   "remote": {
-    "urls": ["http://127.0.0.1:*/*"]
+    "urls": [
+      "http://127.0.0.1:*/*"
+    ]
   },
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "allow-guardar-como",
+    "allow-archivos-pendientes",
+    "allow-leer-archivo"
+  ]
 }

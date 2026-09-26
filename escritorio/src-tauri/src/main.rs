@@ -64,6 +64,10 @@ struct Backend {
 struct Abiertos {
     pendientes: Mutex<Vec<PathBuf>>,
     permitidos: Mutex<HashSet<PathBuf>>,
+    /// La carpeta de lo último que ha llegado: «Guardar como» la propone, que
+    /// es donde suele querer dejarse el resultado. Lo que se elige con el
+    /// selector de la página no trae ruta (el navegador no la da).
+    carpeta: Mutex<Option<PathBuf>>,
 }
 
 impl Abiertos {
@@ -79,6 +83,7 @@ impl Abiertos {
         if archivos.is_empty() {
             return false;
         }
+        *self.carpeta.lock().unwrap() = archivos[0].parent().map(PathBuf::from);
         self.permitidos.lock().unwrap().extend(archivos.iter().cloned());
         self.pendientes.lock().unwrap().extend(archivos);
         true
@@ -123,6 +128,10 @@ fn main() {
                     .title("Caja de herramientas")
                     .inner_size(1280.0, 860.0)
                     .min_inner_size(720.0, 540.0)
+                    // Sin esto, en Windows Tauri se queda con los archivos que se
+                    // sueltan en la ventana y la página no recibe el `drop`:
+                    // soltar en la portada o en una cola no hacía nada.
+                    .disable_drag_drop_handler()
                     .on_navigation(move |url| navegacion_permitida(url, &permitido))
                     .on_new_window(move |url, _caracteristicas| {
                         // Un `target="_blank"` a la propia aplicación (el visor
@@ -317,6 +326,9 @@ async fn guardar_como(app: AppHandle, request: tauri::ipc::Request<'_>) -> Resul
         .unwrap_or_else(|| "resultado".into());
 
     let mut dialogo = app.dialog().file().set_file_name(&nombre);
+    if let Some(carpeta) = app.state::<Abiertos>().carpeta.lock().unwrap().clone() {
+        dialogo = dialogo.set_directory(carpeta);
+    }
     if let Some(ventana) = app.get_webview_window(VENTANA) {
         dialogo = dialogo.set_parent(&ventana);
     }

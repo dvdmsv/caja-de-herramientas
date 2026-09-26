@@ -73,6 +73,10 @@ export class EscritorioService {
       return true;
     } catch (error) {
       if (esFaltaDePermiso(error)) {
+        // Se descarga como en el navegador, pero diciéndolo: este rechazo
+        // fue mudo durante tres versiones («not allowed by ACL» por no
+        // declarar el permiso del comando) y nadie lo vio hasta usarla.
+        console.warn('Tauri ha rechazado guardar_como; se descarga como en el navegador.', error);
         return false;
       }
       throw error;
@@ -80,7 +84,13 @@ export class EscritorioService {
   }
 
   private async recoger(): Promise<void> {
-    const archivos = await recogerAbiertos(this.tauri!);
+    let archivos: File[];
+    try {
+      archivos = await recogerAbiertos(this.tauri!);
+    } catch (error) {
+      console.warn('No se han podido recoger los archivos de «Abrir con…».', error);
+      return;
+    }
     if (archivos.length === 0) {
       return;
     }
