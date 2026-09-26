@@ -30,6 +30,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod menu;
 #[cfg(windows)]
 mod trabajo;
 
@@ -38,6 +39,7 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -57,37 +59,95 @@ struct Backend {
     _trabajo: Option<trabajo::Trabajo>,
 }
 
-/// Los archivos que llegan con «Abrir con…», esperando a que el frontend los
-/// recoja. `permitidos` es la lista de lo único que `leer_archivo` puede leer:
-/// sin ella, la página podría pedir cualquier archivo del disco.
+/// Lo que llega de una vez por «Abrir con…» o por el menú del Explorador.
+struct Llegada {
+    /// La herramienta elegida en el menú; `None` es «Abrir con…» (la portada).
+    herramienta: Option<String>,
+    rutas: Vec<PathBuf>,
+    cuando: Instant,
+}
+
+/// Lo que se le devuelve al frontend por cada llegada.
+#[derive(serde::Serialize)]
+struct LlegadaParaLaPagina {
+    herramienta: Option<String>,
+    rutas: Vec<String>,
+}
+
+/// Los archivos que llegan con «Abrir con…» o el menú del Explorador,
+/// esperando a que el frontend los recoja. `permitidos` es la lista de lo único
+/// que `leer_archivo` puede leer: sin ella, la página podría pedir cualquier
+/// archivo del disco.
 #[derive(Default)]
 struct Abiertos {
-    pendientes: Mutex<Vec<PathBuf>>,
+    pendientes: Mutex<Vec<Llegada>>,
     permitidos: Mutex<HashSet<PathBuf>>,
     /// La carpeta de lo último que ha llegado: «Guardar como» la propone, que
     /// es donde suele querer dejarse el resultado. Lo que se elige con el
     /// selector de la página no trae ruta (el navegador no la da).
     carpeta: Mutex<Option<PathBuf>>,
+    /// Sube con cada llegada: sirve para avisar a la página sólo cuando han
+    /// dejado de llegar (ver `avisar_cuando_paren`).
+    generacion: AtomicU64,
 }
 
+/// Cuánto se espera a que lleguen los demás archivos de una misma selección.
+/// Con varios archivos seleccionados, el Explorador lanza un proceso por cada
+/// uno, y llegan uno detrás de otro por `single-instance`: «Unir PDF» con tres
+/// archivos tiene que abrirse una vez con los tres, no tres veces con uno.
+const JUNTOS: Duration = Duration::from_millis(1500);
+const AVISO_TRAS: Duration = Duration::from_millis(700);
+
 impl Abiertos {
-    /// Se queda con los argumentos que son archivos. El primero es el propio
-    /// ejecutable, y puede haber otros que no lo sean.
+    /// Se queda con los argumentos que son archivos y con `--herramienta`, si lo
+    /// hay (el menú del Explorador). El primero es el propio ejecutable.
     fn anotar<I: IntoIterator<Item = String>>(&self, argumentos: I) -> bool {
-        let archivos: Vec<PathBuf> = argumentos
-            .into_iter()
-            .skip(1)
-            .map(PathBuf::from)
-            .filter(|ruta| ruta.is_file())
-            .collect();
-        if archivos.is_empty() {
+        let mut herramienta = None;
+        let mut rutas = Vec::new();
+        let mut argumentos = argumentos.into_iter().skip(1);
+        while let Some(argumento) = argumentos.next() {
+            if argumento == "--herramienta" {
+                herramienta = argumentos.next().filter(|slug| menu::es_slug(slug));
+                continue;
+            }
+            let ruta = PathBuf::from(argumento);
+            if ruta.is_file() {
+                rutas.push(ruta);
+            }
+        }
+        if rutas.is_empty() {
             return false;
         }
-        *self.carpeta.lock().unwrap() = archivos[0].parent().map(PathBuf::from);
-        self.permitidos.lock().unwrap().extend(archivos.iter().cloned());
-        self.pendientes.lock().unwrap().extend(archivos);
+        *self.carpeta.lock().unwrap() = rutas[0].parent().map(PathBuf::from);
+        self.permitidos.lock().unwrap().extend(rutas.iter().cloned());
+
+        let mut pendientes = self.pendientes.lock().unwrap();
+        match pendientes.last_mut() {
+            // Del mismo menú y seguidos: son de la misma selección.
+            Some(ultima) if ultima.herramienta == herramienta && ultima.cuando.elapsed() < JUNTOS => {
+                ultima.rutas.extend(rutas);
+                ultima.cuando = Instant::now();
+            }
+            _ => pendientes.push(Llegada { herramienta, rutas, cuando: Instant::now() }),
+        }
+        self.generacion.fetch_add(1, Ordering::SeqCst);
         true
     }
+}
+
+/// Avisa a la página cuando llevan un momento sin llegar archivos, para que una
+/// selección de varios se recoja entera y no a trozos.
+fn avisar_cuando_paren(app: &AppHandle) {
+    let generacion = app.state::<Abiertos>().generacion.load(Ordering::SeqCst);
+    let app = app.clone();
+    thread::spawn(move || {
+        thread::sleep(AVISO_TRAS);
+        if app.state::<Abiertos>().generacion.load(Ordering::SeqCst) == generacion {
+            if let Some(ventana) = app.get_webview_window(VENTANA) {
+                avisar_de_abiertos(&ventana);
+            }
+        }
+    });
 }
 
 fn main() {
@@ -106,15 +166,24 @@ fn main() {
                 let _ = ventana.unminimize();
                 let _ = ventana.set_focus();
                 if app.state::<Abiertos>().anotar(argumentos) {
-                    avisar_de_abiertos(&ventana);
+                    avisar_cuando_paren(app);
                 }
             }
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Abiertos::default())
-        .invoke_handler(tauri::generate_handler![guardar_como, archivos_pendientes, leer_archivo])
+        .invoke_handler(tauri::generate_handler![
+            guardar_como,
+            archivos_pendientes,
+            leer_archivo,
+            menu_contextual,
+            aplicar_menu_contextual,
+            progreso_tarea,
+            avisar_fin,
+        ])
         .setup({
             let puerto = puerto.clone();
             move |app| {
@@ -345,13 +414,33 @@ async fn guardar_como(app: AppHandle, request: tauri::ipc::Request<'_>) -> Resul
     Ok(true)
 }
 
-/// Las rutas que han llegado con «Abrir con…» y aún no se han recogido.
+/// Lo que ha llegado con «Abrir con…» o el menú del Explorador y aún no se ha
+/// recogido, cada llegada con su herramienta.
 #[tauri::command]
-fn archivos_pendientes(abiertos: tauri::State<'_, Abiertos>) -> Vec<String> {
+fn archivos_pendientes(abiertos: tauri::State<'_, Abiertos>) -> Vec<LlegadaParaLaPagina> {
     std::mem::take(&mut *abiertos.pendientes.lock().unwrap())
         .into_iter()
-        .map(|ruta| ruta.to_string_lossy().into_owned())
+        .map(|llegada| LlegadaParaLaPagina {
+            herramienta: llegada.herramienta,
+            rutas: llegada.rutas.iter().map(|ruta| ruta.to_string_lossy().into_owned()).collect(),
+        })
         .collect()
+}
+
+/// Si el menú del Explorador está puesto y qué acciones lleva.
+#[tauri::command]
+fn menu_contextual(app: AppHandle) -> menu::Ajustes {
+    menu::leer(&app)
+}
+
+/// Pone o quita el menú del Explorador con las acciones marcadas en Ajustes.
+#[tauri::command]
+fn aplicar_menu_contextual(
+    app: AppHandle,
+    activo: bool,
+    acciones: Vec<menu::AccionMenu>,
+) -> Result<menu::Ajustes, String> {
+    menu::aplicar(&app, activo, acciones)
 }
 
 /// El contenido de uno de esos archivos, en bruto. Sólo de los que han llegado
@@ -365,6 +454,42 @@ fn leer_archivo(ruta: String, abiertos: tauri::State<'_, Abiertos>) -> Result<ta
     fs::read(&ruta)
         .map(tauri::ipc::Response::new)
         .map_err(|error| format!("No se ha podido leer {}: {error}", ruta.display()))
+}
+
+// --- Trabajos largos ------------------------------------------------------------
+
+/// El progreso de un trabajo en el icono de la barra de tareas, la misma barra
+/// que usa la actualización: se ve aunque la ventana esté minimizada o tapada.
+/// `porcentaje` sin valor es «no se sabe cuánto falta»; `terminado` la quita.
+#[tauri::command]
+fn progreso_tarea(app: AppHandle, porcentaje: Option<u64>, terminado: bool) {
+    let Some(ventana) = app.get_webview_window(VENTANA) else { return };
+    let estado = if terminado {
+        ProgressBarState { status: Some(ProgressBarStatus::None), progress: None }
+    } else {
+        match porcentaje {
+            Some(valor) => ProgressBarState { status: Some(ProgressBarStatus::Normal), progress: Some(valor.min(100)) },
+            None => ProgressBarState { status: Some(ProgressBarStatus::Indeterminate), progress: None },
+        }
+    };
+    let _ = ventana.set_progress_bar(estado);
+}
+
+/// Una notificación de Windows al terminar un trabajo largo, **sólo si la
+/// ventana no tiene el foco**: si se está mirando, ya se ve el resultado y el
+/// aviso sobra. Devuelve si la ha enseñado.
+#[tauri::command]
+fn avisar_fin(app: AppHandle, titulo: String, cuerpo: String) -> bool {
+    use tauri_plugin_notification::NotificationExt;
+
+    let enfocada = app
+        .get_webview_window(VENTANA)
+        .and_then(|ventana| ventana.is_focused().ok())
+        .unwrap_or(false);
+    if enfocada {
+        return false;
+    }
+    app.notification().builder().title(titulo).body(cuerpo).show().is_ok()
 }
 
 /// Le dice al frontend que hay archivos nuevos esperando. Con un evento del DOM

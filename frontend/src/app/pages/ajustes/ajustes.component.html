@@ -1,0 +1,58 @@
+<article class="ajustes">
+  <header class="mb-4">
+    <h1 class="h2 mb-2">Ajustes</h1>
+    <p class="lead text-body-secondary mb-0">De la aplicación para Windows.</p>
+  </header>
+
+  @if (!enAplicacion) {
+    <p class="text-body-secondary">
+      Estos ajustes son de la aplicación para Windows; en la web no hay nada que ajustar.
+    </p>
+  } @else if (!cargando) {
+    <section class="card">
+      <div class="card-body">
+        <div class="form-check form-switch interruptor">
+          <input class="form-check-input" type="checkbox" role="switch" id="menu-activo"
+            [checked]="activo" [disabled]="aplicando" (change)="alternarMenu($any($event.target).checked)">
+          <label class="form-check-label" for="menu-activo">
+            <span class="fw-semibold">Mostrar en el menú del Explorador</span>
+            <span class="d-block text-body-secondary small">
+              Al hacer clic derecho en un archivo sale «Caja de herramientas» con las acciones que marques
+              abajo, y cada una abre su herramienta con el archivo ya cargado. Con varios archivos
+              seleccionados, llegan todos juntos (para «Unir PDF», por ejemplo).
+            </span>
+          </label>
+        </div>
+
+        <p class="small text-body-secondary mt-3 mb-0 aviso">
+          <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+          En Windows 11 aparece en <strong>«Mostrar más opciones»</strong> (o con Mayús + F10): el menú corto de
+          Windows 11 sólo admite programas de la Microsoft Store.
+        </p>
+      </div>
+    </section>
+
+    <section class="mt-4" [class.apagado]="!activo" aria-labelledby="titulo-acciones">
+      <h2 id="titulo-acciones" class="h6 text-uppercase text-body-secondary titulo-acciones">Acciones del menú</h2>
+      @for (grupo of grupos; track grupo.categoria) {
+        <fieldset class="grupo" [attr.data-categoria]="clave(grupo)">
+          <legend class="grupo__titulo">{{ grupo.categoria }}</legend>
+          @for (herramienta of grupo.herramientas; track herramienta.slug) {
+            <div class="form-check accion">
+              <input class="form-check-input" type="checkbox" [id]="'accion-' + herramienta.slug"
+                [checked]="marcadas.has(herramienta.slug)" [disabled]="aplicando"
+                (change)="alternarAccion(herramienta.slug, $any($event.target).checked)">
+              <label class="form-check-label" [for]="'accion-' + herramienta.slug">
+                {{ herramienta.nombre }}
+                <span class="text-body-secondary small">· {{ formatos(herramienta) }}</span>
+              </label>
+            </div>
+          }
+        </fieldset>
+      }
+    </section>
+
+    <p class="estado small mt-3" [class.text-danger]="fallo" [class.text-body-secondary]="!fallo"
+      role="status" aria-live="polite">{{ estado }}</p>
+  }
+</article>

@@ -14,6 +14,7 @@ tauri = { version = "2.11.6", features = [] }
 tauri-plugin-single-instance = "2.4.5"
 tauri-plugin-opener = "2.5.5"
 tauri-plugin-dialog = "2.7.3"
+tauri-plugin-notification = "2.4.0"
 # Con el TLS de Windows (Schannel) y no con rustls: usa los certificados y el
 # proxy del sistema, como cualquier otro programa del equipo, y se ahorra ring,
 # que necesita compilar C. Sin `zip`: en Windows se descarga el instalador tal
@@ -21,9 +22,12 @@ tauri-plugin-dialog = "2.7.3"
 tauri-plugin-updater = { version = "2.12.0", default-features = false, features = ["native-tls", "system-proxy"] }
 percent-encoding = "2.3.2"
 getrandom = "0.3"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [target.'cfg(windows)'.dependencies]
+# El menú del Explorador (src/menu.rs).
+winreg = "0.56.0"
 # El job object del backend (src/trabajo.rs). La misma versión que ya trae Tauri.
 windows-sys = { version = "0.61.2", features = [
   "Win32_Foundation",
@@ -31,6 +35,7 @@ windows-sys = { version = "0.61.2", features = [
   "Win32_System_JobObjects",
   "Win32_System_SystemInformation",
   "Win32_System_Threading",
+  "Win32_UI_Shell",
 ] }
 
 [profile.release]

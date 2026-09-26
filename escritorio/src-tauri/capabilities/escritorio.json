@@ -14,6 +14,10 @@
     "core:default",
     "allow-guardar-como",
     "allow-archivos-pendientes",
-    "allow-leer-archivo"
+    "allow-leer-archivo",
+    "allow-menu-contextual",
+    "allow-aplicar-menu-contextual",
+    "allow-progreso-tarea",
+    "allow-avisar-fin"
   ]
 }

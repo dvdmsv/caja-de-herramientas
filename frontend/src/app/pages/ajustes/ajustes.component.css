@@ -1,0 +1,66 @@
+/* Una columna de lectura, como «Acerca de». */
+.ajustes {
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+.interruptor .form-check-input {
+  margin-top: 0.35rem;
+}
+
+.titulo-acciones {
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+}
+
+/* Con el menú apagado las casillas se pueden seguir marcando (se recuerdan
+   para cuando se encienda), pero se ve que ahora mismo no hacen nada. */
+.apagado .grupo {
+  opacity: 0.6;
+}
+
+.grupo__titulo {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+/* Las acciones en dos columnas: son una treintena y en una sola la página se
+   hace muy larga. */
+.grupo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.15rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.grupo__titulo {
+  grid-column: 1 / -1;
+}
+
+.estado {
+  min-height: 1.5em;
+}
+
+/* TACTIL (core/pantalla.ts): las casillas de 1 rem no llegan a los 44 px del
+   dedo. Se le da el alto a la etiqueta, que también la marca, con relleno: con
+   la fila en `flex` se rompía la maquetación de Bootstrap y la casilla se
+   pegaba al texto. El interruptor ya mide más por su párrafo. */
+@media (pointer: coarse) {
+  .accion .form-check-label {
+    display: inline-block;
+    padding: 0.7rem 0;
+  }
+
+  .accion .form-check-input {
+    margin-top: 0.95rem;
+  }
+}
+
+/* ESTRECHA (core/pantalla.ts): a 360 px dos columnas dejaban los nombres en
+   dos palabras por línea; pasa a una. */
+@media (max-width: 575.98px) {
+  .grupo {
+    grid-template-columns: 1fr;
+  }
+}

@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ApiService, ArchivoServidor, Resultado, ResumenTamano, VistaPrevia } from '../core/api.service';
+import { EscritorioService } from '../core/escritorio.service';
 import { UsoService } from '../core/uso.service';
 import { ArchivoEnCola } from './file-queue/file-queue.component';
 import { buscarPorSlug } from '../core/tools';
@@ -32,6 +33,9 @@ const VUELTAS_MAXIMAS = 330;
 export abstract class PaginaHerramienta {
   protected readonly api = inject(ApiService);
   private readonly usoSesion = inject(UsoService);
+  /** En la aplicación de Windows: progreso en la barra de tareas y aviso al terminar. */
+  private readonly escritorio = inject(EscritorioService);
+  private inicioTrabajo = 0;
 
   /**
    * La sesión se puede vaciar desde la barra superior, no sólo desde aquí: la
@@ -181,6 +185,7 @@ export abstract class PaginaHerramienta {
     this.trabajo = null;
     this.cancelando = false;
     this.vistoEn = Date.now();
+    this.inicioTrabajo = Date.now();
     this.refrescarAvance();
     this.arrancarSondeo();
 
@@ -188,6 +193,7 @@ export abstract class PaginaHerramienta {
       next: resultado => {
         this.pararSondeo();
         this.procesando = false;
+        this.avisarAlTerminar(true);
         this.resultados = resultado.files;
         this.resumen = resultado.resumen ?? null;
         this.vistaPrevia = resultado.vista_previa ?? null;
@@ -203,7 +209,9 @@ export abstract class PaginaHerramienta {
       error: err => {
         this.pararSondeo();
         this.procesando = false;
-        if ((err as { status?: number })?.status === 409) {
+        const cancelado = (err as { status?: number })?.status === 409;
+        this.avisarAlTerminar(cancelado ? null : false, mensajeDeError(err, ''));
+        if (cancelado) {
           // Lo ha parado quien mira: no es un fallo y no se cuenta como tal.
           avisoInfo('Trabajo cancelado.');
           return;
@@ -272,6 +280,13 @@ export abstract class PaginaHerramienta {
    */
   private refrescarAvance(): void {
     this.avanceTrabajo = avance(this.trabajo, Date.now() - this.vistoEn);
+    this.escritorio.progreso(this.avanceTrabajo);
+  }
+
+  /** En la aplicación de Windows; en la web no hace nada. `null` es cancelado. */
+  private avisarAlTerminar(bien: boolean | null, mensaje = ''): void {
+    this.escritorio.terminado(buscarPorSlug(this.slug)?.nombre ?? 'Caja de herramientas', bien,
+      Date.now() - this.inicioTrabajo, this.archivos.map(archivo => archivo.file.name), mensaje);
   }
 
   protected pararSondeo(): void {

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-guardar-como"
+description = "Enables the guardar_como command without any pre-configured scope."
+commands.allow = ["guardar_como"]
+
+[[permission]]
+identifier = "deny-guardar-como"
+description = "Denies the guardar_como command without any pre-configured scope."
+commands.deny = ["guardar_como"]

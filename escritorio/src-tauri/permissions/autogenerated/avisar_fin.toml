@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-avisar-fin"
+description = "Enables the avisar_fin command without any pre-configured scope."
+commands.allow = ["avisar_fin"]
+
+[[permission]]
+identifier = "deny-avisar-fin"
+description = "Denies the avisar_fin command without any pre-configured scope."
+commands.deny = ["avisar_fin"]

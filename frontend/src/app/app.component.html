@@ -53,6 +53,9 @@
       <p class="mb-0 creditos">
         Hecha por <a [href]="perfilAutor" target="_blank" rel="noopener">dvdmsv</a>
         · <a routerLink="/acerca-de">Acerca de</a>
+        @if (escritorio.activo) {
+          · <a routerLink="/ajustes">Ajustes</a>
+        }
       </p>
     </div>
   </footer>

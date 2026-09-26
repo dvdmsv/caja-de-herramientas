@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-progreso-tarea"
+description = "Enables the progreso_tarea command without any pre-configured scope."
+commands.allow = ["progreso_tarea"]
+
+[[permission]]
+identifier = "deny-progreso-tarea"
+description = "Denies the progreso_tarea command without any pre-configured scope."
+commands.deny = ["progreso_tarea"]

@@ -1,6 +1,6 @@
 import {
   PuenteTauri, esFaltaDePermiso, guardarConDialogo, nombreDeRuta, puente, recogerAbiertos,
-  versionDeLaAplicacion,
+  versionDeLaAplicacion, leerMenuContextual, aplicarMenuContextual, textoDelAviso, progresoTarea,
 } from './escritorio';
 
 /** Un Tauri de mentira que apunta lo que le piden. */
@@ -43,17 +43,51 @@ describe('escritorio', () => {
     expect(await guardarConDialogo(falso, new Blob(['x']), 'a.pdf')).toBe(false);
   });
 
-  it('recoge lo abierto con «Abrir con…» con su nombre', async () => {
+  it('recoge lo abierto con «Abrir con…» y el menú, cada llegada con su herramienta', async () => {
     const { falso, llamadas } = tauriFalso({
-      archivos_pendientes: () => ['C:\\Users\\ana\\Documents\\contrato firmado.pdf', 'D:/fotos/IMG_0001.HEIC'],
+      archivos_pendientes: () => [
+        { herramienta: null, rutas: ['C:\\Users\\ana\\Documents\\contrato firmado.pdf'] },
+        { herramienta: 'comprimir-imagen', rutas: ['D:/fotos/IMG_0001.HEIC'] },
+      ],
       leer_archivo: () => new TextEncoder().encode('%PDF').buffer,
     });
 
-    const archivos = await recogerAbiertos(falso);
+    const llegadas = await recogerAbiertos(falso);
 
-    expect(archivos.map(a => a.name)).toEqual(['contrato firmado.pdf', 'IMG_0001.HEIC']);
+    expect(llegadas.map(l => l.herramienta)).toEqual([null, 'comprimir-imagen']);
+    expect(llegadas.flatMap(l => l.archivos).map(a => a.name)).toEqual(['contrato firmado.pdf', 'IMG_0001.HEIC']);
     expect(llamadas.filter(l => l.comando === 'leer_archivo').map(l => l.argumentos))
       .toEqual([{ ruta: 'C:\\Users\\ana\\Documents\\contrato firmado.pdf' }, { ruta: 'D:/fotos/IMG_0001.HEIC' }]);
+  });
+
+  it('el menú del Explorador se pide y se aplica con las acciones tal cual', async () => {
+    const { falso, llamadas } = tauriFalso({
+      menu_contextual: () => ({ activo: false, acciones: ['unir-pdf'] }),
+      aplicar_menu_contextual: (a: unknown) => ({ activo: (a as { activo: boolean }).activo, acciones: ['unir-pdf'] }),
+    });
+
+    expect(await leerMenuContextual(falso)).toEqual({ activo: false, acciones: ['unir-pdf'] });
+    const accion = { slug: 'unir-pdf', nombre: 'Unir PDF', extensiones: ['pdf'] };
+    expect((await aplicarMenuContextual(falso, true, [accion])).activo).toBe(true);
+    expect(llamadas[1].argumentos).toEqual({ activo: true, acciones: [accion] });
+  });
+
+  it('el aviso dice la herramienta, si ha ido bien y sobre qué', () => {
+    expect(textoDelAviso('PDF con OCR', true, ['contrato.pdf']))
+      .toEqual({ titulo: 'PDF con OCR: terminado', cuerpo: 'contrato.pdf está listo.' });
+    expect(textoDelAviso('Unir PDF', true, ['a.pdf', 'b.pdf', 'c.pdf']).cuerpo).toBe('3 archivos están listos.');
+    const fallo = textoDelAviso('PDF con OCR', false, ['contrato.pdf'], 'El reconocimiento ha tardado demasiado.');
+    expect(fallo.titulo).toBe('PDF con OCR: no se ha podido completar');
+    expect(fallo.cuerpo).toBe('El reconocimiento ha tardado demasiado.');
+  });
+
+  it('el progreso de la barra de tareas va sin porcentaje cuando no se sabe', async () => {
+    const { falso, llamadas } = tauriFalso({ progreso_tarea: () => null });
+    await progresoTarea(falso, null, false);
+    await progresoTarea(falso, 40, false);
+    expect(llamadas.map(l => l.argumentos)).toEqual([
+      { porcentaje: null, terminado: false }, { porcentaje: 40, terminado: false },
+    ]);
   });
 
   it('pregunta la versión a Tauri, que la saca de tauri.conf.json', async () => {

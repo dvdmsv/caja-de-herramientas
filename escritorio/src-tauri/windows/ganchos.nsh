@@ -52,6 +52,51 @@
   !insertmacro ${ACCION} "msg"
 !macroend
 
+; El menú del Explorador que se activa en Ajustes (src/menu.rs) va en
+; SystemFileAssociations de cada extensión. Al desinstalar se borra de todas las
+; que puede haber escrito: las de EXTENSIONES en
+; frontend/src/app/core/menu-contextual.ts. Si se añade una allí, aquí también.
+!macro CAJA_QUITAR_MENU EXT
+  DeleteRegKey SHCTX "Software\Classes\SystemFileAssociations\.${EXT}\shell\CajaDeHerramientas"
+!macroend
+
+!macro CAJA_MENU_EXTENSIONES
+  !insertmacro CAJA_QUITAR_MENU "pdf"
+  !insertmacro CAJA_QUITAR_MENU "jpg"
+  !insertmacro CAJA_QUITAR_MENU "jpeg"
+  !insertmacro CAJA_QUITAR_MENU "png"
+  !insertmacro CAJA_QUITAR_MENU "webp"
+  !insertmacro CAJA_QUITAR_MENU "gif"
+  !insertmacro CAJA_QUITAR_MENU "bmp"
+  !insertmacro CAJA_QUITAR_MENU "avif"
+  !insertmacro CAJA_QUITAR_MENU "svg"
+  !insertmacro CAJA_QUITAR_MENU "tif"
+  !insertmacro CAJA_QUITAR_MENU "tiff"
+  !insertmacro CAJA_QUITAR_MENU "heic"
+  !insertmacro CAJA_QUITAR_MENU "heif"
+  !insertmacro CAJA_QUITAR_MENU "ico"
+  !insertmacro CAJA_QUITAR_MENU "docx"
+  !insertmacro CAJA_QUITAR_MENU "doc"
+  !insertmacro CAJA_QUITAR_MENU "odt"
+  !insertmacro CAJA_QUITAR_MENU "rtf"
+  !insertmacro CAJA_QUITAR_MENU "txt"
+  !insertmacro CAJA_QUITAR_MENU "xlsx"
+  !insertmacro CAJA_QUITAR_MENU "xls"
+  !insertmacro CAJA_QUITAR_MENU "ods"
+  !insertmacro CAJA_QUITAR_MENU "csv"
+  !insertmacro CAJA_QUITAR_MENU "pptx"
+  !insertmacro CAJA_QUITAR_MENU "ppt"
+  !insertmacro CAJA_QUITAR_MENU "odp"
+  !insertmacro CAJA_QUITAR_MENU "md"
+  !insertmacro CAJA_QUITAR_MENU "epub"
+  !insertmacro CAJA_QUITAR_MENU "eml"
+  !insertmacro CAJA_QUITAR_MENU "msg"
+  !insertmacro CAJA_QUITAR_MENU "json"
+  !insertmacro CAJA_QUITAR_MENU "xml"
+  !insertmacro CAJA_QUITAR_MENU "html"
+  !insertmacro CAJA_QUITAR_MENU "htm"
+!macroend
+
 !macro NSIS_HOOK_POSTINSTALL
   ; Cómo se abre: la aplicación con el archivo como argumento. Si ya está
   ; abierta, el plugin single-instance se lo pasa a la ventana que hay.
@@ -67,6 +112,7 @@
 
 !macro NSIS_HOOK_PREUNINSTALL
   !insertmacro CAJA_FORMATOS CAJA_RETIRAR
+  !insertmacro CAJA_MENU_EXTENSIONES
   DeleteRegKey SHCTX "Software\Classes\${PROGID}"
   DeleteRegKey SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'

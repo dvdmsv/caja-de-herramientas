@@ -6,7 +6,15 @@
 /// Descargas y «Abrir con…» no llegaba nunca. Cada comando de aquí genera un
 /// permiso `allow-<comando>` (con guiones), que hay que añadir a
 /// `capabilities/escritorio.json`; `tauri-build` falla si no existe.
-const COMANDOS: &[&str] = &["guardar_como", "archivos_pendientes", "leer_archivo"];
+const COMANDOS: &[&str] = &[
+    "guardar_como",
+    "archivos_pendientes",
+    "leer_archivo",
+    "menu_contextual",
+    "aplicar_menu_contextual",
+    "progreso_tarea",
+    "avisar_fin",
+];
 
 fn main() {
     tauri_build::try_build(

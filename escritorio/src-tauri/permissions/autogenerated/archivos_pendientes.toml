@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-archivos-pendientes"
+description = "Enables the archivos_pendientes command without any pre-configured scope."
+commands.allow = ["archivos_pendientes"]
+
+[[permission]]
+identifier = "deny-archivos-pendientes"
+description = "Denies the archivos_pendientes command without any pre-configured scope."
+commands.deny = ["archivos_pendientes"]

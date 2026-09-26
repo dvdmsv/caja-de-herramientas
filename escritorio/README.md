@@ -134,6 +134,30 @@ no cambia nunca:
   paso de la CI se enciende solo. Firmar cambia los bytes del instalador, así que
   la CI vuelve a firmarlo para el actualizador después.
 
+## Lo que la aplicación hace y la web no
+
+- **Guardar con el diálogo de Windows**, proponiendo la carpeta del último
+  archivo que llegó por «Abrir con…» o el menú del Explorador.
+- **«Abrir con…»** del Explorador para los formatos del catálogo, sin hacerse
+  programa predeterminado (lo registra el instalador, `windows/ganchos.nsh`).
+- **Menú del Explorador** (clic derecho → «Caja de herramientas» → una acción),
+  **desactivado de serie**: se activa y se eligen las acciones en **Ajustes**
+  (`pages/ajustes/`). Qué acciones hay y sobre qué extensiones sale cada una lo
+  decide `core/menu-contextual.ts` a partir del catálogo; lo escribe
+  `src-tauri/src/menu.rs` en `HKCU\Software\Classes\SystemFileAssociations`.
+  Con varios archivos seleccionados, el Explorador lanza un proceso por archivo:
+  `main.rs` los agrupa si llegan seguidos y avisa a la página cuando paran, así
+  «Unir PDF» se abre una vez con todos. En Windows 11 sale en «Mostrar más
+  opciones»: el menú corto sólo admite paquetes MSIX.
+- **Trabajos largos**: el progreso en el icono de la barra de tareas y, si el
+  trabajo pasa de 10 s y la ventana no tiene el foco, una notificación de
+  Windows al acabar.
+- **Soltar archivos** en la ventana, como en la web (ver trampas).
+
+Al añadir un formato que el menú pueda ofrecer: a `EXTENSIONES` de
+`core/menu-contextual.ts` **y** a `CAJA_MENU_EXTENSIONES` de `ganchos.nsh`, o el
+desinstalador no lo limpiará.
+
 ## Traer lo nuevo de la web
 
 Las dos ramas van separadas a propósito. Lo que se hace en `master` se replica
@@ -163,6 +187,9 @@ que son añadidos pequeños y sin efecto en la web.
 | `frontend/src/app/app.component.ts`, `pages/home/home.component.ts` | recoger lo abierto con «Abrir con…» |
 | `frontend/src/app/app.component.html` | el aviso del pie cambia en la aplicación: allí no hay servidor ni caducidad de 2 h |
 | `frontend/src/app/pages/acerca-de/` | la versión instalada, que sólo sabe la aplicación |
+| `frontend/src/app/app.routes.ts` | la ruta `ajustes` (la página sólo existe en esta rama) |
+| `frontend/src/app/app.component.html` | además, el enlace a Ajustes en el pie |
+| `frontend/src/app/shared/pagina-herramienta.ts` | `escritorio.progreso()` en `refrescarAvance()` y `avisarAlTerminar()` al acabar |
 | `backend/tests/test_limites.py`, `test_arranque.py` | los `skipif` de Windows y el fallo nativo con `faulthandler` |
 | `scripts/barrido.py` | la variable `TOKEN` |
 
