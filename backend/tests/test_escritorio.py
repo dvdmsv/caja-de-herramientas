@@ -315,3 +315,11 @@ def test_lo_que_lanza_ocrmypdf_no_hereda_entrada_ni_salida():
     # Lo que ya se dice no se toca.
     assert escritorio.sin_heredar({'stdout': subprocess.PIPE})['stdout'] == subprocess.PIPE
     assert escritorio.sin_heredar({'stdin': None})['stdin'] == subprocess.DEVNULL
+
+
+def test_waitress_deja_que_sea_flask_quien_rechace_lo_demasiado_grande():
+    """Con el mismo tope, waitress corta la conexión y la página sólo ve un error de red."""
+    import escritorio
+
+    assert escritorio.tope_de_waitress(100 * 1024 ** 2) > 100 * 1024 ** 2 * 3
+    assert escritorio.tope_de_waitress(8 * 1024 ** 3) == 32 * 1024 ** 3

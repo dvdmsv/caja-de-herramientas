@@ -315,6 +315,19 @@ def borrar_sesiones_anteriores() -> int:
     return len(sesiones)
 
 
+def tope_de_waitress(tope_de_flask: int) -> int:
+    """Lo más que acepta waitress, **muy por encima** del tope de Flask.
+
+    Si waitress tiene el mismo tope, corta la conexión al pasarse y la página
+    sólo ve un error de red («Failed to fetch»), sin saber por qué. Con margen,
+    la petición llega a Flask, que la rechaza con su 413 y el mensaje de
+    `errors.py` («Los archivos superan el límite de…»). Visto en la VM al bajar
+    el tope desde «Avanzado» en Ajustes. El margen cuesta, como mucho, disco
+    temporal del propio equipo: waitress guarda el cuerpo antes de pasarlo.
+    """
+    return max(4 * tope_de_flask, 16 * 1024 ** 3)
+
+
 def main(argv: list[str]) -> None:
     # Lo primero de todo: ocrmypdf reparte las páginas en procesos, y en un
     # ejecutable congelado cada uno arranca este mismo `main`. Sin esto, cada
@@ -335,7 +348,7 @@ def main(argv: list[str]) -> None:
 
     borrar_sesiones_anteriores()
     servidor = create_server(app, host='127.0.0.1', port=0, threads=6,
-                             max_request_body_size=app.config['MAX_CONTENT_LENGTH'])
+                             max_request_body_size=tope_de_waitress(app.config['MAX_CONTENT_LENGTH']))
     puerto = servidor.effective_port
     app.config['ESCRITORIO_HOST'] = f'127.0.0.1:{puerto}'
 
