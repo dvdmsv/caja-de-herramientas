@@ -29,6 +29,7 @@
     menu: await probar(() => t.invoke('menu_contextual')),
     // Sin versión nueva contesta `null`; lo que importa es que conteste él.
     actualizacion: await probar(() => t.invoke('actualizacion_pendiente')),
+    ajustes: await probar(() => t.invoke('leer_ajustes')),
   };
   await t.invoke('resultado_autoprueba', { resultado: JSON.stringify(resultado) });
 })();

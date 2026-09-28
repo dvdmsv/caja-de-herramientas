@@ -161,6 +161,12 @@ export interface ZonasAnonimizado {
   ejemplos?: string[];
 }
 
+/** Lo que ocupan los archivos de trabajo de la aplicación de Windows. */
+export interface EspacioDeTrabajo {
+  ocupado: number;
+  sesiones: number;
+}
+
 /** Lo que se sabe de un PDF antes de pasarlo a EPUB. */
 export interface DatosDelLibro {
   titulo: string;
@@ -476,6 +482,16 @@ export class ApiService {
       Observable<ZonasAnonimizado> {
     return this.http.post<ZonasAnonimizado>('/api/tools/anonimizar-pdf/inspeccionar',
                                             { file_ids: [id], tipos, patron });
+  }
+
+  /** Sólo en la aplicación de Windows: lo que ocupan los archivos de trabajo. */
+  espacioDeTrabajo(): Observable<EspacioDeTrabajo> {
+    return this.http.get<EspacioDeTrabajo>('/api/escritorio/espacio');
+  }
+
+  /** Sólo en la aplicación: borra los archivos de trabajo que no están en uso. */
+  liberarEspacioDeTrabajo(): Observable<EspacioDeTrabajo & { liberado: number }> {
+    return this.http.post<EspacioDeTrabajo & { liberado: number }>('/api/escritorio/liberar', {});
   }
 
   /** Título, autor y si tiene texto, para rellenar «PDF a EPUB» antes de convertir. */

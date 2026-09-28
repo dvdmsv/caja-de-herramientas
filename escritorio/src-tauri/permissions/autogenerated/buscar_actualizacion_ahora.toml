@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-buscar-actualizacion-ahora"
+description = "Enables the buscar_actualizacion_ahora command without any pre-configured scope."
+commands.allow = ["buscar_actualizacion_ahora"]
+
+[[permission]]
+identifier = "deny-buscar-actualizacion-ahora"
+description = "Denies the buscar_actualizacion_ahora command without any pre-configured scope."
+commands.deny = ["buscar_actualizacion_ahora"]

@@ -1,0 +1,38 @@
+@if (!cargando) {
+  <div class="card tarjeta-ajustes">
+    <app-fila-ajuste titulo="Mostrar en el menú del Explorador"
+      detalle="Al hacer clic derecho en un archivo sale «Caja de herramientas» con las acciones que marques abajo, y cada una abre su herramienta con el archivo ya cargado. Con varios archivos seleccionados, llegan todos juntos.">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" role="switch" aria-label="Mostrar en el menú del Explorador"
+          [checked]="activo" [disabled]="aplicando" (change)="alternarMenu($any($event.target).checked)">
+      </div>
+      <p debajo class="small text-body-secondary mt-2 mb-0">
+        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+        En Windows 11 aparece en <strong>«Mostrar más opciones»</strong> (o con Mayús + F10): el menú corto de
+        Windows 11 sólo admite programas de la Microsoft Store.
+      </p>
+    </app-fila-ajuste>
+  </div>
+
+  <div class="card tarjeta-ajustes mt-3 acciones" [class.apagado]="!activo">
+    <div class="card-body">
+      <h3 class="h6 mb-3">Acciones del menú</h3>
+      @for (grupo of grupos; track grupo.categoria) {
+        <fieldset class="grupo" [attr.data-categoria]="clave(grupo)">
+          <legend class="grupo__titulo">{{ grupo.categoria }}</legend>
+          @for (herramienta of grupo.herramientas; track herramienta.slug) {
+            <div class="form-check accion">
+              <input class="form-check-input" type="checkbox" [id]="'accion-' + herramienta.slug"
+                [checked]="marcadas.has(herramienta.slug)" [disabled]="aplicando"
+                (change)="alternarAccion(herramienta.slug, $any($event.target).checked)">
+              <label class="form-check-label" [for]="'accion-' + herramienta.slug">
+                {{ herramienta.nombre }}
+                <span class="text-body-secondary small">· {{ formatos(herramienta) }}</span>
+              </label>
+            </div>
+          }
+        </fieldset>
+      }
+    </div>
+  </div>
+}

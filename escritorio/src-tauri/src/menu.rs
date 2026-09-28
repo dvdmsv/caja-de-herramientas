@@ -12,33 +12,14 @@
 //! En Windows 11 sale en «Mostrar más opciones»: el menú nuevo sólo admite
 //! extensiones con identidad de paquete (MSIX), y esto es un instalador NSIS.
 
-use std::fs;
-use std::path::PathBuf;
+use serde::Deserialize;
+use tauri::AppHandle;
 
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager};
+use crate::ajustes::{self, Ajustes};
 
 /// El nombre de la clave del submenú. Lo borra también el desinstalador
 /// (`windows/ganchos.nsh`): si se cambia aquí, allí también.
 pub const CLAVE: &str = "CajaDeHerramientas";
-
-/// Lo que se guarda en `%LOCALAPPDATA%\merge-pdf\ajustes.json`.
-#[derive(Serialize, Deserialize, Default, Clone)]
-pub struct Ajustes {
-    /// Si está puesto en el registro.
-    pub activo: bool,
-    /// Las acciones marcadas, aunque esté desactivado: al volver a activarlo
-    /// salen las mismas.
-    pub acciones: Vec<String>,
-    /// Dónde se escribió la última vez, para poder borrarlo todo después.
-    #[serde(default)]
-    pub extensiones_escritas: Vec<String>,
-    /// La versión que se ha pedido saltar en el aviso de actualización: no se
-    /// vuelve a avisar de ella, sí de la siguiente. No es del menú, pero vive en
-    /// el mismo archivo de ajustes.
-    #[serde(default)]
-    pub version_saltada: Option<String>,
-}
 
 /// Una acción tal como la manda el frontend.
 #[derive(Deserialize)]
@@ -62,31 +43,15 @@ fn es_nombre(texto: &str) -> bool {
     !texto.trim().is_empty() && texto.chars().count() <= 60 && !texto.chars().any(char::is_control)
 }
 
-fn ruta_ajustes(app: &AppHandle) -> Option<PathBuf> {
-    Some(app.path().local_data_dir().ok()?.join("merge-pdf").join("ajustes.json"))
-}
-
 pub fn leer(app: &AppHandle) -> Ajustes {
-    ruta_ajustes(app)
-        .and_then(|ruta| fs::read_to_string(ruta).ok())
-        .and_then(|texto| serde_json::from_str(&texto).ok())
-        .unwrap_or_default()
-}
-
-fn guardar(app: &AppHandle, ajustes: &Ajustes) -> Result<(), String> {
-    let ruta = ruta_ajustes(app).ok_or("sin carpeta de datos")?;
-    if let Some(carpeta) = ruta.parent() {
-        fs::create_dir_all(carpeta).map_err(|e| e.to_string())?;
-    }
-    let texto = serde_json::to_string_pretty(ajustes).map_err(|e| e.to_string())?;
-    fs::write(ruta, texto).map_err(|e| e.to_string())
+    ajustes::leer(app)
 }
 
 /// Apunta que no se avise más de esta versión (ver `Ajustes::version_saltada`).
 pub fn saltar_version(app: &AppHandle, version: &str) -> Result<(), String> {
-    let mut ajustes = leer(app);
+    let mut ajustes = ajustes::leer(app);
     ajustes.version_saltada = Some(version.to_string());
-    guardar(app, &ajustes)
+    ajustes::guardar(app, &ajustes)
 }
 
 /// Pone o quita el menú según `activo`, con las acciones dadas, y lo recuerda.
@@ -109,13 +74,12 @@ pub fn aplicar(app: &AppHandle, activo: bool, acciones: Vec<AccionMenu>) -> Resu
     };
     registro::avisar_al_explorador();
 
-    let ajustes = Ajustes {
-        activo,
-        acciones: acciones.into_iter().map(|a| a.slug).collect(),
-        extensiones_escritas,
-        version_saltada: leer(app).version_saltada,
-    };
-    guardar(app, &ajustes)?;
+    // Sobre lo que ya hay: el mismo archivo guarda también los demás ajustes.
+    let mut ajustes = ajustes::leer(app);
+    ajustes.activo = activo;
+    ajustes.acciones = acciones.into_iter().map(|a| a.slug).collect();
+    ajustes.extensiones_escritas = extensiones_escritas;
+    ajustes::guardar(app, &ajustes)?;
     Ok(ajustes)
 }
 

@@ -56,29 +56,38 @@ impl Drop for Trabajo {
     }
 }
 
-/// El tope en bytes: `CAJA_TOPE_MEMORIA_MB` si está (0 = sin tope, para
-/// medir), o el 60 % de la RAM con un mínimo.
-pub fn tope_de_memoria() -> Option<u64> {
+/// El tope en bytes. Manda `CAJA_TOPE_MEMORIA_MB` si está (0 = sin tope, para
+/// medir); si no, el porcentaje de «Avanzado» en Ajustes (`Some(0)` = sin tope)
+/// o el 60 % de serie, siempre con el mínimo.
+pub fn tope_de_memoria(porcentaje: Option<u32>) -> Option<u64> {
     if let Some(megas) = std::env::var("CAJA_TOPE_MEMORIA_MB")
         .ok()
         .and_then(|valor| valor.trim().parse::<u64>().ok())
     {
         return (megas > 0).then_some(megas * 1024 * 1024);
     }
+    let parte_de_la_ram = match porcentaje {
+        Some(0) => return None,
+        Some(p) => p as f64 / 100.0,
+        None => PARTE_DE_LA_RAM,
+    };
     let total = memoria_total()?;
-    let parte = (total as f64 * PARTE_DE_LA_RAM) as u64;
+    let parte = (total as f64 * parte_de_la_ram) as u64;
     Some(parte.max(MINIMO_MB * 1024 * 1024).min(total))
 }
 
-fn memoria_total() -> Option<u64> {
+/// La RAM del equipo, en bytes. También la usa `informacion_de_soporte`.
+pub fn memoria_total() -> Option<u64> {
     let mut estado: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
     estado.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
     let bien = unsafe { GlobalMemoryStatusEx(&mut estado) };
     (bien != 0).then_some(estado.ullTotalPhys)
 }
 
-/// Mete el proceso en un job nuevo con los tres límites.
-pub fn atar(hijo: &Child, tope: Option<u64>) -> Result<Trabajo, String> {
+/// Mete el proceso en un job nuevo con sus límites. La prioridad baja se puede
+/// quitar en «Avanzado»: quien quiera el OCR lo antes posible y no use el equipo
+/// mientras tanto.
+pub fn atar(hijo: &Child, tope: Option<u64>, prioridad_baja: bool) -> Result<Trabajo, String> {
     unsafe {
         let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
         if handle.is_null() {
@@ -87,9 +96,11 @@ pub fn atar(hijo: &Child, tope: Option<u64>) -> Result<Trabajo, String> {
         let trabajo = Trabajo(handle);
 
         let mut limites: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
-        limites.BasicLimitInformation.LimitFlags =
-            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_PRIORITY_CLASS;
-        limites.BasicLimitInformation.PriorityClass = BELOW_NORMAL_PRIORITY_CLASS;
+        limites.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if prioridad_baja {
+            limites.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_PRIORITY_CLASS;
+            limites.BasicLimitInformation.PriorityClass = BELOW_NORMAL_PRIORITY_CLASS;
+        }
         if let Some(bytes) = tope {
             limites.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_JOB_MEMORY;
             limites.JobMemoryLimit = bytes as usize;

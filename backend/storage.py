@@ -166,12 +166,21 @@ class Storage:
         if self.espacio_libre() - necesarios < reserva:
             raise ApiError('El servidor se ha quedado sin espacio. Inténtalo más tarde.', 507)
 
-    def liberar_espacio(self, necesarios: int) -> int:
+    def resumen(self) -> tuple[int, int]:
+        """Lo que ocupan todas las sesiones juntas, y cuántas hay."""
+        try:
+            nombres = [nombre for nombre in os.listdir(self.root) if ID_RE.match(nombre)]
+        except FileNotFoundError:
+            return 0, 0
+        return sum(_tamano_arbol(os.path.join(self.root, nombre)) for nombre in nombres), len(nombres)
+
+    def liberar_espacio(self, necesarios: float, excepto: str | None = None) -> int:
         """Desaloja sesiones, de la más vieja a la más nueva, hasta tener sitio.
 
         Nunca toca las que han tenido actividad reciente: puede que alguien esté
-        a mitad de un trabajo. Si con las viejas no llega, se queda como esté y
-        quien pidió el sitio recibe el error.
+        a mitad de un trabajo. Tampoco `excepto`, la de quien lo pide. Si con las
+        viejas no llega, se queda como esté y quien pidió el sitio recibe el
+        error.
         """
         protegidas = time.time() - config.SESION_PROTEGIDA_SEGUNDOS
         candidatas = []
@@ -181,7 +190,7 @@ class Storage:
             return 0
         for nombre in nombres:
             path = os.path.join(self.root, nombre)
-            if not os.path.isdir(path):
+            if not os.path.isdir(path) or nombre == excepto:
                 continue
             try:
                 visto = os.path.getmtime(path)

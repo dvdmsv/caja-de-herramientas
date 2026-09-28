@@ -162,6 +162,37 @@ def proteger(app, token: str) -> None:
             abort(403)
 
 
+def registrar_rutas(app) -> None:
+    """Lo que sólo tiene sentido en la aplicación: la sección «Espacio» de Ajustes.
+
+    Se registra únicamente en modo escritorio (`app.py`, con `ESCRITORIO_TOKEN`),
+    detrás de `proteger`: en la web, cuánto ocupan las sesiones de los demás no
+    es asunto de nadie.
+    """
+    from flask import jsonify, request
+
+    from storage import storage, validate_session_id
+
+    @app.get('/api/escritorio/espacio')
+    def espacio():
+        ocupado, sesiones = storage.resumen()
+        return jsonify({'ocupado': ocupado, 'sesiones': sesiones})
+
+    @app.post('/api/escritorio/liberar')
+    def liberar():
+        """Borra los archivos de trabajo que no están en uso.
+
+        No toca los de la ventana que lo pide ni los de cualquier ventana con
+        actividad en los últimos minutos (`SESION_PROTEGIDA_SEGUNDOS`): con
+        varias ventanas abiertas, la de al lado puede estar a mitad de algo.
+        """
+        propia = request.headers.get('X-Session-Id')
+        propia = validate_session_id(propia) if propia else None
+        liberado = storage.liberar_espacio(float('inf'), excepto=propia)
+        ocupado, sesiones = storage.resumen()
+        return jsonify({'liberado': liberado, 'ocupado': ocupado, 'sesiones': sesiones})
+
+
 def servir_frontend(app, carpeta: str) -> None:
     """Lo mismo que hace `frontend/nginx.conf`: el archivo si existe y, si no,
     `index.html`, que es quien resuelve las rutas de Angular."""

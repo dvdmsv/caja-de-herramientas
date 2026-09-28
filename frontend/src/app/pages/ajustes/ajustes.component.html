@@ -1,58 +1,98 @@
-<article class="ajustes">
-  <header class="mb-4">
+@if (!enAplicacion) {
+  <article class="solo-web">
     <h1 class="h2 mb-2">Ajustes</h1>
-    <p class="lead text-body-secondary mb-0">De la aplicación para Windows.</p>
-  </header>
-
-  @if (!enAplicacion) {
     <p class="text-body-secondary">
       Estos ajustes son de la aplicación para Windows; en la web no hay nada que ajustar.
     </p>
-  } @else if (!cargando) {
-    <section class="card">
-      <div class="card-body">
-        <div class="form-check form-switch interruptor">
-          <input class="form-check-input" type="checkbox" role="switch" id="menu-activo"
-            [checked]="activo" [disabled]="aplicando" (change)="alternarMenu($any($event.target).checked)">
-          <label class="form-check-label" for="menu-activo">
-            <span class="fw-semibold">Mostrar en el menú del Explorador</span>
-            <span class="d-block text-body-secondary small">
-              Al hacer clic derecho en un archivo sale «Caja de herramientas» con las acciones que marques
-              abajo, y cada una abre su herramienta con el archivo ya cargado. Con varios archivos
-              seleccionados, llegan todos juntos (para «Unir PDF», por ejemplo).
-            </span>
-          </label>
-        </div>
-
-        <p class="small text-body-secondary mt-3 mb-0 aviso">
-          <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
-          En Windows 11 aparece en <strong>«Mostrar más opciones»</strong> (o con Mayús + F10): el menú corto de
-          Windows 11 sólo admite programas de la Microsoft Store.
-        </p>
-      </div>
-    </section>
-
-    <section class="mt-4" [class.apagado]="!activo" aria-labelledby="titulo-acciones">
-      <h2 id="titulo-acciones" class="h6 text-uppercase text-body-secondary titulo-acciones">Acciones del menú</h2>
-      @for (grupo of grupos; track grupo.categoria) {
-        <fieldset class="grupo" [attr.data-categoria]="clave(grupo)">
-          <legend class="grupo__titulo">{{ grupo.categoria }}</legend>
-          @for (herramienta of grupo.herramientas; track herramienta.slug) {
-            <div class="form-check accion">
-              <input class="form-check-input" type="checkbox" [id]="'accion-' + herramienta.slug"
-                [checked]="marcadas.has(herramienta.slug)" [disabled]="aplicando"
-                (change)="alternarAccion(herramienta.slug, $any($event.target).checked)">
-              <label class="form-check-label" [for]="'accion-' + herramienta.slug">
-                {{ herramienta.nombre }}
-                <span class="text-body-secondary small">· {{ formatos(herramienta) }}</span>
-              </label>
-            </div>
+  </article>
+} @else {
+  <div class="ajustes">
+    <nav class="menu" aria-label="Secciones de los ajustes">
+      <h1 class="menu__titulo">
+        <i class="bi bi-gear" aria-hidden="true"></i>
+        Ajustes
+      </h1>
+      <ul class="menu__lista desplazable-x">
+        @for (seccion of secciones; track seccion.id) {
+          @if (seccion.id === 'avanzado') {
+            <li class="menu__raya" aria-hidden="true"></li>
           }
-        </fieldset>
-      }
-    </section>
+          <li>
+            <a class="menu__enlace" routerLink="." [fragment]="seccion.id"
+              [class.menu__enlace--activa]="seccion.id === actual.id"
+              [attr.aria-current]="seccion.id === actual.id ? 'page' : null">
+              <i class="bi {{ seccion.icono }}" aria-hidden="true"></i>
+              <span>{{ seccion.nombre }}</span>
+              @if (pendiente(seccion)) {
+                <span class="menu__punto" title="Hay cambios que esperan a volver a abrir la aplicación">
+                  <span class="visually-hidden">(cambios pendientes)</span>
+                </span>
+              }
+            </a>
+          </li>
+        }
+      </ul>
+      <p class="menu__pie">
+        @if (version) {
+          Versión {{ version }}<br>
+        }
+        Hecha por <a routerLink="/acerca-de">dvdmsv</a>
+      </p>
+    </nav>
 
-    <p class="estado small mt-3" [class.text-danger]="fallo" [class.text-body-secondary]="!fallo"
-      role="status" aria-live="polite">{{ estado }}</p>
-  }
-</article>
+    <section class="panel" [attr.aria-labelledby]="'titulo-' + actual.id">
+      @if (estado?.reinicio_pendiente) {
+        <div class="reinicio" role="status">
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+          <span class="flex-grow-1">Hay cambios de «Avanzado» que se aplicarán al volver a abrir la aplicación.</span>
+          <button type="button" class="btn btn-sm btn-primary" [disabled]="reiniciando" (click)="reiniciar()">
+            Reiniciar ahora
+          </button>
+        </div>
+      }
+
+      <header class="panel__cabecera">
+        <h2 class="panel__titulo" [id]="'titulo-' + actual.id">
+          <i class="bi {{ actual.icono }}" aria-hidden="true"></i>
+          {{ actual.nombre }}
+        </h2>
+        <p class="panel__descripcion">{{ actual.descripcion }}</p>
+      </header>
+
+      @if (estado) {
+        @switch (actual.id) {
+          @case ('guardado') {
+            <app-ajustes-guardado [estado]="estado" [ocupada]="guardando"
+              (cambiar)="guardar($event)" (nuevoEstado)="alCambiarEstado($event)"></app-ajustes-guardado>
+          }
+          @case ('avisos') {
+            <app-ajustes-avisos [estado]="estado" [ocupada]="guardando" (cambiar)="guardar($event)"></app-ajustes-avisos>
+          }
+          @case ('explorador') {
+            <app-ajustes-explorador (resultado)="decir($event.texto, $event.fallo)"></app-ajustes-explorador>
+          }
+          @case ('actualizaciones') {
+            <app-ajustes-actualizaciones [estado]="estado" [version]="version" [ocupada]="guardando"
+              (cambiar)="guardar($event)"></app-ajustes-actualizaciones>
+          }
+          @case ('espacio') {
+            <app-ajustes-espacio [estado]="estado"></app-ajustes-espacio>
+          }
+          @case ('ayuda') {
+            <app-ajustes-ayuda [estado]="estado"></app-ajustes-ayuda>
+          }
+          @case ('avanzado') {
+            <app-ajustes-avanzado [estado]="estado" [ocupada]="guardando" (cambiar)="guardar($event)"></app-ajustes-avanzado>
+          }
+        }
+      } @else if (!fallo) {
+        <p class="text-body-secondary" role="status">
+          <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Leyendo los ajustes…
+        </p>
+      }
+
+      <p class="estado small mt-3" [class.text-danger]="fallo" [class.text-body-secondary]="!fallo"
+        role="status" aria-live="polite">{{ mensaje }}</p>
+    </section>
+  </div>
+}

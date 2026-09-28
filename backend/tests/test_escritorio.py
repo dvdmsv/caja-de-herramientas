@@ -264,6 +264,45 @@ def test_en_la_aplicacion_los_mensajes_no_hablan_de_servidor(monkeypatch):
     assert 'cierra otros programas' in fallo.value.message
 
 
+def test_espacio_y_liberar_solo_existen_en_la_aplicacion(entorno, monkeypatch):
+    """En la web, cuánto ocupan las sesiones de los demás no es asunto de nadie."""
+    monkeypatch.delenv('ESCRITORIO_TOKEN', raising=False)
+    entorno()
+    import app as modulo
+    cliente = modulo.create_app('web').test_client()
+
+    assert cliente.get('/api/escritorio/espacio').status_code == 404
+    assert cliente.post('/api/escritorio/liberar').status_code in (404, 405)
+
+
+def test_liberar_no_toca_la_propia_ni_las_activas(cliente):
+    """Con varias ventanas, la de al lado puede estar a mitad de algo."""
+    import time
+
+    from storage import storage
+
+    def sesion(nombre, hace_segundos):
+        ruta = os.path.join(storage.root, nombre)
+        os.makedirs(ruta)
+        with open(os.path.join(ruta, 'a.bin'), 'wb') as archivo:
+            archivo.write(b'x' * 1000)
+        visto = time.time() - hace_segundos
+        os.utime(ruta, (visto, visto))
+        return ruta
+
+    propia = sesion('a' * 32, 3600)
+    activa = sesion('c' * 32, 10)
+    vieja = sesion('d' * 32, 3600)
+    con_token(cliente)
+
+    antes = cliente.get('/api/escritorio/espacio').get_json()
+    assert antes == {'ocupado': 3000, 'sesiones': 3}
+
+    despues = cliente.post('/api/escritorio/liberar', headers={'X-Session-Id': 'a' * 32}).get_json()
+    assert despues == {'liberado': 1000, 'ocupado': 2000, 'sesiones': 2}
+    assert os.path.isdir(propia) and os.path.isdir(activa) and not os.path.exists(vieja)
+
+
 def test_lo_que_lanza_ocrmypdf_no_hereda_entrada_ni_salida():
     """WinError 6 al lanzar Ghostscript desde ocrmypdf empaquetado: con entrada
     y salida nulas explícitas no hay descriptores heredados que duplicar."""

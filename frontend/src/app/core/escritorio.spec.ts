@@ -2,6 +2,7 @@ import {
   PuenteTauri, esFaltaDePermiso, guardarConDialogo, nombreDeRuta, puente, recogerAbiertos,
   versionDeLaAplicacion, leerMenuContextual, aplicarMenuContextual, textoDelAviso, progresoTarea,
   describirGuardado, nuevaVentana, elegirCarpeta, elegirDestino, guardarEnDestino, acortarCarpeta,
+  leerAjustes, guardarAjustes, elegirCarpetaDeGuardado, buscarActualizacionAhora,
 } from './escritorio';
 
 /** Un Tauri de mentira que apunta lo que le piden. */
@@ -143,6 +144,24 @@ describe('escritorio', () => {
   it('la carpeta del aviso se acorta a sus dos últimos tramos', () => {
     expect(acortarCarpeta('C:\\Users\\ana\\Documents\\Contratos')).toBe('…\\Documents\\Contratos');
     expect(acortarCarpeta('D:\\Salida')).toBe('D:\\Salida');
+  });
+
+  it('los ajustes se leen y se guardan mandando sólo lo que cambia', async () => {
+    const estado = { ajustes: { avisos: { activos: false, desde_segundos: 30 } }, reinicio_pendiente: false };
+    const { falso, llamadas } = tauriFalso({ leer_ajustes: () => estado, guardar_ajustes: () => estado });
+
+    expect(await leerAjustes(falso)).toBe(estado);
+    await guardarAjustes(falso, { avisos: { desde_segundos: 30 } });
+
+    expect(llamadas[1]).toEqual({
+      comando: 'guardar_ajustes', argumentos: { cambios: { avisos: { desde_segundos: 30 } } }, opciones: undefined,
+    });
+  });
+
+  it('cerrar el diálogo de la carpeta de guardado no cambia nada', async () => {
+    const { falso } = tauriFalso({ elegir_carpeta_de_guardado: () => null, buscar_actualizacion_ahora: () => null });
+    expect(await elegirCarpetaDeGuardado(falso)).toBeNull();
+    expect(await buscarActualizacionAhora(falso)).toBeNull();
   });
 
   it('el nombre sale de rutas con barras de los dos lados', () => {

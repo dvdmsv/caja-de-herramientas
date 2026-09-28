@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-informacion-de-soporte"
+description = "Enables the informacion_de_soporte command without any pre-configured scope."
+commands.allow = ["informacion_de_soporte"]
+
+[[permission]]
+identifier = "deny-informacion-de-soporte"
+description = "Denies the informacion_de_soporte command without any pre-configured scope."
+commands.deny = ["informacion_de_soporte"]

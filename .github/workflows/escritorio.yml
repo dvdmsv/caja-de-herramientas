@@ -334,6 +334,7 @@ jobs:
           if ($r.leer.error -notmatch 'no se ha abierto con la aplicaci') { $fallos += "leer_archivo: $($r.leer | ConvertTo-Json -Compress)" }
           if ($r.menu.error) { $fallos += "menu_contextual: $($r.menu.error)" }
           if ($r.actualizacion.error) { $fallos += "actualizacion_pendiente: $($r.actualizacion.error)" }
+          if ($r.ajustes.error -or -not $r.ajustes.ok.ajustes.avisos) { $fallos += "leer_ajustes: $($r.ajustes | ConvertTo-Json -Compress -Depth 5)" }
           if ($fallos) { throw ("El puente con Tauri no funciona:`n - " + ($fallos -join "`n - ")) }
           'El puente con Tauri funciona: la página llega a los comandos de la aplicación.'
           # De golpe, como el Administrador de tareas: sin dar ocasión a cerrar

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-abrir-carpeta-de-datos"
+description = "Enables the abrir_carpeta_de_datos command without any pre-configured scope."
+commands.allow = ["abrir_carpeta_de_datos"]
+
+[[permission]]
+identifier = "deny-abrir-carpeta-de-datos"
+description = "Denies the abrir_carpeta_de_datos command without any pre-configured scope."
+commands.deny = ["abrir_carpeta_de_datos"]

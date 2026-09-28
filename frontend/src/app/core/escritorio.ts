@@ -19,6 +19,7 @@
  * a lo del navegador en vez de dejar al usuario sin su archivo.
  */
 
+import type { CambiosAjustes, EstadoAjustes } from './ajustes-escritorio';
 import { AccionMenu, AjustesMenu } from './menu-contextual';
 import type { AvisoActualizacion } from './novedades';
 
@@ -167,6 +168,40 @@ export async function responderActualizacion(
   tauri: PuenteTauri, respuesta: 'actualizar' | 'saltar' | 'despues',
 ): Promise<void> {
   await tauri.invoke('responder_actualizacion', { respuesta });
+}
+
+/** Los ajustes de la aplicación y si hay cambios que esperan a volver a abrirla. */
+export async function leerAjustes(tauri: PuenteTauri): Promise<EstadoAjustes> {
+  return (await tauri.invoke('leer_ajustes')) as EstadoAjustes;
+}
+
+/** Guarda los cambios (sólo lo que la página puede tocar; ver `ajustes::mezclar`). */
+export async function guardarAjustes(tauri: PuenteTauri, cambios: CambiosAjustes): Promise<EstadoAjustes> {
+  return (await tauri.invoke('guardar_ajustes', { cambios })) as EstadoAjustes;
+}
+
+/** «Siempre en esta carpeta»: la elige el diálogo de Windows. `null` si se cierra. */
+export async function elegirCarpetaDeGuardado(tauri: PuenteTauri): Promise<EstadoAjustes | null> {
+  return ((await tauri.invoke('elegir_carpeta_de_guardado')) as EstadoAjustes | null) ?? null;
+}
+
+/** «Buscar ahora»: la versión nueva, o `null` si ya se tiene la última. */
+export async function buscarActualizacionAhora(tauri: PuenteTauri): Promise<string | null> {
+  return ((await tauri.invoke('buscar_actualizacion_ahora')) as string | null) ?? null;
+}
+
+export async function abrirCarpetaDeDatos(tauri: PuenteTauri): Promise<void> {
+  await tauri.invoke('abrir_carpeta_de_datos');
+}
+
+/** El texto de «Copiar información para soporte». */
+export async function informacionDeSoporte(tauri: PuenteTauri): Promise<string> {
+  return String(await tauri.invoke('informacion_de_soporte'));
+}
+
+/** Vuelve a abrir la aplicación, para que valgan los cambios de «Avanzado». */
+export async function reiniciar(tauri: PuenteTauri): Promise<void> {
+  await tauri.invoke('reiniciar');
 }
 
 /** Cómo está el menú del Explorador. */

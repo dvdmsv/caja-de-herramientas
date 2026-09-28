@@ -31,7 +31,9 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod ajustes;
 mod menu;
+mod soporte;
 #[cfg(windows)]
 mod trabajo;
 mod ventanas;
@@ -230,6 +232,13 @@ fn main() {
             nueva_ventana,
             actualizacion_pendiente,
             responder_actualizacion,
+            buscar_actualizacion_ahora,
+            leer_ajustes,
+            guardar_ajustes,
+            elegir_carpeta_de_guardado,
+            abrir_carpeta_de_datos,
+            informacion_de_soporte,
+            reiniciar,
             elegir_carpeta,
             elegir_destino,
             guardar_en_destino,
@@ -243,9 +252,15 @@ fn main() {
             app.state::<Abiertos>().anotar(PRINCIPAL, herramienta, rutas);
 
             ventanas::crear(app.handle(), PRINCIPAL, None)?;
-            let backend = arrancar_backend(app.handle())?;
+            // Los de «Avanzado» se leen una vez, al arrancar: son los que valen
+            // hasta volver a abrir, y con ellos se sabe si hay cambios pendientes.
+            let ajustes = ajustes::leer(app.handle());
+            let backend = arrancar_backend(app.handle(), &ajustes)?;
             app.manage(backend);
-            buscar_actualizacion(app.handle().clone());
+            app.manage(AvanzadoAplicado(ajustes.avanzado.clone()));
+            if ajustes.actualizaciones.al_abrir {
+                buscar_actualizacion(app.handle().clone());
+            }
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -312,24 +327,48 @@ struct AvisoActualizacion {
 /// lleva el backend por delante.
 fn buscar_actualizacion(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        use tauri_plugin_updater::UpdaterExt;
-
-        let otra_direccion = std::env::var("CAJA_ACTUALIZACIONES").ok().and_then(|url| Url::parse(&url).ok());
-        let actualizador = match otra_direccion {
-            Some(url) => app.updater_builder().endpoints(vec![url]).and_then(|builder| builder.build()),
-            None => app.updater(),
-        };
-        let Ok(actualizador) = actualizador else { return };
-        let Ok(Some(nueva)) = actualizador.check().await else { return };
-        if menu::leer(&app).version_saltada.as_deref() == Some(nueva.version.as_str()) {
-            return;
-        }
-        *app.state::<Actualizacion>().nueva.lock().unwrap() = Some(nueva);
-        // Las páginas ya cargadas lo recogen ahora; las que aún no, al arrancar.
-        for ventana in app.webview_windows().into_values() {
-            let _ = ventana.eval("window.dispatchEvent(new Event('escritorio:actualizacion'))");
+        if let Ok(Some(_)) = comprobar_actualizacion(&app, true).await {
+            // Las páginas ya cargadas lo recogen ahora; las que aún no, al arrancar.
+            for ventana in app.webview_windows().into_values() {
+                let _ = ventana.eval("window.dispatchEvent(new Event('escritorio:actualizacion'))");
+            }
         }
     });
+}
+
+/// Pregunta a GitHub y, si hay versión nueva, la deja lista para el aviso
+/// (`actualizacion_pendiente`). Devuelve cuál, o nada si ya está al día.
+/// `respetar_saltada`: al abrir, una versión saltada no cuenta; con «Buscar
+/// ahora» sí, que para eso se ha pedido.
+async fn comprobar_actualizacion(app: &AppHandle, respetar_saltada: bool) -> Result<Option<String>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    let otra_direccion = std::env::var("CAJA_ACTUALIZACIONES").ok().and_then(|url| Url::parse(&url).ok());
+    let actualizador = match otra_direccion {
+        Some(url) => app.updater_builder().endpoints(vec![url]).and_then(|builder| builder.build()),
+        None => app.updater(),
+    }
+    .map_err(|error| error.to_string())?;
+    let Some(nueva) = actualizador.check().await.map_err(|error| error.to_string())? else {
+        return Ok(None);
+    };
+    if respetar_saltada && ajustes::leer(app).version_saltada.as_deref() == Some(nueva.version.as_str()) {
+        return Ok(None);
+    }
+    let version = nueva.version.clone();
+    let actualizacion = app.state::<Actualizacion>();
+    *actualizacion.nueva.lock().unwrap() = Some(nueva);
+    actualizacion.ensenada.store(false, Ordering::SeqCst);
+    Ok(Some(version))
+}
+
+/// «Buscar ahora», en Ajustes. Si hay versión nueva, la página que lo pide la
+/// enseña con el aviso de siempre.
+#[tauri::command]
+async fn buscar_actualizacion_ahora(app: AppHandle) -> Result<Option<String>, String> {
+    comprobar_actualizacion(&app, false)
+        .await
+        .map_err(|error| format!("No se ha podido consultar si hay versión nueva: {error}"))
 }
 
 /// La versión nueva, si la hay y ninguna otra ventana la ha enseñado ya.
@@ -453,8 +492,17 @@ fn pintar(app: &AppHandle, estado: serde_json::Value, barra: ProgressBarState) {
 #[derive(Default)]
 struct UltimoGuardado(Mutex<Option<PathBuf>>);
 
-/// Enseña «Guardar como» y escribe ahí el archivo. Devuelve dónde se ha
-/// guardado, o nada si se ha cerrado el diálogo, que no es un error.
+/// Guarda un resultado donde diga «Guardado» en Ajustes. Devuelve dónde ha
+/// quedado, o nada si se ha cerrado el diálogo, que no es un error.
+///
+/// - **Preguntar** (de serie): el diálogo de «Guardar como».
+/// - **Junto al original**: en la carpeta de lo que entró por «Abrir con…», el
+///   menú del Explorador o «Añadir una carpeta». Si no se sabe cuál —el archivo
+///   se eligió desde la página, y el navegador no da su ruta—, se pregunta.
+/// - **Siempre en una carpeta**: ahí; si ya no existe, se pregunta.
+///
+/// Sin diálogo **nunca se sobrescribe** (`escribir_sin_pisar`): quien no ve
+/// dónde cae el archivo no puede ver tampoco que pisa otro.
 ///
 /// El contenido llega **en bruto** en el cuerpo de la llamada, no en JSON: un
 /// PDF escaneado puede pesar cientos de megas. El nombre va en una cabecera,
@@ -474,6 +522,20 @@ async fn guardar_como(
         .and_then(|valor| valor.to_str().ok())
         .map(|valor| percent_encoding::percent_decode_str(valor).decode_utf8_lossy().into_owned())
         .unwrap_or_else(|| "resultado".into());
+
+    let guardado = ajustes::leer(&app).guardado;
+    let sin_preguntar = match guardado.modo {
+        ajustes::ModoGuardado::Preguntar => None,
+        ajustes::ModoGuardado::Junto => app.state::<Abiertos>().carpeta.lock().unwrap().clone(),
+        ajustes::ModoGuardado::Carpeta => guardado.carpeta.map(PathBuf::from),
+    }
+    .filter(|carpeta| carpeta.is_dir());
+    if let Some(carpeta) = sin_preguntar {
+        let ruta = escribir_sin_pisar(&carpeta, &nombre, datos)?;
+        let texto = ruta.display().to_string();
+        *app.state::<UltimoGuardado>().0.lock().unwrap() = Some(ruta);
+        return Ok(Some(texto));
+    }
 
     let mut dialogo = app.dialog().file().set_file_name(&nombre);
     if let Some(carpeta) = app.state::<Abiertos>().carpeta.lock().unwrap().clone() {
@@ -622,8 +684,13 @@ async fn guardar_en_destino(
         .and_then(|valor| valor.to_str().ok())
         .map(|valor| percent_encoding::percent_decode_str(valor).decode_utf8_lossy().into_owned())
         .unwrap_or_default();
-    let nombre = nombre_de_archivo(&nombre);
+    escribir_sin_pisar(&carpeta, &nombre, datos).map(|ruta| ruta.display().to_string())
+}
 
+/// Escribe en `carpeta` con el nombre dado, reducido a un nombre de archivo, y
+/// **sin sobrescribir nada**: si ya hay uno, `nombre (1).pdf`, `(2)`…
+fn escribir_sin_pisar(carpeta: &std::path::Path, nombre: &str, datos: &[u8]) -> Result<PathBuf, String> {
+    let nombre = nombre_de_archivo(nombre);
     // `create_new` y no mirar antes si existe: entre mirar y escribir podría
     // aparecer uno, y se sobrescribiría.
     for intento in 0..1000 {
@@ -634,7 +701,7 @@ async fn guardar_en_destino(
                 archivo
                     .write_all(datos)
                     .map_err(|error| format!("No se ha podido guardar en {}: {error}", ruta.display()))?;
-                return Ok(ruta.display().to_string());
+                return Ok(ruta);
             }
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
             Err(error) => return Err(format!("No se ha podido guardar en {}: {error}", ruta.display())),
@@ -690,7 +757,7 @@ fn archivos_pendientes(ventana: WebviewWindow, abiertos: tauri::State<'_, Abiert
 
 /// Si el menú del Explorador está puesto y qué acciones lleva.
 #[tauri::command]
-fn menu_contextual(app: AppHandle) -> menu::Ajustes {
+fn menu_contextual(app: AppHandle) -> ajustes::Ajustes {
     menu::leer(&app)
 }
 
@@ -700,8 +767,80 @@ fn aplicar_menu_contextual(
     app: AppHandle,
     activo: bool,
     acciones: Vec<menu::AccionMenu>,
-) -> Result<menu::Ajustes, String> {
+) -> Result<ajustes::Ajustes, String> {
     menu::aplicar(&app, activo, acciones)
+}
+
+// --- Ajustes -------------------------------------------------------------------
+
+/// Los de «Avanzado» con los que arrancó la aplicación: los que valen ahora.
+struct AvanzadoAplicado(ajustes::Avanzado);
+
+/// Lo que necesita la página de Ajustes.
+#[derive(serde::Serialize)]
+struct EstadoAjustes {
+    ajustes: ajustes::Ajustes,
+    /// Hay cambios de «Avanzado» que no valdrán hasta volver a abrir.
+    reinicio_pendiente: bool,
+}
+
+fn estado_ajustes(app: &AppHandle, ajustes: ajustes::Ajustes) -> EstadoAjustes {
+    let reinicio_pendiente = ajustes.avanzado != app.state::<AvanzadoAplicado>().0;
+    EstadoAjustes { ajustes, reinicio_pendiente }
+}
+
+#[tauri::command]
+fn leer_ajustes(app: AppHandle) -> EstadoAjustes {
+    estado_ajustes(&app, ajustes::leer(&app))
+}
+
+/// Mezcla y guarda lo que cambia la página (ver `ajustes::mezclar`, que dice qué
+/// puede tocar y qué no).
+#[tauri::command]
+fn guardar_ajustes(app: AppHandle, cambios: serde_json::Value) -> Result<EstadoAjustes, String> {
+    let ajustes = ajustes::mezclar(&app, cambios)?;
+    Ok(estado_ajustes(&app, ajustes))
+}
+
+/// «Siempre en esta carpeta»: la elige la persona con el diálogo de Windows. Es
+/// la única forma de poner esa carpeta: la página nunca da una ruta, que sería
+/// decidir dónde escribe «Guardar». Nada si se cierra el diálogo.
+#[tauri::command]
+async fn elegir_carpeta_de_guardado(app: AppHandle, ventana: WebviewWindow) -> Result<Option<EstadoAjustes>, String> {
+    let mut actuales = ajustes::leer(&app);
+    let mut dialogo = app.dialog().file().set_parent(&ventana).set_title("¿Dónde guardo los archivos?");
+    if let Some(carpeta) = actuales.guardado.carpeta.clone() {
+        dialogo = dialogo.set_directory(carpeta);
+    }
+    let Some(elegida) = dialogo.blocking_pick_folder() else {
+        return Ok(None);
+    };
+    let carpeta = elegida.into_path().map_err(|error| error.to_string())?;
+    actuales.guardado.carpeta = Some(carpeta.display().to_string());
+    actuales.guardado.modo = ajustes::ModoGuardado::Carpeta;
+    ajustes::guardar(&app, &actuales)?;
+    Ok(Some(estado_ajustes(&app, actuales)))
+}
+
+/// Abre en el Explorador la carpeta de datos de la aplicación: los registros,
+/// los ajustes y los archivos de trabajo. Sólo ésa; la página no dice cuál.
+#[tauri::command]
+fn abrir_carpeta_de_datos(app: AppHandle) -> Result<(), String> {
+    let carpeta = soporte::carpeta_de_datos(&app).ok_or("No se encuentra la carpeta de datos.")?;
+    tauri_plugin_opener::open_path(carpeta, None::<&str>).map_err(|error| error.to_string())
+}
+
+/// El texto de «Copiar información para soporte» (ver `soporte.rs`).
+#[tauri::command]
+fn informacion_de_soporte(app: AppHandle) -> String {
+    soporte::informacion(&app, &app.state::<AvanzadoAplicado>().0)
+}
+
+/// «Reiniciar ahora», para que valgan los cambios de «Avanzado». Tauri vuelve a
+/// lanzar la aplicación y sale; el job se lleva el backend por delante.
+#[tauri::command]
+fn reiniciar(app: AppHandle) {
+    app.restart();
 }
 
 /// El contenido de uno de esos archivos, en bruto. Sólo de los que han llegado
@@ -768,7 +907,10 @@ fn avisar_de_abiertos(ventana: &WebviewWindow) {
     let _ = ventana.eval("window.dispatchEvent(new Event('escritorio:archivos-abiertos'))");
 }
 
-fn arrancar_backend(app: &AppHandle) -> Result<Backend, Box<dyn std::error::Error>> {
+/// Arranca el backend con los ajustes de «Avanzado» con los que ha abierto la
+/// aplicación: los que van al backend, por variables de entorno (las que ya lee
+/// `config.py`); la memoria y la prioridad, en el job.
+fn arrancar_backend(app: &AppHandle, ajustes: &ajustes::Ajustes) -> Result<Backend, Box<dyn std::error::Error>> {
     let ejecutable = app
         .path()
         .resource_dir()?
@@ -778,6 +920,7 @@ fn arrancar_backend(app: &AppHandle) -> Result<Backend, Box<dyn std::error::Erro
     let token = app.state::<Servidor>().token.lock().unwrap().clone();
 
     let mut orden = Command::new(&ejecutable);
+    orden.envs(ajustes.entorno_del_backend());
     orden
         .env("ESCRITORIO_TOKEN", &token)
         .stdin(Stdio::null())
@@ -802,7 +945,11 @@ fn arrancar_backend(app: &AppHandle) -> Result<Backend, Box<dyn std::error::Erro
     // sin tope de memoria ni prioridad baja, y un cierre forzado dejaría el
     // backend vivo. Queda en el registro para saberlo.
     #[cfg(windows)]
-    let trabajo = match trabajo::atar(&hijo, trabajo::tope_de_memoria()) {
+    let trabajo = match trabajo::atar(
+        &hijo,
+        trabajo::tope_de_memoria(ajustes.avanzado.memoria_porcentaje),
+        ajustes.avanzado.prioridad_baja.unwrap_or(true),
+    ) {
         Ok(trabajo) => Some(trabajo),
         Err(error) => {
             let _ = fs::write(registro.with_extension("job.log"), &error);

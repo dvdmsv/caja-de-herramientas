@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   104 iconos de los 2078 que trae bootstrap-icons.
+   111 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -33,10 +33,12 @@
 .bi-arrows-move::before { content: "\f14e"; }
 .bi-aspect-ratio::before { content: "\f150"; }
 .bi-award::before { content: "\f154"; }
+.bi-bell::before { content: "\f18a"; }
 .bi-body-text::before { content: "\f683"; }
 .bi-book::before { content: "\f194"; }
 .bi-bookmark::before { content: "\f1a2"; }
 .bi-box-arrow-in-right::before { content: "\f1be"; }
+.bi-box-arrow-up-right::before { content: "\f1c5"; }
 .bi-calendar-event::before { content: "\f1e8"; }
 .bi-card-image::before { content: "\f226"; }
 .bi-check-circle-fill::before { content: "\f26a"; }
@@ -69,10 +71,13 @@
 .bi-file-earmark-plus::before { content: "\f37d"; }
 .bi-file-earmark-word::before { content: "\f38d"; }
 .bi-file-earmark-zip::before { content: "\f391"; }
+.bi-files::before { content: "\f3c2"; }
 .bi-filetype-md::before { content: "\f750"; }
 .bi-filetype-pdf::before { content: "\f756"; }
+.bi-floppy::before { content: "\f7d8"; }
 .bi-folder2-open::before { content: "\f3d8"; }
 .bi-fonts::before { content: "\f3da"; }
+.bi-gear::before { content: "\f3e5"; }
 .bi-geo-alt-fill::before { content: "\f3e7"; }
 .bi-grid-3x3-gap::before { content: "\f3f9"; }
 .bi-grip-vertical::before { content: "\f3fe"; }
@@ -88,6 +93,7 @@
 .bi-journal-arrow-down::before { content: "\f43a"; }
 .bi-layers::before { content: "\f45b"; }
 .bi-layout-sidebar::before { content: "\f45f"; }
+.bi-life-preserver::before { content: "\f467"; }
 .bi-link-45deg::before { content: "\f470"; }
 .bi-list-nested::before { content: "\f474"; }
 .bi-list-ol::before { content: "\f475"; }
@@ -111,6 +117,7 @@
 .bi-shield-check::before { content: "\f52f"; }
 .bi-shield-exclamation::before { content: "\f530"; }
 .bi-shield-x::before { content: "\f53e"; }
+.bi-sliders::before { content: "\f56b"; }
 .bi-sun::before { content: "\f5a2"; }
 .bi-symmetry-vertical::before { content: "\f5a9"; }
 .bi-table::before { content: "\f5aa"; }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reiniciar"
+description = "Enables the reiniciar command without any pre-configured scope."
+commands.allow = ["reiniciar"]
+
+[[permission]]
+identifier = "deny-reiniciar"
+description = "Denies the reiniciar command without any pre-configured scope."
+commands.deny = ["reiniciar"]

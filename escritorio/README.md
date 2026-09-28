@@ -165,6 +165,30 @@ no cambia nunca:
 
 ## Lo que la aplicación hace y la web no
 
+- **Ajustes** (`pages/ajustes/`, con la disposición de la Configuración de
+  Windows 11: menú lateral y una sección por pantalla, en `/ajustes#seccion`).
+  Los guarda y los aplica `src-tauri/src/ajustes.rs`, dueño de
+  `%LOCALAPPDATA%\merge-pdf\ajustes.json`: recorta cada valor a su rango al
+  leerlo y sólo deja a la página tocar lo suyo (`ajustes::mezclar`).
+  - **Guardado**: preguntar, junto al original o siempre en una carpeta. Sin
+    diálogo nunca se sobrescribe (`escribir_sin_pisar`), y la carpeta fija sólo
+    la pone el diálogo de Windows, nunca la página.
+  - **Avisos**: la notificación al terminar, sí o no y desde cuántos segundos.
+  - **Actualizaciones**: buscar al abrir, «Buscar ahora» y deshacer una versión
+    saltada.
+  - **Espacio**: lo que ocupan los archivos de trabajo y «Liberar», que no toca
+    la sesión de la ventana que lo pide ni las usadas en los últimos minutos
+    (`/api/escritorio/*` en `backend/escritorio.py`, que sólo existe aquí).
+  - **Ayuda**: «Copiar información para soporte» (`soporte.rs`: versión,
+    Windows, memoria, ajustes cambiados y el final del registro; sin nombres de
+    archivo) y la carpeta de registros.
+  - **Avanzado**: memoria máxima, prioridad baja, tamaño máximo de subida,
+    espacio por ventana y servidor de sello de tiempo. **Se aplican al volver a
+    abrir** (el job y las variables de entorno del backend se fijan al
+    arrancar), con «Reiniciar ahora». Guardan `null` cuando están de serie: el
+    valor lo sigue decidiendo quien lo aplica (`escritorio.preparar_entorno`,
+    `trabajo.rs`). Los rangos están en `ajustes.rs` **y** en
+    `core/ajustes-escritorio.ts`: si cambia uno, los dos.
 - **Guardar con el diálogo de Windows**, proponiendo la carpeta del último
   archivo que llegó por «Abrir con…» o el menú del Explorador.
 - **«Abrir con…»** del Explorador para los formatos del catálogo, sin hacerse

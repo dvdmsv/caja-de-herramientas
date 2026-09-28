@@ -4,11 +4,13 @@ import { Subject } from 'rxjs';
 import Swal from 'sweetalert2';
 
 import {
-  AVISO_DESDE_MS, EVENTO_ABIERTOS, EVENTO_ACTUALIZACION, acortarCarpeta, actualizacionPendiente,
-  responderActualizacion, aplicarMenuContextual, avisarFin, describirGuardado, elegirCarpeta, elegirDestino,
-  esFaltaDePermiso, guardarConDialogo, guardarEnDestino, leerMenuContextual, mostrarGuardado, nuevaVentana, progresoTarea, puente, recogerAbiertos,
-  textoDelAviso, versionDeLaAplicacion,
+  AVISO_DESDE_MS, EVENTO_ABIERTOS, EVENTO_ACTUALIZACION, abrirCarpetaDeDatos, acortarCarpeta, actualizacionPendiente,
+  responderActualizacion, aplicarMenuContextual, avisarFin, buscarActualizacionAhora, describirGuardado, elegirCarpeta,
+  elegirCarpetaDeGuardado, elegirDestino, esFaltaDePermiso, guardarAjustes, guardarConDialogo, guardarEnDestino,
+  informacionDeSoporte, leerAjustes, leerMenuContextual, mostrarGuardado, nuevaVentana, progresoTarea, puente,
+  recogerAbiertos, reiniciar, textoDelAviso, versionDeLaAplicacion,
 } from './escritorio';
+import type { AjustesEscritorio, CambiosAjustes, EstadoAjustes } from './ajustes-escritorio';
 import { AvanceTrabajo } from '../shared/progreso';
 import { AjustesMenu, accionesMarcadas, extensionesQueAcepta } from './menu-contextual';
 import type { AvisoActualizacion, NovedadesDeVersion, ReleaseGitHub } from './novedades';
@@ -53,6 +55,9 @@ export class EscritorioService {
     // con el evento; si la encontró antes, se pregunta aquí al arrancar.
     window.addEventListener(EVENTO_ACTUALIZACION, () => this.zona.run(() => this.avisarDeActualizacion()));
     this.avisarDeActualizacion();
+    // Una copia de los ajustes para lo que se consulta a menudo (los avisos al
+    // terminar). Si falla, se sigue con los valores de serie.
+    this.estadoAjustes().catch(() => {});
     // Ctrl+N, como en cualquier programa de Windows. También escribiendo en un
     // campo: ahí no significa nada, y sin `preventDefault` WebView2 abriría una
     // ventana suya, sin nada de lo que main.rs le pone a las de la aplicación.
@@ -296,11 +301,68 @@ export class EscritorioService {
     }
     this.ultimoProgreso = 0;
     progresoTarea(this.tauri, null, true).catch(() => {});
-    if (bien === null || duracionMs < AVISO_DESDE_MS) {
+    const avisos = this.ajustes?.avisos;
+    const desde = avisos ? avisos.desde_segundos * 1000 : AVISO_DESDE_MS;
+    if (bien === null || avisos?.activos === false || duracionMs < desde) {
       return;
     }
     const { titulo, cuerpo } = textoDelAviso(herramienta, bien, archivos, mensaje);
     avisarFin(this.tauri, titulo, cuerpo).catch(error => console.warn('No se ha podido avisar al terminar.', error));
+  }
+
+  // --- Ajustes ------------------------------------------------------------
+
+  /** La última copia de los ajustes, para no preguntar a Tauri en cada trabajo. */
+  private ajustes: AjustesEscritorio | null = null;
+
+  private puenteOLanzar() {
+    if (!this.tauri) {
+      throw new Error('Sólo en la aplicación de Windows.');
+    }
+    return this.tauri;
+  }
+
+  private recordar(estado: EstadoAjustes): EstadoAjustes {
+    this.ajustes = estado.ajustes;
+    return estado;
+  }
+
+  async estadoAjustes(): Promise<EstadoAjustes> {
+    return this.recordar(await leerAjustes(this.puenteOLanzar()));
+  }
+
+  async guardarAjustes(cambios: CambiosAjustes): Promise<EstadoAjustes> {
+    return this.recordar(await guardarAjustes(this.puenteOLanzar(), cambios));
+  }
+
+  /** `null` si se cierra el diálogo sin elegir. */
+  async elegirCarpetaDeGuardado(): Promise<EstadoAjustes | null> {
+    const estado = await elegirCarpetaDeGuardado(this.puenteOLanzar());
+    return estado ? this.recordar(estado) : null;
+  }
+
+  /**
+   * «Buscar ahora»: si hay versión nueva, se enseña el aviso de siempre con sus
+   * novedades. Devuelve cuál, o `null` si ya se tiene la última.
+   */
+  async buscarActualizacionAhora(): Promise<string | null> {
+    const version = await buscarActualizacionAhora(this.puenteOLanzar());
+    if (version) {
+      await this.avisarDeActualizacion();
+    }
+    return version;
+  }
+
+  async abrirCarpetaDeDatos(): Promise<void> {
+    await abrirCarpetaDeDatos(this.puenteOLanzar());
+  }
+
+  async informacionDeSoporte(): Promise<string> {
+    return informacionDeSoporte(this.puenteOLanzar());
+  }
+
+  async reiniciar(): Promise<void> {
+    await reiniciar(this.puenteOLanzar());
   }
 
   /** Cómo está el menú del Explorador; `null` fuera de la aplicación. */

@@ -24,6 +24,13 @@
     "allow-nueva-ventana",
     "allow-actualizacion-pendiente",
     "allow-responder-actualizacion",
+    "allow-buscar-actualizacion-ahora",
+    "allow-leer-ajustes",
+    "allow-guardar-ajustes",
+    "allow-elegir-carpeta-de-guardado",
+    "allow-abrir-carpeta-de-datos",
+    "allow-informacion-de-soporte",
+    "allow-reiniciar",
     "allow-elegir-carpeta",
     "allow-elegir-destino",
     "allow-guardar-en-destino"

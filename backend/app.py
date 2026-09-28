@@ -59,6 +59,7 @@ def create_app(servicio: str | None = None) -> Flask:
         # abrirlo dejaría a cualquier web leer las respuestas.
         import escritorio
         escritorio.proteger(app, config.ESCRITORIO_TOKEN)
+        escritorio.registrar_rutas(app)
     else:
         # En producción el frontend se sirve tras el mismo nginx, así que CORS
         # sólo hace falta para el `ng serve` de desarrollo.

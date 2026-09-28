@@ -1,66 +1,195 @@
-/* Una columna de lectura, como «Acerca de». */
-.ajustes {
+.solo-web {
   max-width: 44rem;
   margin: 0 auto;
 }
 
-.interruptor .form-check-input {
-  margin-top: 0.35rem;
-}
-
-.titulo-acciones {
-  letter-spacing: 0.08em;
-  font-size: 0.8rem;
-}
-
-/* Con el menú apagado las casillas se pueden seguir marcando (se recuerdan
-   para cuando se encienda), pero se ve que ahora mismo no hacen nada. */
-.apagado .grupo {
-  opacity: 0.6;
-}
-
-.grupo__titulo {
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin-bottom: 0.35rem;
-}
-
-/* Las acciones en dos columnas: son una treintena y en una sola la página se
-   hace muy larga. */
-.grupo {
+/* Como la Configuración de Windows 11: el menú a la izquierda, fijo mientras
+   se desplaza el panel, y la sección a la derecha. */
+.ajustes {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.15rem 1.5rem;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  gap: 2rem;
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+.menu {
+  position: sticky;
+  top: 5rem;
+  align-self: start;
+}
+
+.menu__titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.menu__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.menu__enlace {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--bs-border-radius);
+  color: var(--bs-body-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.menu__enlace:hover {
+  background: var(--bs-tertiary-bg);
+}
+
+/* La activa, con el color de acento y la rayita a la izquierda de Windows 11. */
+.menu__enlace--activa {
+  background: var(--bs-secondary-bg);
+  font-weight: 600;
+}
+
+.menu__enlace--activa::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 25%;
+  height: 50%;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--acento);
+}
+
+.menu__enlace .bi {
+  font-size: 1.1rem;
+  color: var(--acento-texto);
+}
+
+.menu__punto {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--bs-warning);
+  margin-left: auto;
+}
+
+.menu__raya {
+  border-top: 1px solid var(--bs-border-color);
+  margin: 0.5rem 0.75rem;
+}
+
+.menu__pie {
+  margin: 1.5rem 0.75rem 0;
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color);
+}
+
+.panel__cabecera {
   margin-bottom: 1.25rem;
 }
 
-.grupo__titulo {
-  grid-column: 1 / -1;
+.panel__titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.panel__titulo .bi {
+  color: var(--acento-texto);
+}
+
+.panel__descripcion {
+  color: var(--bs-secondary-color);
+  margin: 0;
+}
+
+/* Arriba del panel y pegada al hacer scroll: con cambios pendientes, que no
+   se pierda el botón. */
+.reinicio {
+  position: sticky;
+  top: 4.5rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 1.25rem;
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+  border: 1px solid var(--bs-warning-border-subtle);
 }
 
 .estado {
   min-height: 1.5em;
 }
 
-/* TACTIL (core/pantalla.ts): las casillas de 1 rem no llegan a los 44 px del
-   dedo. Se le da el alto a la etiqueta, que también la marca, con relleno: con
-   la fila en `flex` se rompía la maquetación de Bootstrap y la casilla se
-   pegaba al texto. El interruptor ya mide más por su párrafo. */
-@media (pointer: coarse) {
-  .accion .form-check-label {
-    display: inline-block;
-    padding: 0.7rem 0;
+/*
+ * Por debajo de 900 px (la ventana de la aplicación mide como poco 720): no
+ * caben el menú y el panel lado a lado sin dejar el panel en una columna de
+ * dos palabras. El menú pasa a una fila de pestañas arriba, desplazable
+ * (`.desplazable-x`), y el panel ocupa todo el ancho. La raya y el pie sobran.
+ */
+@media (max-width: 899.98px) {
+  .ajustes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
   }
 
-  .accion .form-check-input {
-    margin-top: 0.95rem;
+  .menu {
+    position: static;
+  }
+
+  .menu__lista {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .menu__enlace--activa::before {
+    left: 25%;
+    top: auto;
+    bottom: 0;
+    width: 50%;
+    height: 3px;
+  }
+
+  .menu__raya,
+  .menu__pie {
+    display: none;
+  }
+
+  .reinicio {
+    top: 4rem;
   }
 }
 
-/* ESTRECHA (core/pantalla.ts): a 360 px dos columnas dejaban los nombres en
-   dos palabras por línea; pasa a una. */
+/* TACTIL (core/pantalla.ts): cada pestaña del menú, a 44 px. */
+@media (pointer: coarse) {
+  .menu__enlace {
+    min-height: 2.75rem;
+  }
+}
+
+/* ESTRECHA (core/pantalla.ts): la cabecera del panel, más pequeña, y la barra
+   de reinicio con el botón debajo del texto. */
 @media (max-width: 575.98px) {
-  .grupo {
-    grid-template-columns: 1fr;
+  .panel__titulo {
+    font-size: 1.4rem;
+  }
+
+  .reinicio {
+    flex-wrap: wrap;
   }
 }
