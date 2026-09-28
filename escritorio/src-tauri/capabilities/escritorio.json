@@ -20,6 +20,7 @@
     "allow-aplicar-menu-contextual",
     "allow-progreso-tarea",
     "allow-avisar-fin",
-    "allow-resultado-autoprueba"
+    "allow-resultado-autoprueba",
+    "allow-nueva-ventana"
   ]
 }

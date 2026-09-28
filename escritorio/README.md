@@ -153,6 +153,16 @@ no cambia nunca:
   trabajo pasa de 10 s y la ventana no tiene el foco, una notificación de
   Windows al acabar.
 - **Soltar archivos** en la ventana, como en la web (ver trampas).
+- **Varias ventanas**, como Word: cada «Abrir con…», cada acción del menú del
+  Explorador y cada vez que se abre desde el menú Inicio sale una ventana nueva,
+  y dentro hay Ctrl+N y el botón «+» de la barra. Son ventanas **de un mismo
+  proceso y un mismo backend** (`src-tauri/src/ventanas.rs`), no copias de la
+  aplicación: cada copia arrancaría su backend, y el segundo borraría al
+  arrancar las sesiones del primero. Cada ventana lleva **su propia sesión**
+  (`SessionService` usa `sessionStorage` en la aplicación), así que «Empezar de
+  cero» en una no toca los archivos de otra. Los archivos que llegan se dejan
+  para una ventana concreta (`Abiertos`, por etiqueta), y los de una misma
+  selección van a la ventana del primero.
 
 Al añadir un formato que el menú pueda ofrecer: a `EXTENSIONES` de
 `core/menu-contextual.ts` **y** a `CAJA_MENU_EXTENSIONES` de `ganchos.nsh`, o el
@@ -189,6 +199,8 @@ que son añadidos pequeños y sin efecto en la web.
 | `frontend/src/app/pages/acerca-de/` | la versión instalada, que sólo sabe la aplicación |
 | `frontend/src/app/app.routes.ts` | la ruta `ajustes` (la página sólo existe en esta rama) |
 | `frontend/src/app/app.component.html` | además, el enlace a Ajustes en el pie |
+| `frontend/src/app/core/session.service.ts` | `sessionStorage` en vez de `localStorage` cuando hay puente: una sesión por ventana |
+| `frontend/src/app/app.component.html` | además, el botón «Nueva ventana» de la barra, sólo en la aplicación |
 | `frontend/src/app/shared/pagina-herramienta.ts` | `escritorio.progreso()` en `refrescarAvance()` y `avisarAlTerminar()` al acabar |
 | `backend/tests/test_limites.py`, `test_arranque.py` | los `skipif` de Windows y el fallo nativo con `faulthandler` |
 | `scripts/barrido.py` | la variable `TOKEN` |
@@ -226,7 +238,18 @@ para que aparezcan en «Abrir con…».
   porque el WebView2 de la CI ignora el puerto de depuración; en una VM sí, y
   `scripts/comprobar-puente.js` lo mira por ahí.
 - **`disable_drag_drop_handler()` en la ventana.** Sin él, en Windows Tauri se
-  queda con los archivos soltados y la página no recibe el `drop` de HTML.
+  queda con los archivos soltados y la página no recibe el `drop` de HTML. Por
+  eso todas las ventanas salen de `ventanas::crear`, también las de un
+  `target="_blank"` a la propia aplicación: dejar que WebView2 cree la suya
+  daría una ventana sin eso ni las reglas de navegación.
+- **Crear una ventana desde un manejador síncrono puede colgar la aplicación en
+  Windows** (lo avisa Tauri: los comandos síncronos y el callback de
+  `single-instance` corren en el hilo principal). Fuera de `setup`, siempre con
+  `ventanas::crear_aparte`, que la crea desde otro hilo.
+- **El botón «Nueva ventana» usa `bi-plus-lg`, que ya está en la fuente
+  recortada**, a propósito: un icono sólo de esta rama obligaría a regenerar
+  `src/estilos/iconos/` aquí, y el woff2 binario chocaría en cada merge de
+  `master` que añada otro.
 
 - **LibreOffice no puede ir en el PATH**: su carpeta `program` trae un
   `python.exe` propio que tapa a cualquier otro. Va por `RUTA_SOFFICE`.

@@ -11,6 +11,12 @@
       </a>
       <div class="d-flex align-items-center gap-1 order-lg-last ms-auto ms-lg-2">
         <app-uso-sesion></app-uso-sesion>
+        @if (escritorio.activo) {
+          <button type="button" class="btn btn-link boton-tema" (click)="escritorio.nuevaVentana()"
+            aria-label="Nueva ventana" title="Nueva ventana (Ctrl+N)">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+          </button>
+        }
         <button type="button" class="btn btn-link boton-tema" (click)="tema.alternar()"
           [attr.aria-label]="'Tema: ' + etiquetaTema + '. Pulsa para cambiarlo'"
           [title]="'Tema: ' + etiquetaTema">

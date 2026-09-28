@@ -16,6 +16,7 @@ const COMANDOS: &[&str] = &[
     "progreso_tarea",
     "avisar_fin",
     "resultado_autoprueba",
+    "nueva_ventana",
 ];
 
 fn main() {

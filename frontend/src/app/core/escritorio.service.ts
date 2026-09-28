@@ -5,8 +5,8 @@ import Swal from 'sweetalert2';
 
 import {
   AVISO_DESDE_MS, EVENTO_ABIERTOS, aplicarMenuContextual, avisarFin, describirGuardado, esFaltaDePermiso,
-  guardarConDialogo, leerMenuContextual, mostrarGuardado, progresoTarea, puente, recogerAbiertos, textoDelAviso,
-  versionDeLaAplicacion,
+  guardarConDialogo, leerMenuContextual, mostrarGuardado, nuevaVentana, progresoTarea, puente, recogerAbiertos,
+  textoDelAviso, versionDeLaAplicacion,
 } from './escritorio';
 import { AvanceTrabajo } from '../shared/progreso';
 import { AjustesMenu, accionesMarcadas } from './menu-contextual';
@@ -46,7 +46,23 @@ export class EscritorioService {
     // main.rs avisa con un evento del DOM, que zone.js no ve como propio si
     // llega por `eval`: se vuelve a la zona para que se pinte.
     window.addEventListener(EVENTO_ABIERTOS, () => this.zona.run(() => this.recoger()));
+    // Ctrl+N, como en cualquier programa de Windows. También escribiendo en un
+    // campo: ahí no significa nada, y sin `preventDefault` WebView2 abriría una
+    // ventana suya, sin nada de lo que main.rs le pone a las de la aplicación.
+    window.addEventListener('keydown', evento => {
+      if (evento.ctrlKey && !evento.shiftKey && !evento.altKey && evento.key.toLowerCase() === 'n') {
+        evento.preventDefault();
+        this.nuevaVentana();
+      }
+    });
     this.recoger();
+  }
+
+  /** Otra ventana de la aplicación, vacía y con su propia sesión. */
+  nuevaVentana(): void {
+    if (this.tauri) {
+      nuevaVentana(this.tauri).catch(error => console.warn('No se ha podido abrir otra ventana.', error));
+    }
   }
 
   /** La versión instalada, o `null` en la web o si no se puede saber. */

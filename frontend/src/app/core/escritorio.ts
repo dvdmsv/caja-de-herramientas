@@ -96,6 +96,11 @@ export async function recogerAbiertos(tauri: PuenteTauri): Promise<Llegada[]> {
   return llegadas;
 }
 
+/** Abre otra ventana de la aplicación, vacía y con su propia sesión. */
+export async function nuevaVentana(tauri: PuenteTauri): Promise<void> {
+  await tauri.invoke('nueva_ventana');
+}
+
 /** Cómo está el menú del Explorador. */
 export async function leerMenuContextual(tauri: PuenteTauri): Promise<AjustesMenu> {
   return (await tauri.invoke('menu_contextual')) as AjustesMenu;

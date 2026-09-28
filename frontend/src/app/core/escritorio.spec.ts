@@ -1,7 +1,7 @@
 import {
   PuenteTauri, esFaltaDePermiso, guardarConDialogo, nombreDeRuta, puente, recogerAbiertos,
   versionDeLaAplicacion, leerMenuContextual, aplicarMenuContextual, textoDelAviso, progresoTarea,
-  describirGuardado,
+  describirGuardado, nuevaVentana,
 } from './escritorio';
 
 /** Un Tauri de mentira que apunta lo que le piden. */
@@ -89,6 +89,12 @@ describe('escritorio', () => {
     expect(llamadas.map(l => l.argumentos)).toEqual([
       { porcentaje: null, terminado: false }, { porcentaje: 40, terminado: false },
     ]);
+  });
+
+  it('pide otra ventana sin argumentos: main.rs la abre vacía', async () => {
+    const { falso, llamadas } = tauriFalso({ nueva_ventana: () => null });
+    await nuevaVentana(falso);
+    expect(llamadas).toEqual([{ comando: 'nueva_ventana', argumentos: undefined, opciones: undefined }]);
   });
 
   it('pregunta la versión a Tauri, que la saca de tauri.conf.json', async () => {

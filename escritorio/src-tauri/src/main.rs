@@ -9,16 +9,17 @@
 //! El orden de las cosas:
 //!
 //! 1. Se abre la ventana con la pantalla de arranque (`arranque/index.html`),
-//!    para que haya algo en cuanto se hace doble clic.
+//!    para que haya algo en cuanto se hace doble clic. Puede haber más ventanas
+//!    (`ventanas.rs`), todas contra el mismo backend.
 //! 2. Se lanza `backend/merge-pdf-backend.exe` con un token aleatorio y dentro
 //!    de un *job object* de Windows que lo mata —a él y a todo lo que lance:
 //!    LibreOffice, ocrmypdf…— en cuanto este proceso termine, **aunque termine
 //!    de golpe**. Sin eso, cerrar la aplicación desde el Administrador de tareas
 //!    dejaría un Python y quizá un LibreOffice vivos y sin ventana.
-//! 3. Cuando el backend escribe `LISTO <puerto>`, la ventana navega a
+//! 3. Cuando el backend escribe `LISTO <puerto>`, las ventanas navegan a
 //!    `http://127.0.0.1:<puerto>/?t=<token>`. El backend cambia el token por una
 //!    cookie y redirige a la URL limpia.
-//! 4. La ventana sólo puede navegar a ese origen. Cualquier otro enlace (la
+//! 4. Las ventanas sólo pueden navegar a ese origen. Cualquier otro enlace (la
 //!    ayuda, la descarga de AutoFirma, el protocolo `afirma://`) se abre fuera,
 //!    con el programa que Windows tenga para él.
 //!
@@ -33,23 +34,23 @@
 mod menu;
 #[cfg(windows)]
 mod trabajo;
+mod ventanas;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use tauri::webview::NewWindowResponse;
 use tauri::window::{ProgressBarState, ProgressBarStatus};
-use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, RunEvent, WebviewWindow, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
-const VENTANA: &str = "principal";
+use ventanas::{Servidor, PRINCIPAL};
 
 /// Lo que tiene que vivir mientras viva la aplicación.
 struct Backend {
@@ -75,17 +76,22 @@ struct LlegadaParaLaPagina {
 }
 
 /// Los archivos que llegan con «Abrir con…» o el menú del Explorador,
-/// esperando a que el frontend los recoja. `permitidos` es la lista de lo único
-/// que `leer_archivo` puede leer: sin ella, la página podría pedir cualquier
-/// archivo del disco.
+/// esperando a que el frontend los recoja, **cada uno para su ventana**.
+/// `permitidos` es la lista de lo único que `leer_archivo` puede leer: sin ella,
+/// la página podría pedir cualquier archivo del disco.
 #[derive(Default)]
 struct Abiertos {
-    pendientes: Mutex<Vec<Llegada>>,
+    /// Por etiqueta de ventana. La ventana puede no existir aún: se crea en otro
+    /// hilo (ver `ventanas.rs`) y recoge lo suyo en cuanto arranca su página.
+    pendientes: Mutex<HashMap<String, Vec<Llegada>>>,
     permitidos: Mutex<HashSet<PathBuf>>,
     /// La carpeta de lo último que ha llegado: «Guardar como» la propone, que
     /// es donde suele querer dejarse el resultado. Lo que se elige con el
     /// selector de la página no trae ruta (el navegador no la da).
     carpeta: Mutex<Option<PathBuf>>,
+    /// A qué ventana fue lo último, con qué herramienta y cuándo: lo que llegue
+    /// igual y enseguida es de la misma selección y va a la misma ventana.
+    ultima: Mutex<Option<(String, Option<String>, Instant)>>,
     /// Sube con cada llegada: sirve para avisar a la página sólo cuando han
     /// dejado de llegar (ver `avisar_cuando_paren`).
     generacion: AtomicU64,
@@ -94,56 +100,101 @@ struct Abiertos {
 /// Cuánto se espera a que lleguen los demás archivos de una misma selección.
 /// Con varios archivos seleccionados, el Explorador lanza un proceso por cada
 /// uno, y llegan uno detrás de otro por `single-instance`: «Unir PDF» con tres
-/// archivos tiene que abrirse una vez con los tres, no tres veces con uno.
+/// archivos tiene que abrirse una vez, en una ventana, con los tres; no en tres
+/// ventanas con uno.
 const JUNTOS: Duration = Duration::from_millis(1500);
+/// Cuánto tiene que llevar quieta una llegada para entregarla. Con ventanas que
+/// se abren con el backend ya listo, la página puede pedir lo suyo antes de que
+/// llegue el resto de la selección, y el resto llegaría como otra llegada que
+/// sustituiría a la primera.
 const AVISO_TRAS: Duration = Duration::from_millis(700);
 
-impl Abiertos {
-    /// Se queda con los argumentos que son archivos y con `--herramienta`, si lo
-    /// hay (el menú del Explorador). El primero es el propio ejecutable.
-    fn anotar<I: IntoIterator<Item = String>>(&self, argumentos: I) -> bool {
-        let mut herramienta = None;
-        let mut rutas = Vec::new();
-        let mut argumentos = argumentos.into_iter().skip(1);
-        while let Some(argumento) = argumentos.next() {
-            if argumento == "--herramienta" {
-                herramienta = argumentos.next().filter(|slug| menu::es_slug(slug));
-                continue;
-            }
-            let ruta = PathBuf::from(argumento);
-            if ruta.is_file() {
-                rutas.push(ruta);
-            }
+/// Los archivos y la herramienta (`--herramienta`, del menú del Explorador) que
+/// traen unos argumentos. El primero es el propio ejecutable.
+fn leer_argumentos<I: IntoIterator<Item = String>>(argumentos: I) -> (Option<String>, Vec<PathBuf>) {
+    let mut herramienta = None;
+    let mut rutas = Vec::new();
+    let mut argumentos = argumentos.into_iter().skip(1);
+    while let Some(argumento) = argumentos.next() {
+        if argumento == "--herramienta" {
+            herramienta = argumentos.next().filter(|slug| menu::es_slug(slug));
+            continue;
         }
+        let ruta = PathBuf::from(argumento);
+        if ruta.is_file() {
+            rutas.push(ruta);
+        }
+    }
+    (herramienta, rutas)
+}
+
+impl Abiertos {
+    /// Si lo que llega con esta herramienta es de la misma selección que lo
+    /// anterior, la ventana a la que fue aquello.
+    fn ventana_de_la_seleccion(&self, herramienta: &Option<String>) -> Option<String> {
+        match &*self.ultima.lock().unwrap() {
+            Some((etiqueta, anterior, cuando)) if anterior == herramienta && cuando.elapsed() < JUNTOS => {
+                Some(etiqueta.clone())
+            }
+            _ => None,
+        }
+    }
+
+    /// Deja los archivos para la ventana `etiqueta`, sumándolos a su última
+    /// llegada si son de la misma selección.
+    fn anotar(&self, etiqueta: &str, herramienta: Option<String>, rutas: Vec<PathBuf>) {
         if rutas.is_empty() {
-            return false;
+            return;
         }
         *self.carpeta.lock().unwrap() = rutas[0].parent().map(PathBuf::from);
         self.permitidos.lock().unwrap().extend(rutas.iter().cloned());
 
         let mut pendientes = self.pendientes.lock().unwrap();
-        match pendientes.last_mut() {
-            // Del mismo menú y seguidos: son de la misma selección.
+        let de_la_ventana = pendientes.entry(etiqueta.to_string()).or_default();
+        match de_la_ventana.last_mut() {
             Some(ultima) if ultima.herramienta == herramienta && ultima.cuando.elapsed() < JUNTOS => {
                 ultima.rutas.extend(rutas);
                 ultima.cuando = Instant::now();
             }
-            _ => pendientes.push(Llegada { herramienta, rutas, cuando: Instant::now() }),
+            _ => de_la_ventana.push(Llegada { herramienta: herramienta.clone(), rutas, cuando: Instant::now() }),
         }
+        *self.ultima.lock().unwrap() = Some((etiqueta.to_string(), herramienta, Instant::now()));
         self.generacion.fetch_add(1, Ordering::SeqCst);
-        true
     }
 }
 
+/// Otro arranque de la aplicación con ella ya abierta (el menú Inicio, «Abrir
+/// con…», el menú del Explorador): una ventana nueva con lo que traiga. Salvo si
+/// es otro archivo de la misma selección, que se suma a la ventana del primero.
+fn otro_arranque(app: &AppHandle, argumentos: Vec<String>) {
+    let (herramienta, rutas) = leer_argumentos(argumentos);
+    let abiertos = app.state::<Abiertos>();
+    if !rutas.is_empty() {
+        if let Some(etiqueta) = abiertos.ventana_de_la_seleccion(&herramienta) {
+            abiertos.anotar(&etiqueta, herramienta, rutas);
+            avisar_cuando_paren(app, etiqueta);
+            return;
+        }
+    }
+    // La etiqueta se reserva antes de crearla y los archivos se dejan a su
+    // nombre en seguida: el siguiente de la selección puede llegar mientras la
+    // ventana aún se está creando.
+    let etiqueta = app.state::<Servidor>().nueva_etiqueta();
+    abiertos.anotar(&etiqueta, herramienta, rutas);
+    ventanas::crear_aparte_como(app, etiqueta.clone(), None);
+    avisar_cuando_paren(app, etiqueta);
+}
+
 /// Avisa a la página cuando llevan un momento sin llegar archivos, para que una
-/// selección de varios se recoja entera y no a trozos.
-fn avisar_cuando_paren(app: &AppHandle) {
+/// selección de varios se recoja entera y no a trozos. Si la ventana aún no
+/// existe no hace falta: su página los pide al arrancar.
+fn avisar_cuando_paren(app: &AppHandle, etiqueta: String) {
     let generacion = app.state::<Abiertos>().generacion.load(Ordering::SeqCst);
     let app = app.clone();
     thread::spawn(move || {
         thread::sleep(AVISO_TRAS);
         if app.state::<Abiertos>().generacion.load(Ordering::SeqCst) == generacion {
-            if let Some(ventana) = app.get_webview_window(VENTANA) {
+            if let Some(ventana) = app.get_webview_window(&etiqueta) {
                 avisar_de_abiertos(&ventana);
             }
         }
@@ -151,24 +202,11 @@ fn avisar_cuando_paren(app: &AppHandle) {
 }
 
 fn main() {
-    // El puerto no se sabe hasta que el backend lo dice, y la regla de
-    // navegación se crea antes. Mientras sea `None`, sólo vale la pantalla de
-    // arranque.
-    let puerto: Arc<Mutex<Option<u16>>> = Arc::new(Mutex::new(None));
-
     let aplicacion = tauri::Builder::default()
-        // Abrir la aplicación con ella ya abierta trae la ventana al frente en
-        // vez de arrancar un segundo backend.
-        // Y si se abre con archivos («Abrir con…» teniéndola ya abierta), le
-        // llegan a la ventana que hay.
+        // Abrir la aplicación con ella ya abierta no arranca un segundo backend:
+        // abre otra ventana de ésta (ver `ventanas.rs`).
         .plugin(tauri_plugin_single_instance::init(|app, argumentos, _carpeta| {
-            if let Some(ventana) = app.get_webview_window(VENTANA) {
-                let _ = ventana.unminimize();
-                let _ = ventana.set_focus();
-                if app.state::<Abiertos>().anotar(argumentos) {
-                    avisar_cuando_paren(app);
-                }
-            }
+            otro_arranque(app, argumentos);
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -176,6 +214,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Abiertos::default())
         .manage(UltimoGuardado::default())
+        .manage(Servidor::default())
         .invoke_handler(tauri::generate_handler![
             guardar_como,
             mostrar_guardado,
@@ -186,49 +225,32 @@ fn main() {
             progreso_tarea,
             avisar_fin,
             resultado_autoprueba,
+            nueva_ventana,
         ])
-        .setup({
-            let puerto = puerto.clone();
-            move |app| {
-                // Abierta con archivos desde el principio: el frontend los
-                // pedirá en cuanto arranque.
-                app.state::<Abiertos>().anotar(std::env::args());
+        .setup(|app| {
+            *app.state::<Servidor>().token.lock().unwrap() = token_aleatorio()?;
+            // Abierta con archivos desde el principio: el frontend los pedirá
+            // en cuanto arranque. Y los demás de la selección llegarán por
+            // `otro_arranque` y se sumarán a ésta.
+            let (herramienta, rutas) = leer_argumentos(std::env::args());
+            app.state::<Abiertos>().anotar(PRINCIPAL, herramienta, rutas);
 
-                let permitido = puerto.clone();
-                let para_ventanas = puerto.clone();
-                let ventana = WebviewWindowBuilder::new(app, VENTANA, WebviewUrl::App("index.html".into()))
-                    .title("Caja de herramientas")
-                    .inner_size(1280.0, 860.0)
-                    .min_inner_size(720.0, 540.0)
-                    // Sin esto, en Windows Tauri se queda con los archivos que se
-                    // sueltan en la ventana y la página no recibe el `drop`:
-                    // soltar en la portada o en una cola no hacía nada.
-                    .disable_drag_drop_handler()
-                    .on_navigation(move |url| navegacion_permitida(url, &permitido))
-                    .on_new_window(move |url, _caracteristicas| {
-                        // Un `target="_blank"` a la propia aplicación (el visor
-                        // en otra ventana) se abre como ventana suya; a
-                        // cualquier otro sitio, en el navegador.
-                        if es_propia(&url, &para_ventanas) {
-                            NewWindowResponse::Allow
-                        } else {
-                            let _ = tauri_plugin_opener::open_url(url.as_str(), None::<&str>);
-                            NewWindowResponse::Deny
-                        }
-                    })
-                    .build()?;
-
-                let backend = arrancar_backend(app.handle(), ventana, puerto)?;
-                app.manage(backend);
-                buscar_actualizacion(app.handle().clone());
-                Ok(())
-            }
+            ventanas::crear(app.handle(), PRINCIPAL, None)?;
+            let backend = arrancar_backend(app.handle())?;
+            app.manage(backend);
+            buscar_actualizacion(app.handle().clone());
+            Ok(())
         })
         .build(tauri::generate_context!())
         .expect("no se ha podido crear la aplicación");
 
-    aplicacion.run(|app, evento| {
-        if let RunEvent::Exit = evento {
+    aplicacion.run(|app, evento| match evento {
+        // Cerrar una ventana no toca las demás; lo que no llegó a recoger se
+        // olvida. Al cerrar la última, Tauri sale.
+        RunEvent::WindowEvent { label, event: WindowEvent::Destroyed, .. } => {
+            app.state::<Abiertos>().pendientes.lock().unwrap().remove(&label);
+        }
+        RunEvent::Exit => {
             // El job ya lo mataría al salir; esto es por no depender sólo de él.
             if let Some(backend) = app.try_state::<Backend>() {
                 if let Some(mut hijo) = backend.hijo.lock().unwrap().take() {
@@ -236,34 +258,8 @@ fn main() {
                 }
             }
         }
+        _ => {}
     });
-}
-
-/// La pantalla de arranque y el backend se ven dentro; lo demás, fuera.
-fn navegacion_permitida(url: &Url, puerto: &Arc<Mutex<Option<u16>>>) -> bool {
-    let propia = es_propia(url, puerto);
-    if !propia {
-        let _ = tauri_plugin_opener::open_url(url.as_str(), None::<&str>);
-    }
-    propia
-}
-
-fn es_propia(url: &Url, puerto: &Arc<Mutex<Option<u16>>>) -> bool {
-    match url.scheme() {
-        // La pantalla de arranque: `tauri://localhost` o, en Windows,
-        // `http://tauri.localhost`.
-        "tauri" => true,
-        "http" if url.host_str() == Some("tauri.localhost") => true,
-        // Sólo el puerto del backend, y sólo cuando ya se sabe: antes de LISTO
-        // no hay ninguno bueno (y `None == None` dejaría pasar el 80).
-        "http" => match *puerto.lock().unwrap() {
-            Some(numero) => url.host_str() == Some("127.0.0.1") && url.port() == Some(numero),
-            None => false,
-        },
-        // Lo que el propio frontend crea: vistas previas y descargas.
-        "blob" | "data" | "about" => true,
-        _ => false,
-    }
 }
 
 // --- Actualizaciones ---------------------------------------------------------
@@ -314,14 +310,15 @@ fn buscar_actualizacion(app: AppHandle) {
 /// —con su propia ventana de progreso— y cierra este proceso con
 /// `process::exit`; NSIS vuelve a abrir la aplicación al acabar. Por eso aquí no
 /// hay un `restart()`: en Windows no llegaría a ejecutarse.
+///
+/// Con varias ventanas abiertas se pinta en todas: se cierran todas.
 async fn instalar(app: AppHandle, nueva: tauri_plugin_updater::Update) {
-    let Some(ventana) = app.get_webview_window(VENTANA) else { return };
     let version = nueva.version.clone();
 
     let mut descargado: u64 = 0;
     let mut ultimo_pintado: Option<Instant> = None;
-    let para_progreso = ventana.clone();
-    let para_fin = ventana.clone();
+    let para_progreso = app.clone();
+    let para_fin = app.clone();
     let version_fin = version.clone();
 
     let resultado = nueva
@@ -335,18 +332,16 @@ async fn instalar(app: AppHandle, nueva: tauri_plugin_updater::Update) {
                     return;
                 }
                 ultimo_pintado = Some(Instant::now());
+                let porcentaje = total.filter(|t| *t > 0).map(|t| (descargado * 100 / t).min(100));
                 pintar(&para_progreso, serde_json::json!({
                     "fase": "descargando", "version": version, "descargado": descargado, "total": total,
-                }));
-                let porcentaje = total.filter(|t| *t > 0).map(|t| (descargado * 100 / t).min(100));
-                let _ = para_progreso.set_progress_bar(ProgressBarState {
+                }), ProgressBarState {
                     status: Some(if porcentaje.is_some() { ProgressBarStatus::Normal } else { ProgressBarStatus::Indeterminate }),
                     progress: porcentaje,
                 });
             },
             move || {
-                pintar(&para_fin, serde_json::json!({ "fase": "instalando", "version": version_fin }));
-                let _ = para_fin.set_progress_bar(ProgressBarState {
+                pintar(&para_fin, serde_json::json!({ "fase": "instalando", "version": version_fin }), ProgressBarState {
                     status: Some(ProgressBarStatus::Indeterminate),
                     progress: None,
                 });
@@ -357,24 +352,25 @@ async fn instalar(app: AppHandle, nueva: tauri_plugin_updater::Update) {
     // Si se llega aquí con éxito es que no se ha cerrado (fuera de Windows);
     // en Windows sólo se llega si ha fallado.
     if let Err(error) = resultado {
-        pintar(&ventana, serde_json::json!({
+        pintar(&app, serde_json::json!({
             "fase": "error",
             "mensaje": format!("La descarga ha fallado ({error})."),
-        }));
-        let _ = ventana.set_progress_bar(ProgressBarState {
+        }), ProgressBarState {
             status: Some(ProgressBarStatus::Error),
             progress: Some(100),
         });
     }
 }
 
-/// Llama a la capa de `actualizacion.js`, definiéndola si hace falta.
-fn pintar(ventana: &WebviewWindow, estado: serde_json::Value) {
-    let _ = ventana.eval(&format!(
-        "{}\n;window.__cajaActualizacion({});",
-        include_str!("actualizacion.js"),
-        estado
-    ));
+/// Llama a la capa de `actualizacion.js` en todas las ventanas, definiéndola
+/// si hace falta, y pone la barra del icono.
+fn pintar(app: &AppHandle, estado: serde_json::Value, barra: ProgressBarState) {
+    let codigo = format!("{}\n;window.__cajaActualizacion({});", include_str!("actualizacion.js"), estado);
+    for ventana in app.webview_windows().into_values() {
+        let _ = ventana.eval(&codigo);
+        // `ProgressBarState` no es `Clone`.
+        let _ = ventana.set_progress_bar(ProgressBarState { status: barra.status, progress: barra.progress });
+    }
 }
 
 // --- Comandos del frontend ----------------------------------------------------
@@ -392,7 +388,11 @@ struct UltimoGuardado(Mutex<Option<PathBuf>>);
 /// PDF escaneado puede pesar cientos de megas. El nombre va en una cabecera,
 /// codificado como en una URL porque las cabeceras sólo admiten ASCII.
 #[tauri::command]
-async fn guardar_como(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<Option<String>, String> {
+async fn guardar_como(
+    app: AppHandle,
+    ventana: WebviewWindow,
+    request: tauri::ipc::Request<'_>,
+) -> Result<Option<String>, String> {
     let tauri::ipc::InvokeBody::Raw(datos) = request.body() else {
         return Err("el archivo tiene que llegar en bruto".into());
     };
@@ -407,9 +407,8 @@ async fn guardar_como(app: AppHandle, request: tauri::ipc::Request<'_>) -> Resul
     if let Some(carpeta) = app.state::<Abiertos>().carpeta.lock().unwrap().clone() {
         dialogo = dialogo.set_directory(carpeta);
     }
-    if let Some(ventana) = app.get_webview_window(VENTANA) {
-        dialogo = dialogo.set_parent(&ventana);
-    }
+    // Hijo de la ventana que guarda, no de otra.
+    dialogo = dialogo.set_parent(&ventana);
     // Con su tipo como filtro: así Windows no le cambia la extensión al
     // escribir otro nombre.
     if let Some(extension) = PathBuf::from(&nombre).extension().and_then(|e| e.to_str()) {
@@ -432,11 +431,19 @@ fn mostrar_guardado(guardado: tauri::State<'_, UltimoGuardado>) -> Result<(), St
     tauri_plugin_opener::reveal_item_in_dir(ruta).map_err(|error| error.to_string())
 }
 
-/// Lo que ha llegado con «Abrir con…» o el menú del Explorador y aún no se ha
-/// recogido, cada llegada con su herramienta.
+/// Lo que ha llegado para esta ventana con «Abrir con…» o el menú del
+/// Explorador y aún no se ha recogido, cada llegada con su herramienta. Sólo lo
+/// que lleva un momento quieto: lo demás aún puede crecer, y
+/// `avisar_cuando_paren` avisará cuando pare.
 #[tauri::command]
-fn archivos_pendientes(abiertos: tauri::State<'_, Abiertos>) -> Vec<LlegadaParaLaPagina> {
-    std::mem::take(&mut *abiertos.pendientes.lock().unwrap())
+fn archivos_pendientes(ventana: WebviewWindow, abiertos: tauri::State<'_, Abiertos>) -> Vec<LlegadaParaLaPagina> {
+    let mut pendientes = abiertos.pendientes.lock().unwrap();
+    let Some(de_la_ventana) = pendientes.get_mut(ventana.label()) else { return Vec::new() };
+    let (quietas, creciendo): (Vec<_>, Vec<_>) = std::mem::take(de_la_ventana)
+        .into_iter()
+        .partition(|llegada| llegada.cuando.elapsed() >= AVISO_TRAS);
+    *de_la_ventana = creciendo;
+    quietas
         .into_iter()
         .map(|llegada| LlegadaParaLaPagina {
             herramienta: llegada.herramienta,
@@ -480,8 +487,7 @@ fn leer_archivo(ruta: String, abiertos: tauri::State<'_, Abiertos>) -> Result<ta
 /// que usa la actualización: se ve aunque la ventana esté minimizada o tapada.
 /// `porcentaje` sin valor es «no se sabe cuánto falta»; `terminado` la quita.
 #[tauri::command]
-fn progreso_tarea(app: AppHandle, porcentaje: Option<u64>, terminado: bool) {
-    let Some(ventana) = app.get_webview_window(VENTANA) else { return };
+fn progreso_tarea(ventana: WebviewWindow, porcentaje: Option<u64>, terminado: bool) {
     let estado = if terminado {
         ProgressBarState { status: Some(ProgressBarStatus::None), progress: None }
     } else {
@@ -497,17 +503,19 @@ fn progreso_tarea(app: AppHandle, porcentaje: Option<u64>, terminado: bool) {
 /// ventana no tiene el foco**: si se está mirando, ya se ve el resultado y el
 /// aviso sobra. Devuelve si la ha enseñado.
 #[tauri::command]
-fn avisar_fin(app: AppHandle, titulo: String, cuerpo: String) -> bool {
+fn avisar_fin(ventana: WebviewWindow, titulo: String, cuerpo: String) -> bool {
     use tauri_plugin_notification::NotificationExt;
 
-    let enfocada = app
-        .get_webview_window(VENTANA)
-        .and_then(|ventana| ventana.is_focused().ok())
-        .unwrap_or(false);
-    if enfocada {
+    if ventana.is_focused().unwrap_or(false) {
         return false;
     }
-    app.notification().builder().title(titulo).body(cuerpo).show().is_ok()
+    ventana.app_handle().notification().builder().title(titulo).body(cuerpo).show().is_ok()
+}
+
+/// Abre otra ventana vacía (Ctrl+N o el botón de la barra).
+#[tauri::command]
+fn nueva_ventana(app: AppHandle) {
+    ventanas::crear_aparte(&app, None);
 }
 
 /// Lo que ha visto la autoprueba desde la página, al archivo que dice
@@ -524,18 +532,14 @@ fn avisar_de_abiertos(ventana: &WebviewWindow) {
     let _ = ventana.eval("window.dispatchEvent(new Event('escritorio:archivos-abiertos'))");
 }
 
-fn arrancar_backend(
-    app: &tauri::AppHandle,
-    ventana: WebviewWindow,
-    puerto: Arc<Mutex<Option<u16>>>,
-) -> Result<Backend, Box<dyn std::error::Error>> {
+fn arrancar_backend(app: &AppHandle) -> Result<Backend, Box<dyn std::error::Error>> {
     let ejecutable = app
         .path()
         .resource_dir()?
         .join("backend")
         .join("merge-pdf-backend.exe");
     let registro = ruta_del_registro(app)?;
-    let token = token_aleatorio()?;
+    let token = app.state::<Servidor>().token.lock().unwrap().clone();
 
     let mut orden = Command::new(&ejecutable);
     orden
@@ -572,7 +576,8 @@ fn arrancar_backend(
 
     let salida = hijo.stdout.take().expect("la salida del backend va por tubería");
     let registro_texto = registro.display().to_string();
-    thread::spawn(move || esperar_listo(salida, ventana, puerto, token, registro_texto));
+    let para_el_hilo = app.clone();
+    thread::spawn(move || esperar_listo(salida, para_el_hilo, registro_texto));
 
     Ok(Backend {
         hijo: Mutex::new(Some(hijo)),
@@ -583,13 +588,8 @@ fn arrancar_backend(
 
 /// Lee la salida del backend hasta que diga LISTO, y la sigue leyendo después:
 /// si nadie vacía la tubería, el backend se bloquearía al escribir en ella.
-fn esperar_listo(
-    salida: std::process::ChildStdout,
-    ventana: WebviewWindow,
-    puerto: Arc<Mutex<Option<u16>>>,
-    token: String,
-    registro: String,
-) {
+fn esperar_listo(salida: std::process::ChildStdout, app: AppHandle, registro: String) {
+    let servidor = app.state::<Servidor>();
     let mut listo = false;
     for linea in BufReader::new(salida).lines().map_while(Result::ok) {
         if listo {
@@ -597,37 +597,37 @@ fn esperar_listo(
         }
         if let Some(numero) = linea.strip_prefix("LISTO ") {
             if let Ok(numero) = numero.trim().parse::<u16>() {
-                *puerto.lock().unwrap() = Some(numero);
+                // Primero el puerto y después las ventanas: una que se cree
+                // entre medias ya va directa al backend.
+                *servidor.puerto.lock().unwrap() = Some(numero);
                 listo = true;
-                if let Ok(url) = Url::parse(&format!("http://127.0.0.1:{numero}/?t={token}")) {
-                    let _ = ventana.navigate(url);
-                }
-                // La CI arranca la aplicación con CAJA_AUTOPRUEBA para saber si
-                // la página llega a los comandos (ver autoprueba.js). La prueba
-                // espera sola a que cargue la página del backend.
-                if std::env::var_os("CAJA_AUTOPRUEBA").is_some() {
-                    let _ = ventana.eval(include_str!("autoprueba.js"));
+                let Some(url) = servidor.url() else { continue };
+                for ventana in ventanas::en_arranque(&app) {
+                    let _ = ventana.navigate(url.clone());
+                    // La CI arranca la aplicación con CAJA_AUTOPRUEBA para saber
+                    // si la página llega a los comandos (ver autoprueba.js). La
+                    // prueba espera sola a que cargue la página del backend.
+                    if ventana.label() == PRINCIPAL && std::env::var_os("CAJA_AUTOPRUEBA").is_some() {
+                        let _ = ventana.eval(include_str!("autoprueba.js"));
+                    }
                 }
             }
         }
     }
     if !listo {
         // La salida se ha cerrado sin LISTO: el backend ha muerto al arrancar.
-        // Lo que dijo está en el registro; se enseña el final.
+        // Lo que dijo está en el registro; se enseña el final, en todas las
+        // ventanas y en las que se abran después.
         let detalle = fs::read_to_string(&registro)
             .map(|texto| {
                 let lineas: Vec<&str> = texto.lines().collect();
                 lineas[lineas.len().saturating_sub(25)..].join("\n")
             })
             .unwrap_or_default();
-        // Reintentando: si el backend muere enseguida, esto puede llegar antes
-        // de que la pantalla de arranque haya definido `mostrarError`.
-        let _ = ventana.eval(&format!(
-            "(function f(d, r) {{ if (window.mostrarError) window.mostrarError(d, r); \
-             else setTimeout(function () {{ f(d, r); }}, 100); }})({}, {})",
-            serde_json::to_string(&detalle).unwrap_or_default(),
-            serde_json::to_string(&registro).unwrap_or_default(),
-        ));
+        *servidor.fallo.lock().unwrap() = Some((detalle.clone(), registro.clone()));
+        for ventana in app.webview_windows().into_values() {
+            ventanas::mostrar_fallo(&ventana, &detalle, &registro);
+        }
     }
 }
 
