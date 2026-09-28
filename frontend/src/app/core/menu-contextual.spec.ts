@@ -1,4 +1,4 @@
-import { DE_SERIE, accionesMarcadas, candidatas, extensionesDe } from './menu-contextual';
+import { DE_SERIE, accionesMarcadas, candidatas, extensionesDe, extensionesQueAcepta } from './menu-contextual';
 import { buscarPorSlug } from './tools';
 
 describe('menú contextual', () => {
@@ -46,5 +46,10 @@ describe('menú contextual', () => {
         expect(ext).toMatch(/^[a-z0-9]+$/);
       }
     }
+  });
+
+  it('«Añadir carpeta» filtra con el mismo accept que la cola', () => {
+    expect(extensionesQueAcepta('.pdf,application/pdf')).toEqual(['pdf']);
+    expect(extensionesQueAcepta('')).toEqual([]);
   });
 });

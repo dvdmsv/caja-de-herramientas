@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-elegir-destino"
+description = "Enables the elegir_destino command without any pre-configured scope."
+commands.allow = ["elegir_destino"]
+
+[[permission]]
+identifier = "deny-elegir-destino"
+description = "Denies the elegir_destino command without any pre-configured scope."
+commands.deny = ["elegir_destino"]

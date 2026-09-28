@@ -32,6 +32,21 @@
   }
 </div>
 
+<!-- Fuera de la zona: un clic dentro abriría también el selector de archivos. -->
+@if (admiteCarpeta) {
+  <div class="text-center mt-2">
+    <button type="button" class="btn btn-sm btn-outline-secondary"
+      [disabled]="deshabilitado || leyendoCarpeta" (click)="anadirCarpeta()">
+      @if (leyendoCarpeta) {
+        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+      } @else {
+        <i class="bi bi-folder2-open me-1" aria-hidden="true"></i>
+      }
+      Añadir una carpeta
+    </button>
+  </div>
+}
+
 @if (items.length > 0) {
   <ul class="list-group mt-3"
     cdkDropList [cdkDropListDisabled]="!ordenable || deshabilitado"

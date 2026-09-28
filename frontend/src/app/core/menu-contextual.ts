@@ -42,12 +42,20 @@ export const EXTENSIONES = [
 export const DE_SERIE = ['comprimir-pdf', 'unir-pdf', 'visor', 'ocr-pdf', 'documento-a-pdf', 'imagen-a-pdf', 'comprimir-imagen'];
 
 export function extensionesDe(herramienta: Herramienta): string[] {
-  if (!herramienta.acepta.trim()) {
+  return extensionesQueAcepta(herramienta.acepta);
+}
+
+/**
+ * Lo mismo a partir de un `accept`: también lo usa «Añadir carpeta», que filtra
+ * la carpeta con lo que admite la cola.
+ */
+export function extensionesQueAcepta(acepta: string): string[] {
+  if (!acepta.trim()) {
     return [];
   }
   // Sin tipo MIME, como llega un archivo del Explorador: `encaja` reconoce las
   // imágenes también por la extensión.
-  return EXTENSIONES.filter(ext => encaja({ name: `archivo.${ext}`, type: '' }, herramienta.acepta));
+  return EXTENSIONES.filter(ext => encaja({ name: `archivo.${ext}`, type: '' }, acepta));
 }
 
 /** Las herramientas que tiene sentido ofrecer: las disponibles que reciben archivos. */

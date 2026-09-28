@@ -214,6 +214,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Abiertos::default())
         .manage(UltimoGuardado::default())
+        .manage(Destinos::default())
         .manage(Servidor::default())
         .invoke_handler(tauri::generate_handler![
             guardar_como,
@@ -226,6 +227,9 @@ fn main() {
             avisar_fin,
             resultado_autoprueba,
             nueva_ventana,
+            elegir_carpeta,
+            elegir_destino,
+            guardar_en_destino,
         ])
         .setup(|app| {
             *app.state::<Servidor>().token.lock().unwrap() = token_aleatorio()?;
@@ -249,6 +253,7 @@ fn main() {
         // olvida. Al cerrar la última, Tauri sale.
         RunEvent::WindowEvent { label, event: WindowEvent::Destroyed, .. } => {
             app.state::<Abiertos>().pendientes.lock().unwrap().remove(&label);
+            app.state::<Destinos>().0.lock().unwrap().remove(&label);
         }
         RunEvent::Exit => {
             // El job ya lo mataría al salir; esto es por no depender sólo de él.
@@ -375,9 +380,10 @@ fn pintar(app: &AppHandle, estado: serde_json::Value, barra: ProgressBarState) {
 
 // --- Comandos del frontend ----------------------------------------------------
 
-/// Lo último que se ha guardado con «Guardar como», para «Mostrar en la
-/// carpeta». Se guarda aquí y no se recibe de la página: así ese comando sólo
-/// puede enseñar lo que la persona acaba de guardar, no cualquier ruta.
+/// Lo último que se ha guardado con «Guardar como» —o la carpeta de «Guardar
+/// todo en una carpeta»—, para «Mostrar en la carpeta». Se guarda aquí y no se
+/// recibe de la página: así ese comando sólo puede enseñar lo que la persona
+/// acaba de guardar, no cualquier ruta.
 #[derive(Default)]
 struct UltimoGuardado(Mutex<Option<PathBuf>>);
 
@@ -424,11 +430,175 @@ async fn guardar_como(
     Ok(Some(texto))
 }
 
-/// Abre el Explorador con lo último que se ha guardado, seleccionado.
+/// Abre el Explorador con lo último que se ha guardado, seleccionado; si fue
+/// una carpeta entera, dentro de ella.
 #[tauri::command]
 fn mostrar_guardado(guardado: tauri::State<'_, UltimoGuardado>) -> Result<(), String> {
     let ruta = guardado.0.lock().unwrap().clone().ok_or("No se ha guardado nada todavía.")?;
-    tauri_plugin_opener::reveal_item_in_dir(ruta).map_err(|error| error.to_string())
+    if ruta.is_dir() {
+        tauri_plugin_opener::open_path(ruta, None::<&str>).map_err(|error| error.to_string())
+    } else {
+        tauri_plugin_opener::reveal_item_in_dir(ruta).map_err(|error| error.to_string())
+    }
+}
+
+// --- Carpetas ------------------------------------------------------------------
+
+/// Cuántos archivos trae «Añadir carpeta» como mucho. Es para no subir sin
+/// querer miles de fotos al elegir una carpeta equivocada; el que quiera más,
+/// que añada otra tanda.
+const MAXIMO_CARPETA: usize = 500;
+
+/// Lo que se ha encontrado en la carpeta elegida.
+#[derive(serde::Serialize)]
+struct Carpeta {
+    carpeta: String,
+    rutas: Vec<String>,
+    /// Los que se han quedado fuera por el tope.
+    sobran: usize,
+}
+
+/// «Añadir carpeta»: la persona elige una carpeta y se devuelven sus archivos
+/// con alguna de esas extensiones, **sin entrar en subcarpetas** y por orden de
+/// nombre. Quedan permitidos para `leer_archivo`, igual que los de «Abrir
+/// con…», y la carpeta pasa a ser la que propone «Guardar como».
+///
+/// Async, como `guardar_como`: el diálogo bloquea, y un comando síncrono
+/// correría en el hilo principal y congelaría todas las ventanas.
+#[tauri::command]
+async fn elegir_carpeta(
+    app: AppHandle,
+    ventana: WebviewWindow,
+    extensiones: Vec<String>,
+) -> Result<Option<Carpeta>, String> {
+    let abiertos = app.state::<Abiertos>();
+    let mut dialogo = app.dialog().file().set_parent(&ventana).set_title("Elige la carpeta con los archivos");
+    if let Some(carpeta) = abiertos.carpeta.lock().unwrap().clone() {
+        dialogo = dialogo.set_directory(carpeta);
+    }
+    let Some(elegida) = dialogo.blocking_pick_folder() else {
+        return Ok(None);
+    };
+    let carpeta = elegida.into_path().map_err(|error| error.to_string())?;
+    let extensiones: HashSet<String> = extensiones.iter().map(|ext| ext.to_lowercase()).collect();
+
+    let mut rutas: Vec<PathBuf> = fs::read_dir(&carpeta)
+        .map_err(|error| format!("No se ha podido leer {}: {error}", carpeta.display()))?
+        .filter_map(Result::ok)
+        .map(|entrada| entrada.path())
+        .filter(|ruta| ruta.is_file())
+        .filter(|ruta| {
+            ruta.extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| extensiones.contains(&ext.to_lowercase()))
+        })
+        .collect();
+    rutas.sort_by_key(|ruta| ruta.file_name().map(|nombre| nombre.to_string_lossy().to_lowercase()));
+    let sobran = rutas.len().saturating_sub(MAXIMO_CARPETA);
+    rutas.truncate(MAXIMO_CARPETA);
+
+    abiertos.permitidos.lock().unwrap().extend(rutas.iter().cloned());
+    *abiertos.carpeta.lock().unwrap() = Some(carpeta.clone());
+    Ok(Some(Carpeta {
+        carpeta: carpeta.display().to_string(),
+        rutas: rutas.iter().map(|ruta| ruta.to_string_lossy().into_owned()).collect(),
+        sobran,
+    }))
+}
+
+/// La carpeta de «Guardar todo en una carpeta», por ventana.
+#[derive(Default)]
+struct Destinos(Mutex<HashMap<String, PathBuf>>);
+
+/// «Guardar todo en una carpeta», primer paso: la persona elige dónde. Se
+/// guarda aquí, para esta ventana, y `guardar_en_destino` sólo escribe ahí: la
+/// página nunca da una ruta, así que no puede escribir donde quiera.
+#[tauri::command]
+async fn elegir_destino(app: AppHandle, ventana: WebviewWindow) -> Result<Option<String>, String> {
+    let mut dialogo = app.dialog().file().set_parent(&ventana).set_title("Elige dónde guardar los archivos");
+    if let Some(carpeta) = app.state::<Abiertos>().carpeta.lock().unwrap().clone() {
+        dialogo = dialogo.set_directory(carpeta);
+    }
+    let Some(elegida) = dialogo.blocking_pick_folder() else {
+        return Ok(None);
+    };
+    let carpeta = elegida.into_path().map_err(|error| error.to_string())?;
+    let texto = carpeta.display().to_string();
+    *app.state::<UltimoGuardado>().0.lock().unwrap() = Some(carpeta.clone());
+    app.state::<Destinos>().0.lock().unwrap().insert(ventana.label().to_string(), carpeta);
+    Ok(Some(texto))
+}
+
+/// Escribe un archivo en la carpeta que esta ventana eligió con
+/// `elegir_destino`, con su nombre y **sin sobrescribir nada**: si ya hay uno,
+/// `nombre (1).pdf`, `nombre (2).pdf`… Como `guardar_como`, en bruto y con el
+/// nombre en la cabecera `x-nombre`. Devuelve dónde ha quedado.
+#[tauri::command]
+async fn guardar_en_destino(
+    app: AppHandle,
+    ventana: WebviewWindow,
+    request: tauri::ipc::Request<'_>,
+) -> Result<String, String> {
+    let tauri::ipc::InvokeBody::Raw(datos) = request.body() else {
+        return Err("el archivo tiene que llegar en bruto".into());
+    };
+    let carpeta = app
+        .state::<Destinos>()
+        .0
+        .lock()
+        .unwrap()
+        .get(ventana.label())
+        .cloned()
+        .ok_or("No se ha elegido carpeta.")?;
+    let nombre = request
+        .headers()
+        .get("x-nombre")
+        .and_then(|valor| valor.to_str().ok())
+        .map(|valor| percent_encoding::percent_decode_str(valor).decode_utf8_lossy().into_owned())
+        .unwrap_or_default();
+    let nombre = nombre_de_archivo(&nombre);
+
+    // `create_new` y no mirar antes si existe: entre mirar y escribir podría
+    // aparecer uno, y se sobrescribiría.
+    for intento in 0..1000 {
+        let ruta = carpeta.join(con_numero(&nombre, intento));
+        match fs::OpenOptions::new().write(true).create_new(true).open(&ruta) {
+            Ok(mut archivo) => {
+                use std::io::Write;
+                archivo
+                    .write_all(datos)
+                    .map_err(|error| format!("No se ha podido guardar en {}: {error}", ruta.display()))?;
+                return Ok(ruta.display().to_string());
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(format!("No se ha podido guardar en {}: {error}", ruta.display())),
+        }
+    }
+    Err(format!("Ya hay demasiados archivos llamados {nombre} en {}.", carpeta.display()))
+}
+
+/// Lo que llega de la página, reducido a un nombre de archivo de Windows: sin
+/// carpetas delante (ni `..`), sin los caracteres que Windows no admite y sin
+/// puntos ni espacios al final, que Windows quita en silencio.
+fn nombre_de_archivo(nombre: &str) -> String {
+    let ultimo = nombre.rsplit(['/', '\\']).next().unwrap_or_default();
+    let limpio: String = ultimo
+        .chars()
+        .map(|c| if c.is_control() || "<>:\"|?*".contains(c) { '_' } else { c })
+        .collect();
+    let limpio = limpio.trim().trim_end_matches(['.', ' ']).to_string();
+    if limpio.is_empty() || limpio == ".." { "resultado".into() } else { limpio }
+}
+
+/// `informe.pdf`, `informe (1).pdf`, `informe (2).pdf`…
+fn con_numero(nombre: &str, numero: u32) -> String {
+    if numero == 0 {
+        return nombre.to_string();
+    }
+    match nombre.rsplit_once('.') {
+        Some((base, extension)) if !base.is_empty() => format!("{base} ({numero}).{extension}"),
+        _ => format!("{nombre} ({numero})"),
+    }
 }
 
 /// Lo que ha llegado para esta ventana con «Abrir con…» o el menú del

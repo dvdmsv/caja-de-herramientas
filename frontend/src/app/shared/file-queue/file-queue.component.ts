@@ -6,6 +6,7 @@ import { AsyncPipe } from '@angular/common';
 
 import { UsoSesion } from '../../core/api.service';
 import { UsoService } from '../../core/uso.service';
+import { EscritorioService } from '../../core/escritorio.service';
 import { PesoPipe } from '../peso.pipe';
 import { nivelDeUso } from '../uso';
 import { avisoInfo } from '../notify';
@@ -71,6 +72,33 @@ export class FileQueueComponent implements OnInit, ColaReceptora {
   arrastrando = false;
 
   private readonly marco = inject(MARCO_HERRAMIENTA, { optional: true });
+
+  private readonly escritorio = inject(EscritorioService);
+  leyendoCarpeta = false;
+
+  /**
+   * «Añadir una carpeta», sólo en la aplicación de Windows: en el navegador no
+   * se puede elegir una carpeta y leer sus archivos sin que la persona los
+   * seleccione uno a uno. Y sólo si la cola admite varios.
+   */
+  get admiteCarpeta(): boolean {
+    return this.escritorio.activo && this.multiple;
+  }
+
+  async anadirCarpeta(): Promise<void> {
+    if (this.deshabilitado || this.leyendoCarpeta) {
+      return;
+    }
+    this.leyendoCarpeta = true;
+    try {
+      const archivos = await this.escritorio.archivosDeCarpeta(this.aceptados);
+      if (archivos.length > 0) {
+        this.incorporar(archivos);
+      }
+    } finally {
+      this.leyendoCarpeta = false;
+    }
+  }
 
   /** Lo que ocupa la sesión; lo actualizan las páginas al subir o al terminar. */
   readonly uso = inject(UsoService).uso;

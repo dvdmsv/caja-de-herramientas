@@ -62,8 +62,13 @@ export async function mostrarGuardado(tauri: PuenteTauri): Promise<void> {
 export function describirGuardado(ruta: string): { archivo: string; carpeta: string } {
   const partes = ruta.split(/[\\/]/).filter(Boolean);
   const archivo = partes.pop() ?? ruta;
-  const carpeta = partes.length > 2 ? `…\\${partes.slice(-2).join('\\')}` : partes.join('\\');
-  return { archivo, carpeta };
+  return { archivo, carpeta: acortarCarpeta(partes.join('\\')) };
+}
+
+/** Una carpeta, acortada a sus dos últimos tramos: «…\\Documents\\Contratos». */
+export function acortarCarpeta(carpeta: string): string {
+  const partes = carpeta.split(/[\\/]/).filter(Boolean);
+  return partes.length > 2 ? `…\\${partes.slice(-2).join('\\')}` : partes.join('\\');
 }
 
 /** La versión instalada, la de `tauri.conf.json`. Sirve para decirla al pedir ayuda. */
@@ -86,14 +91,61 @@ export async function recogerAbiertos(tauri: PuenteTauri): Promise<Llegada[]> {
   const pendientes = (await tauri.invoke('archivos_pendientes')) as { herramienta: string | null; rutas: string[] }[];
   const llegadas: Llegada[] = [];
   for (const pendiente of pendientes) {
-    const archivos: File[] = [];
-    for (const ruta of pendiente.rutas) {
-      const contenido = (await tauri.invoke('leer_archivo', { ruta })) as ArrayBuffer;
-      archivos.push(new File([contenido], nombreDeRuta(ruta)));
-    }
-    llegadas.push({ herramienta: pendiente.herramienta, archivos });
+    llegadas.push({ herramienta: pendiente.herramienta, archivos: await leerRutas(tauri, pendiente.rutas) });
   }
   return llegadas;
+}
+
+/** Lee del disco, por `leer_archivo`, archivos que main.rs ya ha dado por buenos. */
+async function leerRutas(tauri: PuenteTauri, rutas: string[]): Promise<File[]> {
+  const archivos: File[] = [];
+  for (const ruta of rutas) {
+    const contenido = (await tauri.invoke('leer_archivo', { ruta })) as ArrayBuffer;
+    archivos.push(new File([contenido], nombreDeRuta(ruta)));
+  }
+  return archivos;
+}
+
+/** Lo que trae «Añadir carpeta». */
+export interface ArchivosDeCarpeta {
+  carpeta: string;
+  archivos: File[];
+  /** Los que no se han traído por pasar del tope. */
+  sobran: number;
+}
+
+/**
+ * «Añadir carpeta»: el diálogo de Windows y los archivos de esa carpeta con
+ * esas extensiones, sin subcarpetas. `null` si se cierra el diálogo.
+ */
+export async function elegirCarpeta(tauri: PuenteTauri, extensiones: string[]): Promise<ArchivosDeCarpeta | null> {
+  const respuesta = (await tauri.invoke('elegir_carpeta', { extensiones })) as
+    { carpeta: string; rutas: string[]; sobran: number } | null;
+  if (!respuesta) {
+    return null;
+  }
+  return { carpeta: respuesta.carpeta, archivos: await leerRutas(tauri, respuesta.rutas), sobran: respuesta.sobran };
+}
+
+/**
+ * «Guardar todo en una carpeta», primer paso: el diálogo para elegirla.
+ * Devuelve cuál, o `null` si se cierra.
+ */
+export async function elegirDestino(tauri: PuenteTauri): Promise<string | null> {
+  const carpeta = await tauri.invoke('elegir_destino');
+  return typeof carpeta === 'string' ? carpeta : null;
+}
+
+/**
+ * Escribe un archivo en la carpeta elegida con `elegirDestino`, sin sobrescribir
+ * ninguno; devuelve dónde ha quedado. Como `guardarConDialogo`: en bruto y con el
+ * nombre en una cabecera.
+ */
+export async function guardarEnDestino(tauri: PuenteTauri, blob: Blob, nombre: string): Promise<string> {
+  const datos = new Uint8Array(await blob.arrayBuffer());
+  return String(await tauri.invoke('guardar_en_destino', datos, {
+    headers: { 'x-nombre': encodeURIComponent(nombre) },
+  }));
 }
 
 /** Abre otra ventana de la aplicación, vacía y con su propia sesión. */

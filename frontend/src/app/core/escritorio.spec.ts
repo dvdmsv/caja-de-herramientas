@@ -1,7 +1,7 @@
 import {
   PuenteTauri, esFaltaDePermiso, guardarConDialogo, nombreDeRuta, puente, recogerAbiertos,
   versionDeLaAplicacion, leerMenuContextual, aplicarMenuContextual, textoDelAviso, progresoTarea,
-  describirGuardado, nuevaVentana,
+  describirGuardado, nuevaVentana, elegirCarpeta, elegirDestino, guardarEnDestino, acortarCarpeta,
 } from './escritorio';
 
 /** Un Tauri de mentira que apunta lo que le piden. */
@@ -108,6 +108,41 @@ describe('escritorio', () => {
     expect(describirGuardado('C:\\Users\\ana\\Documents\\Contratos\\contrato-comprimido.pdf'))
       .toEqual({ archivo: 'contrato-comprimido.pdf', carpeta: '…\\Documents\\Contratos' });
     expect(describirGuardado('D:\\Descargas\\a.pdf')).toEqual({ archivo: 'a.pdf', carpeta: 'D:\\Descargas' });
+  });
+
+  it('«Añadir carpeta» pide la carpeta con las extensiones y lee lo que main.rs ha dejado pasar', async () => {
+    const { falso, llamadas } = tauriFalso({
+      elegir_carpeta: () => ({ carpeta: 'C:\\Escaneos', rutas: ['C:\\Escaneos\\a.pdf', 'C:\\Escaneos\\b.pdf'], sobran: 3 }),
+      leer_archivo: () => new TextEncoder().encode('%PDF').buffer,
+    });
+
+    const elegida = await elegirCarpeta(falso, ['pdf']);
+
+    expect(llamadas[0]).toEqual({ comando: 'elegir_carpeta', argumentos: { extensiones: ['pdf'] }, opciones: undefined });
+    expect(elegida?.archivos.map(a => a.name)).toEqual(['a.pdf', 'b.pdf']);
+    expect(elegida?.sobran).toBe(3);
+  });
+
+  it('cerrar el diálogo de carpeta no trae nada', async () => {
+    const { falso } = tauriFalso({ elegir_carpeta: () => null, elegir_destino: () => null });
+    expect(await elegirCarpeta(falso, ['pdf'])).toBeNull();
+    expect(await elegirDestino(falso)).toBeNull();
+  });
+
+  it('«Guardar todo» manda cada archivo en bruto con su nombre, nunca una ruta', async () => {
+    const { falso, llamadas } = tauriFalso({ guardar_en_destino: () => 'D:\\Salida\\año (1).pdf' });
+
+    const ruta = await guardarEnDestino(falso, new Blob(['x']), 'año.pdf');
+
+    expect(ruta).toBe('D:\\Salida\\año (1).pdf');
+    expect(llamadas[0].argumentos).toBeInstanceOf(Uint8Array);
+    expect(decodeURIComponent((llamadas[0].opciones as { headers: Record<string, string> }).headers['x-nombre']))
+      .toBe('año.pdf');
+  });
+
+  it('la carpeta del aviso se acorta a sus dos últimos tramos', () => {
+    expect(acortarCarpeta('C:\\Users\\ana\\Documents\\Contratos')).toBe('…\\Documents\\Contratos');
+    expect(acortarCarpeta('D:\\Salida')).toBe('D:\\Salida');
   });
 
   it('el nombre sale de rutas con barras de los dos lados', () => {

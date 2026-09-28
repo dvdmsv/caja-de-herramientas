@@ -21,6 +21,9 @@
     "allow-progreso-tarea",
     "allow-avisar-fin",
     "allow-resultado-autoprueba",
-    "allow-nueva-ventana"
+    "allow-nueva-ventana",
+    "allow-elegir-carpeta",
+    "allow-elegir-destino",
+    "allow-guardar-en-destino"
   ]
 }

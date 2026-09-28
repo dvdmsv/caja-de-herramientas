@@ -99,6 +99,16 @@
           }
           Descargar todo en un ZIP
         </button>
+        @if (escritorio.activo) {
+          <button type="button" class="btn btn-outline-success" [disabled]="guardandoTodo" (click)="guardarTodo()">
+            @if (guardandoTodo) {
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            } @else {
+              <i class="bi bi-folder2-open me-1" aria-hidden="true"></i>
+            }
+            Guardar todo en una carpeta
+          </button>
+        }
         <app-usar-en [archivos]="archivos" etiqueta="Usar todos en…"></app-usar-en>
       </div>
     }

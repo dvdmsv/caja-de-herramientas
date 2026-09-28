@@ -155,9 +155,17 @@ no cambia nunca:
   trabajo pasa de 10 s y la ventana no tiene el foco, una notificación de
   Windows al acabar.
 - **Soltar archivos** en la ventana, como en la web (ver trampas).
+- **Carpetas**: «Añadir una carpeta» en las colas que admiten varios (los
+  archivos de esa carpeta que sirvan ahí, sin subcarpetas, hasta 500) y «Guardar
+  todo en una carpeta» en los resultados: un diálogo y cada archivo suelto con su
+  nombre, **sin sobrescribir** (`informe (1).pdf`). La página nunca da una ruta:
+  `elegir_destino` guarda la carpeta en `main.rs`, por ventana, y
+  `guardar_en_destino` sólo escribe ahí, con el nombre reducido a nombre de
+  archivo (`nombre_de_archivo`). Junto con los lotes de la web (`unoPorUno`, ver
+  `CLAUDE.md`) es «comprime todos los PDF de esta carpeta».
 - **Varias ventanas**, como Word: cada «Abrir con…», cada acción del menú del
   Explorador y cada vez que se abre desde el menú Inicio sale una ventana nueva,
-  y dentro hay Ctrl+N y el botón «+» de la barra. Son ventanas **de un mismo
+  y dentro hay Ctrl+N y el botón «Nueva ventana» de la barra. Son ventanas **de un mismo
   proceso y un mismo backend** (`src-tauri/src/ventanas.rs`), no copias de la
   aplicación: cada copia arrancaría su backend, y el segundo borraría al
   arrancar las sesiones del primero. Cada ventana lleva **su propia sesión**
@@ -247,10 +255,6 @@ para que aparezcan en «Abrir con…».
   Windows** (lo avisa Tauri: los comandos síncronos y el callback de
   `single-instance` corren en el hilo principal). Fuera de `setup`, siempre con
   `ventanas::crear_aparte`, que la crea desde otro hilo.
-- **El botón «Nueva ventana» usa `bi-plus-lg`, que ya está en la fuente
-  recortada**. Se eligió cuando la aplicación iba en otra rama, para no
-  regenerar la fuente sólo en ella; ya no hay esa razón y se puede cambiar por
-  `bi-window-plus` regenerando los iconos (`frontend/scripts/generar-iconos.py`).
 
 - **LibreOffice no puede ir en el PATH**: su carpeta `program` trae un
   `python.exe` propio que tapa a cualquier otro. Va por `RUTA_SOFFICE`.

@@ -4,12 +4,13 @@ import { Subject } from 'rxjs';
 import Swal from 'sweetalert2';
 
 import {
-  AVISO_DESDE_MS, EVENTO_ABIERTOS, aplicarMenuContextual, avisarFin, describirGuardado, esFaltaDePermiso,
-  guardarConDialogo, leerMenuContextual, mostrarGuardado, nuevaVentana, progresoTarea, puente, recogerAbiertos,
+  AVISO_DESDE_MS, EVENTO_ABIERTOS, acortarCarpeta, aplicarMenuContextual, avisarFin, describirGuardado, elegirCarpeta, elegirDestino,
+  esFaltaDePermiso, guardarConDialogo, guardarEnDestino, leerMenuContextual, mostrarGuardado, nuevaVentana, progresoTarea, puente, recogerAbiertos,
   textoDelAviso, versionDeLaAplicacion,
 } from './escritorio';
 import { AvanceTrabajo } from '../shared/progreso';
-import { AjustesMenu, accionesMarcadas } from './menu-contextual';
+import { AjustesMenu, accionesMarcadas, extensionesQueAcepta } from './menu-contextual';
+import { avisoError, avisoInfo, mensajeDeError } from '../shared/notify';
 import { buscarPorSlug, rutaDe } from './tools';
 import { TraspasoService } from './traspaso.service';
 
@@ -118,12 +119,16 @@ export class EscritorioService {
    */
   private avisarGuardado(ruta: string): void {
     const { archivo, carpeta } = describirGuardado(ruta);
+    this.avisarConCarpeta(`Guardado: ${archivo}`, carpeta ? `En ${carpeta}` : undefined);
+  }
+
+  private avisarConCarpeta(titulo: string, texto?: string): void {
     Swal.fire({
       toast: true,
       position: 'top-end',
       icon: 'success',
-      title: `Guardado: ${archivo}`,
-      text: carpeta ? `En ${carpeta}` : undefined,
+      title: titulo,
+      text: texto,
       showConfirmButton: true,
       confirmButtonText: 'Mostrar en la carpeta',
       timer: 7000,
@@ -137,6 +142,64 @@ export class EscritorioService {
         mostrarGuardado(this.tauri).catch(error => console.warn('No se ha podido abrir la carpeta.', error));
       }
     });
+  }
+
+  /**
+   * «Añadir carpeta»: los archivos de la carpeta que elija la persona que
+   * encajen con `acepta`, sin subcarpetas. Vacío si cierra el diálogo o si no hay
+   * ninguno, y entonces se dice.
+   */
+  async archivosDeCarpeta(acepta: string): Promise<File[]> {
+    if (!this.tauri) {
+      return [];
+    }
+    try {
+      const elegida = await elegirCarpeta(this.tauri, extensionesQueAcepta(acepta));
+      if (!elegida) {
+        return [];
+      }
+      const carpeta = acortarCarpeta(elegida.carpeta);
+      if (elegida.archivos.length === 0) {
+        avisoInfo(`En ${carpeta} no hay ningún archivo que sirva aquí.`);
+      } else if (elegida.sobran > 0) {
+        avisoInfo(`Se han añadido los ${elegida.archivos.length} primeros; quedan ${elegida.sobran} más en ` +
+          'la carpeta. Cuando acabes con estos, añade la carpeta otra vez.');
+      }
+      return elegida.archivos;
+    } catch (error) {
+      avisoError(mensajeDeError(error, 'No se ha podido leer la carpeta.'));
+      return [];
+    }
+  }
+
+  /**
+   * «Guardar todo en una carpeta»: un solo diálogo y cada archivo suelto, con su
+   * nombre y sin sobrescribir ninguno. Si algo falla a mitad, dice cuántos
+   * quedaron guardados.
+   */
+  async guardarTodos(archivos: { nombre: string; contenido: () => Promise<Blob> }[]): Promise<void> {
+    if (!this.tauri) {
+      return;
+    }
+    let guardados = 0;
+    try {
+      const destino = await elegirDestino(this.tauri);
+      if (!destino) {
+        return;
+      }
+      for (const archivo of archivos) {
+        await guardarEnDestino(this.tauri, await archivo.contenido(), archivo.nombre);
+        guardados++;
+      }
+      this.avisarGuardadoEn(guardados, destino);
+    } catch (error) {
+      const hechos = guardados > 0 ? ` Se han guardado ${guardados} de ${archivos.length}.` : '';
+      avisoError(mensajeDeError(error, 'No se han podido guardar los archivos.') + hechos);
+    }
+  }
+
+  private avisarGuardadoEn(cuantos: number, carpeta: string): void {
+    this.avisarConCarpeta(`Guardados ${cuantos} archivos`, `En ${acortarCarpeta(carpeta)}`);
   }
 
   private ultimoProgreso = 0;

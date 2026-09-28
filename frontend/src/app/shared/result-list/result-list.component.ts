@@ -1,8 +1,10 @@
 
 import { Component, ElementRef, Input, OnChanges, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 
 import { ApiService, ArchivoServidor, ResumenTamano } from '../../core/api.service';
+import { EscritorioService } from '../../core/escritorio.service';
 import { PesoPipe } from '../peso.pipe';
 import { UsarEnComponent } from '../usar-en/usar-en.component';
 import { VistaPreviaComponent } from '../vista-previa/vista-previa.component';
@@ -26,6 +28,9 @@ import { avisoError, mensajeDeError } from '../notify';
 })
 export class ResultListComponent implements OnChanges {
   private readonly api = inject(ApiService);
+  /** En la aplicación de Windows, además, «Guardar todo en una carpeta». */
+  readonly escritorio = inject(EscritorioService);
+  guardandoTodo = false;
 
   @ViewChild('entradaNombre') entradaNombre?: ElementRef<HTMLInputElement>;
 
@@ -146,6 +151,19 @@ export class ResultListComponent implements OnChanges {
         avisoError(mensajeDeError(err, 'No se ha podido preparar el ZIP.'));
       },
     });
+  }
+
+  /** Cada resultado suelto en la carpeta que se elija, con su nombre. */
+  async guardarTodo(): Promise<void> {
+    this.guardandoTodo = true;
+    try {
+      await this.escritorio.guardarTodos(this.archivos.map(archivo => ({
+        nombre: archivo.name,
+        contenido: () => firstValueFrom(this.api.contenido(archivo)),
+      })));
+    } finally {
+      this.guardandoTodo = false;
+    }
   }
 }
 

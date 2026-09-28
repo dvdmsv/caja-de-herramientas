@@ -17,6 +17,9 @@ const COMANDOS: &[&str] = &[
     "avisar_fin",
     "resultado_autoprueba",
     "nueva_ventana",
+    "elegir_carpeta",
+    "elegir_destino",
+    "guardar_en_destino",
 ];
 
 fn main() {
