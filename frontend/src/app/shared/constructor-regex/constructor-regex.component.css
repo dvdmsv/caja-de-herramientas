@@ -1,0 +1,118 @@
+.constructor {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  padding: 1rem;
+}
+
+/* Las opciones de ejemplo: nombre arriba y muestra debajo. En táctil, `.btn` es
+   `inline-flex` y los dos bloques saldrían en una línea (ver CLAUDE.md). */
+.ejemplo {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.piezas {
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* Cada pieza lleva a la izquierda el color de su trozo en la expresión, que es
+   lo que permite ver qué parte de la expresión sale de cada una. */
+.pieza {
+  border: 1px solid var(--bs-border-color);
+  border-left: 0.35rem solid var(--color-pieza);
+  border-radius: var(--bs-border-radius);
+  padding: 0.5rem 0.75rem 0.75rem;
+  background: var(--bs-body-bg);
+}
+
+.pieza--resaltada {
+  box-shadow: 0 0 0 0.15rem var(--color-pieza);
+}
+
+.pieza__cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.pieza__numero {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--fondo-pieza);
+  color: var(--bs-body-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.pieza__botones {
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* Los colores salen de la paleta de Bootstrap, en su versión suave para el fondo
+   y la fuerte para el borde: así el modo oscuro los cambia solo. */
+.trozo-0 { --color-pieza: var(--bs-primary-border-subtle); --fondo-pieza: var(--bs-primary-bg-subtle); }
+.trozo-1 { --color-pieza: var(--bs-success-border-subtle); --fondo-pieza: var(--bs-success-bg-subtle); }
+.trozo-2 { --color-pieza: var(--bs-warning-border-subtle); --fondo-pieza: var(--bs-warning-bg-subtle); }
+.trozo-3 { --color-pieza: var(--bs-info-border-subtle); --fondo-pieza: var(--bs-info-bg-subtle); }
+.trozo-4 { --color-pieza: var(--bs-danger-border-subtle); --fondo-pieza: var(--bs-danger-bg-subtle); }
+
+.expresion {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-tertiary-bg);
+  overflow-wrap: anywhere;
+}
+
+.trozo {
+  background: var(--fondo-pieza);
+  border-radius: 0.2rem;
+  padding: 0 0.1rem;
+}
+
+.trozo--resaltado {
+  outline: 2px solid var(--color-pieza);
+}
+
+.resultado {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-tertiary-bg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+mark {
+  padding: 0 0.1rem;
+  border-radius: 0.2rem;
+}
+
+/*
+ * Móvil en vertical (`ESTRECHA`): menos relleno, porque a 360 px el marco de la
+ * página, el del constructor y el de cada pieza se comían casi 80 px de ancho, y
+ * los botones de la pieza bajan a su propia fila. En la cabecera, junto a la
+ * frase («de 2 a 4 letras o cifras»), la partían en tres renglones.
+ */
+@media (max-width: 575.98px) {
+  .constructor {
+    padding: 0.75rem;
+  }
+
+  .pieza {
+    padding: 0.5rem;
+  }
+
+  .pieza__cabecera {
+    flex-wrap: wrap;
+  }
+
+  .pieza__botones {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

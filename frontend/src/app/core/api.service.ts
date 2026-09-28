@@ -157,6 +157,14 @@ export interface ZonasAnonimizado {
   total: number;
   recuento: RecuentoAnonimizado[];
   paginas: { pagina: number; marcas: MarcaAnonimizado[] }[];
+  /** Algunos textos del documento que casan con la expresión propia, sin repetir. */
+  ejemplos?: string[];
+}
+
+/** Lo que dice el servidor al probar una expresión: cada línea, en trozos. */
+export interface PruebaExpresion {
+  total: number;
+  lineas: { texto: string; coincide: boolean }[][];
 }
 
 export interface InformeFirmas {
@@ -459,6 +467,14 @@ export class ApiService {
       Observable<ZonasAnonimizado> {
     return this.http.post<ZonasAnonimizado>('/api/tools/anonimizar-pdf/inspeccionar',
                                             { file_ids: [id], tipos, patron });
+  }
+
+  /**
+   * Prueba una expresión contra unos ejemplos. La prueba la hace el servidor,
+   * con el mismo motor que luego tacha: ver `shared/regex-guiada.ts`.
+   */
+  probarExpresion(patron: string, texto: string): Observable<PruebaExpresion> {
+    return this.http.post<PruebaExpresion>('/api/tools/anonimizar-pdf/probar', { patron, texto });
   }
 
   /**

@@ -296,6 +296,45 @@ def zonas_de_palabras(palabras, tipos, propio=None) -> list[tuple]:
     return zonas
 
 
+def ejemplos_de_palabras(palabras, propio, maximo: int = 10) -> list[str]:
+    """Qué textos de una página casan con la expresión propia, sin repetir.
+
+    Es lo que el constructor de expresiones enseña como «en tu documento casaría
+    con…»: ver «EXP-2026-0001» dice más que un recuento. Busca igual que
+    `zonas_de_palabras` —renglón a renglón y con las palabras unidas por un
+    espacio—, que es lo que luego se tacha; si no, el ejemplo podría no
+    coincidir con lo tachado.
+    """
+    vistos: list[str] = []
+    for renglon in _renglones(palabras):
+        texto, _ = _componer(renglon)
+        for inicio, fin, _ in coincidencias(texto, set(), propio):
+            hallado = texto[inicio:fin]
+            if hallado not in vistos:
+                vistos.append(hallado)
+                if len(vistos) >= maximo:
+                    return vistos
+    return vistos
+
+
+def trozos_de_linea(linea: str, propio) -> list[dict]:
+    """Una línea partida en lo que casa y lo que no, para resaltarlo.
+
+    Se devuelven trozos y no posiciones a propósito: Python cuenta caracteres y
+    JavaScript unidades UTF-16, así que con un emoji delante las posiciones de
+    uno no le sirven al otro y el resaltado caería desplazado.
+    """
+    trozos, desde = [], 0
+    for inicio, fin, _ in coincidencias(linea, set(), propio):
+        if inicio > desde:
+            trozos.append({'texto': linea[desde:inicio], 'coincide': False})
+        trozos.append({'texto': linea[inicio:fin], 'coincide': True})
+        desde = fin
+    if desde < len(linea) or not trozos:
+        trozos.append({'texto': linea[desde:], 'coincide': False})
+    return trozos
+
+
 def _renglones(palabras):
     """Agrupa las palabras por bloque y línea, conservando su orden de lectura."""
     grupos: dict = {}

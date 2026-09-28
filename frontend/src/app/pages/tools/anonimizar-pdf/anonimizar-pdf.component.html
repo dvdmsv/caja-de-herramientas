@@ -41,81 +41,12 @@
         {{ armando ? 'Cerrar el ayudante' : 'No sé escribirla: ayúdame' }}
       </button>
 
-      @if (armando) {
-        <div class="border rounded p-3 mt-1">
-          <p class="small text-body-secondary">
-            Describe cómo es, trozo a trozo, y se escribe sola. Luego puedes retocarla
-            a mano en el campo de arriba.
-          </p>
-
-          <div class="row g-2 align-items-end">
-            <div class="col-sm-4">
-              <label class="form-label mb-1" for="anon-clase">Qué viene</label>
-              <select class="form-select form-select-sm" id="anon-clase"
-                [(ngModel)]="clase" [disabled]="ocupado">
-                <option value="digitos">Cifras</option>
-                <option value="letras">Letras</option>
-                <option value="alfanumerico">Letras o cifras</option>
-                <option value="texto">Un texto fijo</option>
-                <option value="separador">Un separador</option>
-              </select>
-            </div>
-
-            @if (piezaNecesitaTexto) {
-              <div class="col-sm-5">
-                <label class="form-label mb-1" for="anon-texto">Qué texto</label>
-                <input type="text" class="form-control form-control-sm" id="anon-texto"
-                  placeholder="EXP" [(ngModel)]="textoPieza" [disabled]="ocupado">
-              </div>
-            } @else if (clase === 'separador') {
-              <div class="col-sm-5">
-                <label class="form-label mb-1" for="anon-separador">Cuál</label>
-                <select class="form-select form-select-sm" id="anon-separador"
-                  [(ngModel)]="separador" [disabled]="ocupado">
-                  @for (nombre of separadores; track nombre) {
-                    <option [value]="nombre">{{ nombre }}</option>
-                  }
-                </select>
-              </div>
-            } @else {
-              <div class="col-6 col-sm-2">
-                <label class="form-label mb-1" for="anon-min">Desde</label>
-                <input type="number" class="form-control form-control-sm" id="anon-min"
-                  min="1" max="20" [(ngModel)]="cuantasMin" [disabled]="ocupado">
-              </div>
-              <div class="col-6 col-sm-3">
-                <label class="form-label mb-1" for="anon-max">Hasta</label>
-                <input type="number" class="form-control form-control-sm" id="anon-max"
-                  min="1" max="20" [(ngModel)]="cuantasMax" [disabled]="ocupado">
-              </div>
-            }
-
-            <div class="col-sm-3">
-              <button type="button" class="btn btn-sm btn-outline-secondary w-100"
-                [disabled]="ocupado || !puedeAnadirPieza" (click)="anadirPieza()">
-                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Añadir
-              </button>
-            </div>
-          </div>
-
-          @if (piezas.length > 0) {
-            <ol class="list-group list-group-numbered mt-3">
-              @for (pieza of piezas; track $index) {
-                <li class="list-group-item d-flex align-items-center gap-2 py-1">
-                  <span class="flex-grow-1 small">{{ comoSeLee(pieza) }}</span>
-                  <button type="button" class="btn btn-sm btn-link text-danger p-0"
-                    [disabled]="ocupado" (click)="quitarPieza($index)">
-                    <i class="bi bi-x-lg" aria-hidden="true"></i>
-                    <span class="visually-hidden">Quitar</span>
-                  </button>
-                </li>
-              }
-            </ol>
-            <button type="button" class="btn btn-sm btn-link px-0 mt-1"
-              [disabled]="ocupado" (click)="vaciarPiezas()">Empezar de nuevo</button>
-          }
-        </div>
-      }
+      <!-- Oculto y no quitado: cerrar el ayudante no tiene por qué perder las piezas. -->
+      <app-constructor-regex class="mt-1" [class.d-block]="armando" [class.d-none]="!armando"
+        [expresion]="patron" [desactivado]="ocupado"
+        [ejemplosDelDocumento]="ejemplos" [coincidenciasDelDocumento]="coincidenciasPropias"
+        (expresionChange)="usarExpresion($event)">
+      </app-constructor-regex>
     </div>
 
     @if (nadaQueBuscar) {

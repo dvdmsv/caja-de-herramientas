@@ -50,6 +50,14 @@ COLORES = {'negro': (0, 0, 0), 'blanco': (1, 1, 1)}
 # lo cruza.
 MAXIMO_ZONAS = 50_000
 
+# Cuánto texto se puede probar de una vez en el constructor de expresiones. Son
+# unos ejemplos escritos a mano, no un documento.
+MAXIMO_PRUEBA = 5000
+
+# Cuántos ejemplos del documento se enseñan: los suficientes para ver si la
+# expresión coge lo que debe, y no una lista que haya que leer.
+MAXIMO_EJEMPLOS = 10
+
 
 @bp.post('/anonimizar-pdf/inspeccionar')
 @limites.con_plazo(limites.PLAZO_AUXILIAR, 'La búsqueda')
@@ -65,9 +73,10 @@ def inspeccionar():
     tipos, propio = _leer_ajustes(datos)
 
     ruta, _ = _documento(session_id, file_ids[0])
+    ejemplos: list[str] = []
     with fitz.open(ruta) as documento:
         _comprobar_abierto(documento)
-        zonas = _zonas(documento, tipos, propio)
+        zonas = _zonas(documento, tipos, propio, ejemplos if propio is not None else None)
         # Cada zona va con su tipo, no sólo con su rectángulo: el visor las
         # pinta como marcas suyas y en el panel lateral hay que poder leer
         # «DNI» en vez de un rectángulo sin nombre.
@@ -86,7 +95,39 @@ def inspeccionar():
         'total': sum(recuento.values()),
         'recuento': [{'tipo': tipo, 'cuantas': cuantas} for tipo, cuantas in recuento.items()],
         'paginas': paginas,
+        # Lo que casa con la expresión propia, para el constructor: «casaría con
+        # EXP-2026-0001, EXP-2025-0042…». El visor no lo usa.
+        'ejemplos': ejemplos,
     })
+
+
+@bp.post('/anonimizar-pdf/probar')
+@limites.con_plazo(limites.PLAZO_AUXILIAR, 'La prueba')
+def probar():
+    """Prueba la expresión propia contra unos ejemplos escritos a mano.
+
+    La prueba la hace el `re` de Python y no el navegador por la misma razón por
+    la que el constructor no valida nada: es el motor que luego tacha, y sus
+    reglas no son las de JavaScript. Se busca línea a línea, como en el
+    documento se busca renglón a renglón.
+    """
+    datos = params.cuerpo()
+    texto = datos.get('texto') or ''
+    patron = (datos.get('patron') or '')
+    if not isinstance(texto, str) or not isinstance(patron, str):
+        raise ApiError('La prueba no es válida.', 400)
+    if len(texto) > MAXIMO_PRUEBA:
+        raise ApiError(f'El texto de prueba no puede pasar de {MAXIMO_PRUEBA} caracteres.', 400)
+    if not patron.strip():
+        raise ApiError('Escribe una expresión para probarla.', 400)
+    try:
+        propio = patrones.compilar(patron.strip())
+    except ValueError as err:
+        raise ApiError(str(err), 400) from err
+
+    lineas = [patrones.trozos_de_linea(linea, propio) for linea in texto.split('\n')]
+    total = sum(1 for linea in lineas for trozo in linea if trozo['coincide'])
+    return jsonify({'total': total, 'lineas': lineas})
 
 
 @bp.post('/anonimizar-pdf')
@@ -173,8 +214,11 @@ def _comprobar_abierto(documento) -> None:
         raise ApiError('El PDF no tiene páginas.', 422)
 
 
-def _zonas(documento, tipos: set, propio) -> dict:
+def _zonas(documento, tipos: set, propio, ejemplos: list | None = None) -> dict:
     """Qué hay que tachar en cada página, indexado por número de página (1..n).
+
+    Con `ejemplos`, apunta además ahí los primeros textos distintos que casan con
+    la expresión propia: aprovecha que ya tiene las palabras de cada página.
 
     Los rectángulos salen de `page.get_text('words')`, que los da en el espacio
     **sin girar**, que es justo el que quiere `add_redact_annot`. No hay que
@@ -189,6 +233,10 @@ def _zonas(documento, tipos: set, propio) -> dict:
         palabras = pagina.get_text('words')
         if palabras:
             con_texto = True
+        if ejemplos is not None and len(ejemplos) < MAXIMO_EJEMPLOS:
+            for hallado in patrones.ejemplos_de_palabras(palabras, propio, MAXIMO_EJEMPLOS):
+                if hallado not in ejemplos and len(ejemplos) < MAXIMO_EJEMPLOS:
+                    ejemplos.append(hallado)
         zonas = patrones.zonas_de_palabras(palabras, tipos, propio)
         if not zonas:
             continue

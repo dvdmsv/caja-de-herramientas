@@ -1,0 +1,215 @@
+<div class="constructor">
+  <p class="small text-body-secondary mb-3">
+    Descríbela pieza a pieza, en orden, y se escribe sola en el campo de arriba. Luego puedes
+    retocarla a mano.
+  </p>
+
+  @if (piezas.length === 0) {
+    <p class="fw-semibold small mb-2">Empieza con un ejemplo parecido a lo que buscas</p>
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      @for (ejemplo of ejemplos; track ejemplo.nombre; let i = $index) {
+        <button type="button" class="btn btn-sm btn-outline-primary text-start ejemplo"
+          [disabled]="desactivado" (click)="usarEjemplo(i)">
+          <span class="d-block">{{ ejemplo.nombre }}</span>
+          <span class="d-block small text-body-secondary font-monospace">{{ ejemplo.muestra }}</span>
+        </button>
+      }
+    </div>
+    <button type="button" class="btn btn-sm btn-link px-0" [disabled]="desactivado" (click)="anadir()">
+      o empieza con una pieza en blanco
+    </button>
+  } @else {
+    <ol class="list-unstyled piezas mb-2">
+      @for (pieza of piezas; track pieza; let i = $index; let primera = $first; let ultima = $last) {
+        <li class="pieza {{ color(i) }}" [class.pieza--resaltada]="resaltada === i"
+          (pointerenter)="resaltada = i" (pointerleave)="resaltada = null" (focusin)="resaltada = i">
+          <div class="pieza__cabecera">
+            <span class="pieza__numero" aria-hidden="true">{{ i + 1 }}</span>
+            <span class="small flex-grow-1 pieza__frase">{{ comoSeLee(pieza) }}</span>
+            <div class="pieza__botones">
+              <button type="button" class="btn btn-sm btn-link text-body-secondary boton-tactil"
+                [disabled]="desactivado || primera" (click)="mover(i, -1)"
+                [attr.aria-label]="'Subir la pieza ' + (i + 1)" title="Subir">
+                <i class="bi bi-chevron-up" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-link text-body-secondary boton-tactil"
+                [disabled]="desactivado || ultima" (click)="mover(i, 1)"
+                [attr.aria-label]="'Bajar la pieza ' + (i + 1)" title="Bajar">
+                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-link text-danger boton-tactil"
+                [disabled]="desactivado" (click)="quitar(i)"
+                [attr.aria-label]="'Quitar la pieza ' + (i + 1)" title="Quitar">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-sm-6 col-lg-4">
+              <label class="form-label small mb-1" [for]="id + '-tipo-' + i">Qué es</label>
+              <select class="form-select form-select-sm" [id]="id + '-tipo-' + i"
+                [ngModel]="pieza.tipo" (ngModelChange)="cambiarTipo(pieza, $event)" [disabled]="desactivado">
+                @for (tipo of tipos; track tipo.id) {
+                  <option [value]="tipo.id">{{ tipo.nombre }}</option>
+                }
+              </select>
+              <small class="form-text d-block">{{ ayudaDe(pieza.tipo) }}</small>
+            </div>
+
+            @if (necesitaValor(pieza.tipo)) {
+              <div class="col-sm-6 col-lg-4">
+                <label class="form-label small mb-1" [for]="id + '-valor-' + i">
+                  @switch (pieza.tipo) {
+                    @case ('texto') { Qué texto }
+                    @case ('caracteres') { Qué caracteres valen }
+                    @default { Qué palabras, separadas por comas }
+                  }
+                </label>
+                <input type="text" class="form-control form-control-sm font-monospace" [id]="id + '-valor-' + i"
+                  [placeholder]="pieza.tipo === 'texto' ? 'EXP' : pieza.tipo === 'caracteres' ? '-/.' : 'S.L., S.A.'"
+                  [(ngModel)]="pieza.valor" (ngModelChange)="cambiar()" [disabled]="desactivado">
+              </div>
+            }
+
+            <div class="col-sm-6 col-lg-4">
+              <label class="form-label small mb-1" [for]="id + '-modo-' + i">Cuántas veces</label>
+              <select class="form-select form-select-sm" [id]="id + '-modo-' + i"
+                [(ngModel)]="pieza.repeticion.modo" (ngModelChange)="cambiar()" [disabled]="desactivado">
+                @for (modo of modos; track modo.id) {
+                  <option [value]="modo.id">{{ modo.nombre }}</option>
+                }
+              </select>
+            </div>
+
+            @if (pieza.repeticion.modo === 'exacta' || pieza.repeticion.modo === 'entre') {
+              <div class="col-6 col-sm-3 col-lg-2">
+                <label class="form-label small mb-1" [for]="id + '-n-' + i">
+                  {{ pieza.repeticion.modo === 'entre' ? 'Desde' : 'Veces' }}
+                </label>
+                <input type="number" class="form-control form-control-sm" [id]="id + '-n-' + i"
+                  min="1" [max]="maximoVeces" [(ngModel)]="pieza.repeticion.n" (ngModelChange)="cambiar()"
+                  [disabled]="desactivado">
+              </div>
+            }
+            @if (pieza.repeticion.modo === 'entre') {
+              <div class="col-6 col-sm-3 col-lg-2">
+                <label class="form-label small mb-1" [for]="id + '-m-' + i">Hasta</label>
+                <input type="number" class="form-control form-control-sm" [id]="id + '-m-' + i"
+                  min="1" [max]="maximoVeces" [(ngModel)]="pieza.repeticion.m" (ngModelChange)="cambiar()"
+                  [disabled]="desactivado">
+              </div>
+            }
+          </div>
+        </li>
+      }
+    </ol>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="desactivado" (click)="anadir()">
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Añadir pieza
+      </button>
+      <button type="button" class="btn btn-sm btn-link" [disabled]="desactivado" (click)="vaciar()">
+        Empezar de nuevo
+      </button>
+    </div>
+
+    <div class="form-check mt-3">
+      <input type="checkbox" class="form-check-input" [id]="id + '-entera'"
+        [(ngModel)]="palabraEntera" (ngModelChange)="cambiar()" [disabled]="desactivado">
+      <label class="form-check-label" [for]="id + '-entera'">Sólo como palabra suelta</label>
+      <small class="form-text d-block">
+        Para que «AB-1234» no se encuentre dentro de «XAB-12345». Casi siempre es lo que se quiere.
+      </small>
+    </div>
+
+    <section class="mt-3" [attr.aria-labelledby]="id + '-titulo-expresion'">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h3 class="h6 mb-0 me-auto" [id]="id + '-titulo-expresion'">La expresión</h3>
+        <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="!expresion.trim()"
+          (click)="copiar()">
+          <i class="bi me-1" [class.bi-clipboard]="!copiada" [class.bi-check-lg]="copiada" aria-hidden="true"></i>
+          {{ copiada ? 'Copiada' : 'Copiar' }}
+        </button>
+      </div>
+      <p class="expresion font-monospace mb-1">
+        @if (palabraEntera && trozos.join('')) {
+          <span class="text-body-secondary" title="Que no vaya pegado a otra letra o cifra">{{ antes }}</span>
+        }
+        @for (trozo of trozos; track $index; let i = $index) {
+          @if (trozo) {
+            <span class="trozo {{ color(i) }}" [class.trozo--resaltado]="resaltada === i">{{ trozo }}</span>
+          }
+        }
+        @if (palabraEntera && trozos.join('')) {
+          <span class="text-body-secondary" title="Que no vaya pegado a otra letra o cifra">{{ despues }}</span>
+        }
+      </p>
+      <p class="small mb-0">{{ frase }}</p>
+      @if (retocada) {
+        <p class="small text-warning-emphasis mt-1 mb-0" role="status">
+          <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+          Has cambiado la expresión a mano. Se prueba y se usa la del campo; si tocas algo aquí, la
+          reescribirá.
+        </p>
+      }
+    </section>
+  }
+
+  <section class="mt-3" [attr.aria-labelledby]="id + '-titulo-prueba'">
+    <h3 class="h6 mb-1" [id]="id + '-titulo-prueba'">Pruébala</h3>
+    <label class="form-label small text-body-secondary" [for]="id + '-prueba'">
+      Escribe ejemplos de lo que debería encontrar y de lo que no, uno por línea.
+    </label>
+    <textarea class="form-control form-control-sm font-monospace" rows="3" [id]="id + '-prueba'"
+      placeholder="EXP-2026-0001&#10;EXP-26-1 (este no debería)"
+      [(ngModel)]="textoDePrueba" (ngModelChange)="programarPrueba()" [disabled]="desactivado"></textarea>
+
+    @if (errorDePrueba) {
+      <p class="small text-danger mt-2 mb-0" role="alert">{{ errorDePrueba }}</p>
+    } @else if (prueba) {
+      <p class="small mt-2 mb-1" role="status">
+        @if (prueba.total === 0) {
+          No encuentra nada en estos ejemplos.
+        } @else {
+          Encuentra <strong>{{ prueba.total }}</strong> {{ prueba.total === 1 ? 'coincidencia' : 'coincidencias' }}:
+        }
+      </p>
+      <div class="resultado font-monospace small">
+        @for (linea of prueba.lineas; track $index) {
+          <div>
+            @for (trozo of linea; track $index) {
+              @if (trozo.coincide) {
+                <mark>{{ trozo.texto }}</mark>
+              } @else {
+                <span>{{ trozo.texto }}</span>
+              }
+            }
+            @if (linea.length === 1 && !linea[0].texto) {
+              <span>&nbsp;</span>
+            }
+          </div>
+        }
+      </div>
+    } @else if (!expresion.trim()) {
+      <p class="small text-body-secondary mt-2 mb-0">Cuando haya una expresión, se prueba aquí.</p>
+    }
+
+    @if (coincidenciasDelDocumento !== null && expresion.trim()) {
+      <p class="small mt-3 mb-0" role="status">
+        <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>
+        @if (coincidenciasDelDocumento === 0) {
+          En tu documento no encuentra nada.
+        } @else {
+          En tu documento encuentra <strong>{{ coincidenciasDelDocumento }}</strong>.
+          @if (ejemplosDelDocumento?.length) {
+            Por ejemplo:
+            @for (ejemplo of ejemplosDelDocumento; track ejemplo; let ultimo = $last) {
+              <mark class="font-monospace">{{ ejemplo }}</mark>{{ ultimo ? '' : ' ' }}
+            }
+          }
+        }
+      </p>
+    }
+  </section>
+</div>

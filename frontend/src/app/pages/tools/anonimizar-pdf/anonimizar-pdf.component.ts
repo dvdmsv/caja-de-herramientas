@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 
 import { RecuentoAnonimizado } from '../../../core/api.service';
 import { MARCADOS_DE_SERIE, TIPOS_DE_DATO, nombreDeDato } from '../../../shared/datos-personales';
-import { ClasePieza, Pieza, SEPARADORES, construir, describir } from '../../../shared/regex-guiada';
+import { ConstructorRegexComponent } from '../../../shared/constructor-regex/constructor-regex.component';
 import { FileQueueComponent } from '../../../shared/file-queue/file-queue.component';
 import { PaginaHerramienta } from '../../../shared/pagina-herramienta';
 import { ResultListComponent } from '../../../shared/result-list/result-list.component';
@@ -18,6 +18,7 @@ const ESPERA = 350;
   selector: 'app-anonimizar-pdf',
   imports: [
     FormsModule,
+    ConstructorRegexComponent,
     FileQueueComponent,
     ResultListComponent,
     ToolControlsComponent,
@@ -46,15 +47,8 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
 
   /** Si está desplegado el constructor de expresiones. */
   armando = false;
-  /** Las piezas de la expresión que se está armando. */
-  piezas: Pieza[] = [];
-  /** La pieza que se va a añadir. */
-  clase: ClasePieza = 'digitos';
-  textoPieza = '';
-  cuantasMin = 4;
-  cuantasMax = 4;
-  separador = 'guion';
-  readonly separadores = Object.keys(SEPARADORES);
+  /** Algunos textos del documento que casan con la expresión propia. */
+  ejemplos: string[] | null = null;
 
   private temporizador?: ReturnType<typeof setTimeout>;
   /** Cuál es la petición vigente: al escribir salen varias y no llegan en orden. */
@@ -96,54 +90,18 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
     this.armando = !this.armando;
   }
 
-  get piezaNecesitaTexto(): boolean {
-    return this.clase === 'texto';
-  }
-
-  get piezaSeRepite(): boolean {
-    return this.clase !== 'texto' && this.clase !== 'separador';
-  }
-
-  get puedeAnadirPieza(): boolean {
-    return !this.piezaNecesitaTexto || this.textoPieza.trim() !== '';
-  }
-
-  anadirPieza(): void {
-    if (!this.puedeAnadirPieza) {
-      return;
-    }
-    const pieza: Pieza = { clase: this.clase };
-    if (this.piezaNecesitaTexto) {
-      pieza.valor = this.textoPieza.trim();
-    } else if (this.clase === 'separador') {
-      pieza.valor = this.separador;
-    } else {
-      pieza.min = this.cuantasMin;
-      pieza.max = Math.max(this.cuantasMin, this.cuantasMax);
-    }
-    this.piezas = [...this.piezas, pieza];
-    this.textoPieza = '';
-    this.escribirExpresion();
-  }
-
-  quitarPieza(indice: number): void {
-    this.piezas = this.piezas.filter((_, i) => i !== indice);
-    this.escribirExpresion();
-  }
-
-  vaciarPiezas(): void {
-    this.piezas = [];
-    this.escribirExpresion();
-  }
-
-  comoSeLee(pieza: Pieza): string {
-    return describir(pieza);
-  }
-
-  /** Vuelca lo armado al campo de la expresión, que sigue siendo editable. */
-  private escribirExpresion(): void {
-    this.patron = construir(this.piezas);
+  /** Lo que ha armado el constructor pasa al campo, como si se hubiera escrito. */
+  usarExpresion(expresion: string): void {
+    this.patron = expresion;
     this.alCambiarAjuste();
+  }
+
+  /** Cuántas coincidencias tiene la expresión propia en el documento; `null` si no se sabe. */
+  get coincidenciasPropias(): number | null {
+    if (!this.recuento) {
+      return null;
+    }
+    return this.recuento.find(fila => fila.tipo === 'propio')?.cuantas ?? 0;
   }
 
   protected override opciones(): Record<string, unknown> {
@@ -212,6 +170,7 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
         this.problema = '';
         this.total = zonas.total;
         this.recuento = zonas.recuento;
+        this.ejemplos = zonas.ejemplos ?? [];
       },
       error: err => {
         if (mia !== this.peticion) {
@@ -231,6 +190,7 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
     this.peticion++;
     this.contando = false;
     this.recuento = null;
+    this.ejemplos = null;
     this.total = 0;
     this.problema = '';
   }

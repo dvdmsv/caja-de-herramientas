@@ -289,6 +289,10 @@ def main():
     prueba('extraer-imagenes', '/api/tools/extraer-imagenes', {'file_ids': [pdf]})
     prueba('anonimizar/inspec', '/api/tools/anonimizar-pdf/inspeccionar',
            {'file_ids': [personales], 'tipos': ['dni', 'telefono', 'iban', 'correo']})
+    # El probador del constructor de expresiones: no lleva archivo y va por la
+    # lista de rutas ligeras de nginx.
+    prueba('anonimizar/probar', '/api/tools/anonimizar-pdf/probar',
+           {'patron': r'EXP-\d{4}', 'texto': 'Ver EXP-2026\nnada'})
     prueba('anonimizar-pdf', '/api/tools/anonimizar-pdf',
            {'file_ids': [personales], 'tipos': ['dni', 'telefono', 'iban', 'correo']})
     # PDF/A: Ghostscript de verdad, que es lo que los tests no pueden tocar. El

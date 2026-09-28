@@ -342,3 +342,76 @@ def test_las_zonas_que_lee_el_visor_vuelven_a_su_sitio(giro):
     assert vuelta.x1 == pytest.approx(original[2], abs=1e-6)
     assert vuelta.y1 == pytest.approx(original[3], abs=1e-6)
     archivo.close()
+
+
+# --- el constructor de expresiones: probar y ver ejemplos ----------------
+
+def probar(cliente, patron, texto):
+    return cliente.post('/api/tools/anonimizar-pdf/probar', headers={'X-Session-Id': SESION},
+                        json={'patron': patron, 'texto': texto})
+
+
+def test_la_prueba_resalta_lo_que_casa_linea_a_linea(cliente):
+    respuesta = probar(cliente, r'EXP-\d{4}', 'Ver EXP-2026 y EXP-2027\nnada\nEXP-1')
+
+    cuerpo = respuesta.get_json()
+    assert respuesta.status_code == 200
+    assert cuerpo['total'] == 2
+    assert cuerpo['lineas'][0] == [
+        {'texto': 'Ver ', 'coincide': False}, {'texto': 'EXP-2026', 'coincide': True},
+        {'texto': ' y ', 'coincide': False}, {'texto': 'EXP-2027', 'coincide': True},
+    ]
+    assert cuerpo['lineas'][1] == [{'texto': 'nada', 'coincide': False}]
+    assert cuerpo['lineas'][2] == [{'texto': 'EXP-1', 'coincide': False}]
+
+
+def test_la_prueba_no_junta_una_linea_con_la_siguiente(cliente):
+    """Igual que en el documento, que se busca renglón a renglón."""
+    assert probar(cliente, r'\d{8} ?Z', '12345678\nZ').get_json()['total'] == 0
+
+
+def test_la_prueba_va_en_trozos_para_que_un_emoji_no_descuadre_el_resaltado(cliente):
+    """Python cuenta caracteres y JavaScript unidades UTF-16: con posiciones, esto fallaría."""
+    lineas = probar(cliente, r'\d+', '😀 ref 42').get_json()['lineas']
+    assert lineas[0] == [{'texto': '😀 ref ', 'coincide': False}, {'texto': '42', 'coincide': True}]
+
+
+def test_la_prueba_dice_por_que_no_vale_la_expresion(cliente):
+    respuesta = probar(cliente, '(sin cerrar', 'hola')
+    assert respuesta.status_code == 400
+    assert 'no es válida' in respuesta.get_json()['error']
+
+
+def test_la_prueba_no_admite_un_documento_entero(cliente):
+    from api.tools import anonimizar_pdf
+
+    respuesta = probar(cliente, 'a', 'a' * (anonimizar_pdf.MAXIMO_PRUEBA + 1))
+    assert respuesta.status_code == 400
+
+
+def test_los_ejemplos_son_textos_distintos_con_tope():
+    from api import patrones
+
+    propio = patrones.compilar(r'EXP-\d+')
+    palabras = [(0, 0, 1, 1, 'EXP-1', 0, 0, 0), (0, 0, 1, 1, 'EXP-2', 0, 0, 1),
+                (0, 0, 1, 1, 'EXP-1', 0, 1, 0), (0, 0, 1, 1, 'EXP-3', 0, 2, 0)]
+    assert patrones.ejemplos_de_palabras(palabras, propio) == ['EXP-1', 'EXP-2', 'EXP-3']
+    assert patrones.ejemplos_de_palabras(palabras, propio, maximo=2) == ['EXP-1', 'EXP-2']
+
+
+def test_un_ejemplo_partido_en_dos_palabras_sale_entero():
+    """Se busca como se tacha: con las palabras del renglón unidas por un espacio."""
+    from api import patrones
+
+    palabras = [(0, 0, 1, 1, '12345678', 0, 0, 0), (0, 0, 1, 1, 'Z', 0, 0, 1)]
+    assert patrones.ejemplos_de_palabras(palabras, patrones.compilar(r'\d{8} Z')) == ['12345678 Z']
+
+
+def test_la_inspeccion_ensena_ejemplos_de_la_expresion_propia(cliente):
+    ident = subir(documento(['Expediente AB-2026-0042', 'y AB-2025-0001', 'otra vez AB-2026-0042']))
+
+    cuerpo = cliente.post('/api/tools/anonimizar-pdf/inspeccionar', headers={'X-Session-Id': SESION},
+                          json={'file_ids': [ident], 'tipos': [], 'patron': r'[A-Z]{2}-\d{4}-\d{4}'}).get_json()
+
+    assert cuerpo['ejemplos'] == ['AB-2026-0042', 'AB-2025-0001']
+    assert cuerpo['total'] == 3
