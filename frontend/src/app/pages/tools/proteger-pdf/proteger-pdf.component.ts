@@ -18,6 +18,7 @@ const LONGITUD_MINIMA = 4;
 })
 export class ProtegerPdfComponent extends PaginaHerramienta {
   protected readonly slug = 'proteger-pdf';
+  protected override readonly unoPorUno = true;
   protected override get mensajeExito(): string {
     return this.accion === 'proteger' ? 'PDF protegido' : 'Contraseña quitada';
   }

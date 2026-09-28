@@ -2,9 +2,8 @@
 
   <app-file-queue
     [items]="archivos"
-    [multiple]="false"
     [deshabilitado]="ocupado"
-    ayuda="Arrastra el PDF del que quieras sacar las imágenes"
+    ayuda="Arrastra los PDF de los que quieras sacar las imágenes"
     (agregados)="alAgregar($event)"
     (itemsChange)="alCambiarLista()">
   </app-file-queue>

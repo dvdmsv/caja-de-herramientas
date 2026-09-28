@@ -2,9 +2,8 @@
 
   <app-file-queue
     [items]="archivos"
-    [multiple]="false"
     [deshabilitado]="ocupado"
-    ayuda="Arrastra el PDF que quieras numerar"
+    ayuda="Arrastra los PDF que quieras numerar"
     (agregados)="alAgregar($event)"
     (itemsChange)="alQuitarDocumento()">
   </app-file-queue>
@@ -110,6 +109,11 @@
     [cargando]="previsualizando" [deshabilitado]="ocupado"
     (paginaChange)="cambiarPagina($event)">
   </app-vista-pagina>
+  @if (nombreDeLaVista; as nombre) {
+    <p class="form-text mt-2 mb-0">
+      Vista previa de «{{ nombre }}». Los demás se hacen con los mismos ajustes.
+    </p>
+  }
 
   <app-tool-controls [pagina]="pagina" accion="Numerar el PDF" icono="bi-list-ol">
   </app-tool-controls>

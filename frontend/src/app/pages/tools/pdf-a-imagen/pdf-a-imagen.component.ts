@@ -30,6 +30,7 @@ interface OpcionResolucion {
 })
 export class PdfAImagenComponent extends PaginaHerramienta implements OnInit {
   protected readonly slug = 'pdf-a-imagen';
+  protected override readonly unoPorUno = true;
   protected override get mensajeExito(): string {
     return 'Páginas convertidas';
   }

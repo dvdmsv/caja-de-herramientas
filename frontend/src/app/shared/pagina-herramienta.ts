@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Observable, finalize, firstValueFrom } from 'rxjs';
 
 import { ApiService, ArchivoServidor, Resultado, ResumenTamano, VistaPrevia } from '../core/api.service';
 import { EscritorioService } from '../core/escritorio.service';
@@ -8,7 +9,10 @@ import { ArchivoEnCola } from './file-queue/file-queue.component';
 import { buscarPorSlug } from '../core/tools';
 import { nuevoId } from '../core/ids';
 import { sinAhorro } from './ahorro';
-import { avisoError, avisoExito, avisoInfo, mensajeDeError } from './notify';
+import {
+  ESPERA_ENTRE_REINTENTOS_MS, EstadoLote, FalloDeLote, REINTENTOS_POR_ESPERA, finalDelLote, sumarResumen, textoDelLote,
+} from './lote';
+import { aviso, avisoError, avisoExito, avisoInfo, mensajeDeError } from './notify';
 import { AvanceTrabajo, avance, EstadoTrabajo } from './progreso';
 import { repartirSubida } from './subida';
 import { queElegir } from './tipos-archivo';
@@ -59,6 +63,9 @@ export abstract class PaginaHerramienta {
   trabajo: EstadoTrabajo | null = null;
   cancelando = false;
 
+  /** Por qué archivo va un lote (`unoPorUno`); `null` si no hay lote en marcha. */
+  lote: EstadoLote | null = null;
+
   /**
    * Cómo se pinta el trabajo. Es un campo y no un getter a propósito: con un
    * getter, cada pasada de detección de cambios volvería a leer el reloj y el
@@ -79,6 +86,13 @@ export abstract class PaginaHerramienta {
 
   /** Cuántos archivos hacen falta como mínimo para poder ejecutarla. */
   protected readonly minimoArchivos: number = 1;
+
+  /**
+   * Herramientas de un solo archivo que admiten lotes: con varios en la cola se
+   * ejecutan una vez por archivo, en orden y con las mismas opciones (ver
+   * `shared/lote.ts`). El backend no sabe nada: sigue leyendo `file_ids[0]`.
+   */
+  protected readonly unoPorUno: boolean = false;
 
   /** Opciones propias de la herramienta que se envían al servidor. */
   protected opciones(): Record<string, unknown> {
@@ -178,20 +192,17 @@ export abstract class PaginaHerramienta {
       return;
     }
     this.procesando = true;
+    this.cancelando = false;
+    this.inicioTrabajo = Date.now();
     // El orden de la lista es el orden con el que trabaja el servidor.
     const ids = this.archivos.map(archivo => archivo.id!).filter(Boolean);
+    if (this.unoPorUno && ids.length > 1) {
+      this.ejecutarLote();
+      return;
+    }
 
-    this.trabajoId = nuevoId();
-    this.trabajo = null;
-    this.cancelando = false;
-    this.vistoEn = Date.now();
-    this.inicioTrabajo = Date.now();
-    this.refrescarAvance();
-    this.arrancarSondeo();
-
-    this.api.ejecutar(this.slug, { file_ids: ids, ...this.opciones() }, this.trabajoId).subscribe({
+    this.lanzar(ids).subscribe({
       next: resultado => {
-        this.pararSondeo();
         this.procesando = false;
         this.avisarAlTerminar(true);
         this.resultados = resultado.files;
@@ -200,14 +211,9 @@ export abstract class PaginaHerramienta {
         this.alTerminar(resultado);
         // Los resultados también ocupan sitio, y es justo lo que sorprende.
         this.usoSesion.refrescar();
-        if (sinAhorro(this.resumen)) {
-          avisoInfo('Ya estaba optimizado: te dejamos el original.');
-        } else {
-          avisoExito(this.mensajeExito);
-        }
+        this.avisarExito();
       },
       error: err => {
-        this.pararSondeo();
         this.procesando = false;
         const cancelado = (err as { status?: number })?.status === 409;
         this.avisarAlTerminar(cancelado ? null : false, mensajeDeError(err, ''));
@@ -220,6 +226,93 @@ export abstract class PaginaHerramienta {
         avisar(err, 'No se ha podido completar la operación.');
       },
     });
+  }
+
+  /** Un trabajo con su identificador y su sondeo, que se para al acabar. */
+  private lanzar(ids: string[]): Observable<Resultado> {
+    this.trabajoId = nuevoId();
+    this.trabajo = null;
+    this.vistoEn = Date.now();
+    this.refrescarAvance();
+    this.arrancarSondeo();
+    return this.api.ejecutar(this.slug, { file_ids: ids, ...this.opciones() }, this.trabajoId)
+      .pipe(finalize(() => this.pararSondeo()));
+  }
+
+  /**
+   * Un archivo detrás de otro, nunca a la vez: en la web contarían contra el
+   * tope de trabajos por IP, y en la aplicación de Windows se repartirían la
+   * misma máquina. Si uno falla se sigue con los demás y se dice al final;
+   * cancelar para el que va y no empieza los siguientes.
+   */
+  private async ejecutarLote(): Promise<void> {
+    const cola = this.archivos.filter(archivo => archivo.id);
+    this.olvidarResultado();
+    const fallos: FalloDeLote[] = [];
+    let hechos = 0;
+    let cancelado = false;
+
+    for (const [indice, archivo] of cola.entries()) {
+      if (this.cancelando) {
+        cancelado = true;
+        break;
+      }
+      this.lote = { actual: indice + 1, total: cola.length };
+      try {
+        const resultado = await this.conEspera(() => firstValueFrom(this.lanzar([archivo.id!])));
+        hechos++;
+        this.resultados = [...this.resultados, ...resultado.files];
+        this.resumen = sumarResumen(this.resumen, resultado.resumen);
+        this.alTerminar(resultado);
+        this.usoSesion.refrescar();
+      } catch (err) {
+        if ((err as { status?: number })?.status === 409) {
+          cancelado = true;
+          break;
+        }
+        fallos.push({ nombre: archivo.file.name, mensaje: mensajeDeError(err, 'No se ha podido completar.') });
+      }
+    }
+
+    this.lote = null;
+    this.procesando = false;
+    this.cancelando = false;
+    this.avisarAlTerminar(cancelado ? null : fallos.length === 0,
+      fallos.map(fallo => `${fallo.nombre}: ${fallo.mensaje}`).join(' '));
+    const final = finalDelLote(cola.length, hechos, fallos, cancelado);
+    switch (final.tipo) {
+      case 'exito': this.avisarExito(); break;
+      case 'info': avisoInfo(final.texto); break;
+      case 'aviso': aviso(final.texto); break;
+      case 'error': avisoError(final.texto); break;
+    }
+  }
+
+  /**
+   * Si el servidor manda esperar (429 cola llena, 503 saturado), se espera y se
+   * vuelve a intentar ese archivo, en vez de darlo por fallido: en un lote largo
+   * es de esperar que alguna vez toque.
+   */
+  private async conEspera<T>(intento: () => Promise<T>): Promise<T> {
+    for (let vez = 0; ; vez++) {
+      try {
+        return await intento();
+      } catch (err) {
+        const codigo = (err as { status?: number })?.status;
+        if ((codigo !== 429 && codigo !== 503) || vez >= REINTENTOS_POR_ESPERA || this.cancelando) {
+          throw err;
+        }
+        await new Promise(resolver => setTimeout(resolver, ESPERA_ENTRE_REINTENTOS_MS));
+      }
+    }
+  }
+
+  private avisarExito(): void {
+    if (sinAhorro(this.resumen)) {
+      avisoInfo('Ya estaba optimizado: te dejamos el original.');
+    } else {
+      avisoExito(this.mensajeExito);
+    }
   }
 
   /** Pide parar el trabajo; lo para el propio trabajo, no esta llamada. */
@@ -279,7 +372,8 @@ export abstract class PaginaHerramienta {
    * desde el primer momento.
    */
   private refrescarAvance(): void {
-    this.avanceTrabajo = avance(this.trabajo, Date.now() - this.vistoEn);
+    const actual = avance(this.trabajo, Date.now() - this.vistoEn);
+    this.avanceTrabajo = this.lote ? { ...actual, etapa: `${textoDelLote(this.lote)} · ${actual.etapa}` } : actual;
     this.escritorio.progreso(this.avanceTrabajo);
   }
 

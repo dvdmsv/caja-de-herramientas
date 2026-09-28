@@ -20,6 +20,7 @@ interface Opcion { id: string; nombre: string; }
 })
 export class MarcaDeAguaComponent extends PaginaConVista {
   protected readonly slug = 'marca-de-agua';
+  protected override readonly unoPorUno = true;
   protected override get mensajeExito(): string {
     return 'Marca de agua puesta';
   }

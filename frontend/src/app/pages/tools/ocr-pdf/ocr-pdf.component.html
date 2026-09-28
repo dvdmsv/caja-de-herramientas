@@ -2,9 +2,8 @@
 
   <app-file-queue
     [items]="archivos"
-    [multiple]="false"
     [deshabilitado]="ocupado"
-    ayuda="Arrastra aquí el PDF escaneado"
+    ayuda="Arrastra aquí los PDF escaneados"
     (agregados)="alAgregar($event)"
     (itemsChange)="alCambiarLista()">
   </app-file-queue>

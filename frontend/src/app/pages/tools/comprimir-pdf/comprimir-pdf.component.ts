@@ -55,6 +55,10 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
 
   /** Si se pidió un tamaño y no se llegó: se avisa junto al resultado. */
   noAlcanzado: ObjetivoTamano | null = null;
+  /** En un lote, los resultados que no llegaron, por nombre. */
+  noAlcanzados: string[] = [];
+
+  protected override readonly unoPorUno = true;
 
   /**
    * Lo más que baja cada PDF subido, por id. Se calcula al elegir "Hasta un
@@ -63,10 +67,29 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
   private readonly minimos = new Map<string, MinimoPdf>();
   calculandoMinimo = false;
 
-  /** El dato del PDF que hay ahora en la cola, si ya se sabe. */
+  /**
+   * El dato del PDF de la cola que menos baja, si ya se sabe. Con uno solo, el
+   * suyo; en un lote, el que decide qué tamaño se puede pedir a todos.
+   */
   get minimo(): MinimoPdf | null {
-    const id = this.idActual;
-    return id ? this.minimos.get(id) ?? null : null;
+    return this.masRestrictivo?.dato ?? null;
+  }
+
+  /** Cómo nombrar ese PDF en los avisos. */
+  get sujeto(): string {
+    const nombre = this.masRestrictivo?.nombre;
+    return this.archivos.length > 1 && nombre ? `«${nombre}», el que menos baja,` : 'Este PDF';
+  }
+
+  private get masRestrictivo(): { dato: MinimoPdf; nombre: string } | null {
+    let peor: { dato: MinimoPdf; nombre: string } | null = null;
+    for (const archivo of this.archivos) {
+      const dato = archivo.id ? this.minimos.get(archivo.id) : undefined;
+      if (dato && (!peor || dato.minimo > peor.dato.minimo)) {
+        peor = { dato, nombre: archivo.file.name };
+      }
+    }
+    return peor;
   }
 
   /**
@@ -101,7 +124,7 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
     if (super.motivoBloqueo || !this.imposible) {
       return super.motivoBloqueo;
     }
-    return `Este PDF no baja de ${this.minimoMb?.toLocaleString('es-ES')} MB: pide eso o más, ` +
+    return `${this.sujeto} no baja de ${this.minimoMb?.toLocaleString('es-ES')} MB: pide eso o más, ` +
       'o prueba a pasarlo a grises o a quitarle páginas.';
   }
 
@@ -113,8 +136,18 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
     };
   }
 
+  override ejecutar(): void {
+    this.noAlcanzado = null;
+    this.noAlcanzados = [];
+    super.ejecutar();
+  }
+
+  /** En un lote llega una vez por archivo: se apunta cada uno que no llegó. */
   protected override alTerminar(resultado: Resultado): void {
-    this.noAlcanzado = resultado.objetivo && !resultado.objetivo.logrado ? resultado.objetivo : null;
+    if (resultado.objetivo && !resultado.objetivo.logrado) {
+      this.noAlcanzado = resultado.objetivo;
+      this.noAlcanzados.push(...resultado.files.map(archivo => archivo.name));
+    }
   }
 
   protected override alTerminarSubida(): void {
@@ -124,6 +157,7 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
   protected override alReiniciar(): void {
     super.alReiniciar();
     this.noAlcanzado = null;
+    this.noAlcanzados = [];
     this.minimos.clear();
     this.calculandoMinimo = false;
   }
@@ -149,14 +183,17 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
     this.alCambiarLista();
   }
 
-  private get idActual(): string | undefined {
-    const archivo = this.archivos[0];
-    return archivo?.estado === 'subido' ? archivo.id : undefined;
+  /** El primer PDF ya subido del que aún no se sabe cuánto baja. */
+  private get idSinMinimo(): string | undefined {
+    return this.archivos.find(archivo => archivo.estado === 'subido' && !this.minimos.has(archivo.id!))?.id;
   }
 
-  /** Sólo en modo tamaño y una vez por archivo: cuesta una compresión entera. */
+  /**
+   * Sólo en modo tamaño y una vez por archivo: cuesta una compresión entera. De
+   * uno en uno, también en un lote, como se comprime.
+   */
   private pedirMinimo(): void {
-    const id = this.idActual;
+    const id = this.idSinMinimo;
     if (this.modo !== 'tamano' || !id || this.minimos.has(id) || this.calculandoMinimo) {
       return;
     }
@@ -165,7 +202,7 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
       next: dato => {
         this.calculandoMinimo = false;
         this.minimos.set(id, dato);
-        // Si mientras tanto se cambió de archivo, el nuevo también lo necesita.
+        // El siguiente del lote, o uno que se haya añadido mientras tanto.
         this.pedirMinimo();
       },
       // Es una ayuda: si falla, se comprime igual y el aviso llega después.

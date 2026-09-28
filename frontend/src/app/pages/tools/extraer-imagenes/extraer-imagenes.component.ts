@@ -18,6 +18,7 @@ interface Opcion { id: string; nombre: string; detalle: string; }
 })
 export class ExtraerImagenesComponent extends PaginaHerramienta {
   protected readonly slug = 'extraer-imagenes';
+  protected override readonly unoPorUno = true;
   protected override get mensajeExito(): string {
     return 'Imágenes extraídas';
   }

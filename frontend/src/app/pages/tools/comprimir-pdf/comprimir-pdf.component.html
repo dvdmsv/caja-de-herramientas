@@ -2,9 +2,8 @@
 
   <app-file-queue
     [items]="archivos"
-    [multiple]="false"
     [deshabilitado]="ocupado"
-    ayuda="Arrastra tu PDF aquí o haz clic para elegirlo"
+    ayuda="Arrastra tus PDF aquí o haz clic para elegirlos"
     (agregados)="alAgregar($event)"
     (itemsChange)="alCambiarLista()">
   </app-file-queue>
@@ -62,7 +61,7 @@
           <button type="button" class="btn btn-sm"
             [class.btn-primary]="objetivoMb === mb" [class.btn-outline-secondary]="objetivoMb !== mb"
             [disabled]="ocupado || inalcanzable(mb)"
-            [title]="inalcanzable(mb) ? 'Este PDF no baja tanto' : ''"
+            [title]="inalcanzable(mb) ? (archivos.length > 1 ? 'Alguno de estos PDF no baja tanto' : 'Este PDF no baja tanto') : ''"
             (click)="elegirTamano(mb)">{{ mb }} MB</button>
         }
       </div>
@@ -70,20 +69,20 @@
       @if (calculandoMinimo) {
         <p class="form-text mb-0 mt-2" role="status">
           <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-          Calculando hasta dónde puede bajar este PDF…
+          Calculando hasta dónde puede bajar {{ archivos.length > 1 ? 'cada PDF' : 'este PDF' }}…
         </p>
       } @else if (minimo) {
         @if (sinMargen) {
           <p class="small mb-0 mt-2 text-warning-emphasis" role="status">
             <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
-            Este PDF ya no se puede aligerar: pesa {{ minimo.original | peso }} y como mucho
+            {{ sujeto }} ya no se puede aligerar: pesa {{ minimo.original | peso }} y como mucho
             baja a {{ minimoMb?.toLocaleString('es-ES') }} MB. Casi todo su peso es texto y fuentes,
             no imágenes.
           </p>
         } @else {
           <p class="small mb-0 mt-2" role="status">
             <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
-            Este PDF pesa {{ minimo.original | peso }} y como mucho baja a
+            {{ sujeto }} pesa {{ minimo.original | peso }} y como mucho baja a
             <strong>{{ minimoMb?.toLocaleString('es-ES') }} MB</strong>.
           </p>
         }
@@ -122,8 +121,13 @@
   @if (noAlcanzado && resultados.length > 0) {
     <div class="alert alert-warning mt-3 mb-0" role="status">
       <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
-      No se ha podido bajar de {{ noAlcanzado.bytes | peso }} sin destrozar las imágenes. Te
-      dejamos lo más ligero que se ha conseguido. Si sigue sin valerte, prueba a pasarlo a grises
+      @if (noAlcanzados.length > 1 || archivos.length > 1) {
+        No se ha podido llegar al tamaño pedido en {{ noAlcanzados.join(', ') }} sin destrozar
+        las imágenes. Te dejamos lo más ligero que se ha conseguido.
+      } @else {
+        No se ha podido bajar de {{ noAlcanzado.bytes | peso }} sin destrozar las imágenes. Te
+        dejamos lo más ligero que se ha conseguido.
+      } Si sigue sin valerte, prueba a pasarlo a grises
       o a quitar páginas que no hagan falta.
     </div>
   }

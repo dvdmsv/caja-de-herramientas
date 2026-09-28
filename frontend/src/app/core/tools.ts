@@ -28,7 +28,10 @@ export interface Herramienta {
    * mandar un resultado.
    */
   acepta: string;
-  /** Si trabaja con varios archivos a la vez; si no, con uno cada vez. */
+  /**
+   * Si admite varios archivos: juntos (Unir PDF) o uno detrás de otro, como un
+   * lote (`PaginaHerramienta.unoPorUno`). Si no, uno cada vez.
+   */
   varios: boolean;
   /**
    * Otras formas de llamarla, para el buscador del inicio: quien quiere unir
@@ -76,7 +79,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-file-earmark-image',
     categoria: 'PDF',
     acepta: '.pdf',
-    varios: false,
+    varios: true,
     palabras: ['jpg', 'png', 'webp', 'convertir', 'exportar', 'rasterizar'],
     disponible: true,
   },
@@ -153,7 +156,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-file-earmark-lock',
     categoria: 'PDF',
     acepta: '.pdf',
-    varios: false,
+    varios: true,
     palabras: ['contraseña', 'password', 'cifrar', 'bloquear', 'desbloquear', 'quitar contraseña'],
     disponible: true,
   },
@@ -198,7 +201,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-body-text',
     categoria: 'PDF',
     acepta: '.pdf',
-    varios: false,
+    varios: true,
     palabras: ['escaneado', 'reconocer texto', 'texto seleccionable', 'buscable'],
     disponible: true,
   },
@@ -233,7 +236,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-file-earmark-zip',
     categoria: 'PDF',
     acepta: '.pdf',
-    varios: false,
+    varios: true,
     palabras: ['reducir', 'aligerar', 'peso', 'tamaño', 'optimizar', 'linearizar', 'web',
                'mb', 'limite', 'sede electronica', 'maximo'],
     disponible: true,
@@ -245,7 +248,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-droplet-half',
     categoria: 'PDF',
     acepta: '.pdf',
-    varios: false,
+    varios: true,
     palabras: ['sello', 'logo', 'borrador', 'confidencial', 'estampar'],
     disponible: true,
   },
@@ -256,7 +259,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-list-ol',
     categoria: 'PDF',
     acepta: '.pdf',
-    varios: false,
+    varios: true,
     palabras: ['numeros', 'paginacion', 'pie de pagina'],
     disponible: true,
   },
@@ -267,7 +270,7 @@ export const HERRAMIENTAS: Herramienta[] = [
     icono: 'bi-card-image',
     categoria: 'PDF',
     acepta: '.pdf',
-    varios: false,
+    varios: true,
     palabras: ['sacar fotos', 'guardar imagenes', 'fotos'],
     disponible: true,
   },

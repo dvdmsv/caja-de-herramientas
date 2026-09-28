@@ -2,9 +2,8 @@
 
   <app-file-queue
     [items]="archivos"
-    [multiple]="false"
     [deshabilitado]="ocupado"
-    ayuda="Arrastra el PDF que quieras marcar"
+    ayuda="Arrastra los PDF que quieras marcar"
     (agregados)="alAgregar($event)"
     (itemsChange)="alQuitarDocumento()">
   </app-file-queue>
@@ -142,6 +141,11 @@
     [cargando]="previsualizando" [deshabilitado]="ocupado"
     (paginaChange)="cambiarPagina($event)">
   </app-vista-pagina>
+  @if (nombreDeLaVista; as nombre) {
+    <p class="form-text mt-2 mb-0">
+      Vista previa de «{{ nombre }}». Los demás se hacen con los mismos ajustes.
+    </p>
+  }
 
   @if (modo === 'imagen' && imagenId === '' && archivos.length > 0) {
     <p class="text-body-secondary small mt-3 mb-0"

@@ -21,6 +21,7 @@ interface Idioma {
 })
 export class OcrPdfComponent extends PaginaHerramienta {
   protected readonly slug = 'ocr-pdf';
+  protected override readonly unoPorUno = true;
   protected override get mensajeExito(): string {
     return 'Texto reconocido';
   }

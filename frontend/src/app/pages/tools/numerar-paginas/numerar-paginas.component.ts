@@ -19,6 +19,7 @@ interface Opcion { id: string; nombre: string; detalle?: string; }
 })
 export class NumerarPaginasComponent extends PaginaConVista {
   protected readonly slug = 'numerar-paginas';
+  protected override readonly unoPorUno = true;
   protected override get mensajeExito(): string {
     return 'PDF numerado';
   }

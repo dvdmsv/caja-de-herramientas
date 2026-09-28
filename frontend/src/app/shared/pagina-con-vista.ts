@@ -41,6 +41,20 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
     return this.archivos.find(archivo => archivo.estado === 'subido')?.id ?? null;
   }
 
+  /**
+   * En un lote, de qué archivo es la vista previa, para decirlo; con uno solo no
+   * hace falta. Los demás se hacen con los mismos ajustes.
+   */
+  get nombreDeLaVista(): string | null {
+    if (this.archivos.length < 2) {
+      return null;
+    }
+    return this.archivos.find(archivo => archivo.id === this.idDocumento)?.file.name ?? null;
+  }
+
+  /** De cuál son las páginas contadas: si se quita el primero, hay que volver a contar. */
+  private documentoContado: string | null = null;
+
   /** Las herramientas que necesitan algo más lo añaden aquí. */
   protected get puedePrevisualizar(): boolean {
     return this.idDocumento !== null;
@@ -52,6 +66,7 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
     if (!id) {
       return;
     }
+    this.documentoContado = id;
     this.api.paginasDe(id).subscribe({
       next: paginas => {
         this.paginas = paginas;
@@ -75,13 +90,20 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
     this.refrescar();
   }
 
-  /** Quitar el documento deja la vista previa sin sentido. */
+  /**
+   * Quitar el documento deja la vista previa sin sentido. En un lote, quitar el
+   * primero la pasa al siguiente, que tiene sus propias páginas.
+   */
   alQuitarDocumento(): void {
     this.alCambiarLista();
     if (!this.idDocumento) {
       this.paginas = 0;
       this.paginaVista = 1;
+      this.documentoContado = null;
       this.olvidarVista();
+    } else if (this.idDocumento !== this.documentoContado) {
+      this.paginaVista = 1;
+      this.alTerminarSubida();
     }
   }
 
@@ -89,6 +111,7 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
     super.alReiniciar();
     this.paginas = 0;
     this.paginaVista = 1;
+    this.documentoContado = null;
     this.olvidarVista();
   }
 
