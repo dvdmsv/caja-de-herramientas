@@ -6,6 +6,8 @@ name: CI
 on:
   push:
     branches: [master]
+    # Lo que sólo es de la aplicación de Windows lo prueba escritorio.yml.
+    paths-ignore: ['escritorio/**', '.github/workflows/escritorio.yml', '.github/workflows/publicar-escritorio.yml']
   pull_request:
   workflow_dispatch:
 

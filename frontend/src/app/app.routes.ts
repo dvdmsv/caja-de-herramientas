@@ -241,7 +241,7 @@ export const routes: Routes = [
       import('./pages/acerca-de/acerca-de.component').then(m => m.AcercaDeComponent),
   },
   {
-    // Sólo en la aplicación de Windows (rama `escritorio`); no es una herramienta.
+    // Sólo se enlaza en la aplicación de Windows; no es una herramienta.
     path: 'ajustes',
     title: 'Ajustes',
     loadComponent: () => import('./pages/ajustes/ajustes.component').then(m => m.AjustesComponent),

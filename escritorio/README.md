@@ -1,8 +1,10 @@
 # Aplicación de escritorio para Windows
 
 La misma caja de herramientas, instalable en Windows 10 y 11 y funcionando sin
-servidor: los documentos no salen del equipo. **Vive sólo en la rama
-`escritorio`**; `master` es la web y no sabe nada de esto.
+servidor: los documentos no salen del equipo. Vive en `master`, junto a la web:
+comparten el backend y el frontend, y lo propio de la aplicación está en esta
+carpeta y en unos pocos añadidos que en la web no hacen nada (ver «Lo que la
+aplicación añade a la web»).
 
 ## Cómo está hecha
 
@@ -48,8 +50,9 @@ de Windows y recibir lo abierto con «Abrir con…».
 
 ## Compilar
 
-Todo esto lo hace la CI (`.github/workflows/escritorio.yml`) en cada push a la
-rama, y es la forma recomendada: en un Windows limpio, sin nada instalado que
+Todo esto lo hace la CI (`.github/workflows/escritorio.yml`) en cada push a
+`master` que toque código —también si sólo es de la web: la aplicación lleva el
+mismo backend y el mismo frontend—, y es la forma recomendada: en un Windows limpio, sin nada instalado que
 se cuele en el resultado. El instalador sale como artefacto de la ejecución.
 
 **Dos modos de la CI.** En cada push, el instalador sale **sin comprimir** y el
@@ -81,12 +84,12 @@ del sistema.
 ## Publicar una versión
 
 Con un botón: **Actions → «Publicar versión de escritorio» → Run workflow**,
-eligiendo la rama `escritorio` y qué número sube (parche por defecto:
+eligiendo la rama `master` y qué número sube (parche por defecto:
 0.1.0 → 0.1.1). O desde la terminal:
 
 ```bash
-gh workflow run publicar-escritorio.yml --ref escritorio            # parche
-gh workflow run publicar-escritorio.yml --ref escritorio -f tipo=menor
+gh workflow run publicar-escritorio.yml            # parche
+gh workflow run publicar-escritorio.yml -f tipo=menor
 ```
 
 El botón sube el número en `tauri.conf.json`, `Cargo.toml` y `Cargo.lock`
@@ -111,11 +114,10 @@ release no): se arregla y se vuelve a pulsar, y sale el siguiente.
 Crear la etiqueta a mano (`git tag v0.2.0 && git push origin v0.2.0`, con la
 versión ya subida en los tres archivos) sigue funcionando igual.
 
-**El archivo del botón está también en `master`**: GitHub sólo enseña el botón
-de un workflow manual si existe en la rama principal. Es lo único de la
-aplicación que hay allí y no corre en otra rama; si se cambia, en las dos.
+El commit del número lo hace el bot directamente en `master`: si algún día se
+protege la rama para exigir pull requests, hay que dejarle pasar.
 
-El enlace para descargar la última, que es el que va en el README de `master`,
+El enlace para descargar la última, que es el que va en el README principal,
 no cambia nunca:
 <https://github.com/dvdmsv/caja-de-herramientas/releases/latest/download/CajaDeHerramientas-setup.exe>
 
@@ -168,23 +170,22 @@ Al añadir un formato que el menú pueda ofrecer: a `EXTENSIONES` de
 `core/menu-contextual.ts` **y** a `CAJA_MENU_EXTENSIONES` de `ganchos.nsh`, o el
 desinstalador no lo limpiará.
 
-## Traer lo nuevo de la web
+## Lo que la aplicación añade a la web
 
-Las dos ramas van separadas a propósito. Lo que se hace en `master` se replica
-aquí con un merge, **siempre en este sentido**:
+Hasta la 0.1.4 la aplicación vivía en una rama aparte, `escritorio`, que traía
+`master` con un merge. Se juntaron porque lo que la aplicación añade a la web es
+poco y no hace nada allí, medido: la carpeta `escritorio/` no entra en ninguna
+imagen de Docker (los contextos son `./backend` y `./frontend`),
+`backend/escritorio.py` sólo se importa si hay `ESCRITORIO_TOKEN`, y el frontend
+de la web carga 0,67 kB más con gzip. A cambio, un cambio de la web que rompa la
+aplicación se ve en el mismo push, y no semanas después al traerlo.
 
-```bash
-git switch escritorio
-git merge master
-git push            # la CI de Windows lo prueba todo, instalador incluido
-```
+Esto es lo que hay de la aplicación en los archivos de la web. **Al tocarlos,
+que siga sin hacer nada fuera de ella**: en el backend, detrás de
+`config.ESCRITORIO_TOKEN`; en el frontend, detrás de `puente()` /
+`EscritorioService.activo`.
 
-Casi siempre entra solo. Los conflictos, si los hay, salen en los archivos de la
-web que esta rama también toca, y la regla para resolverlos es la misma en
-todos: **quedarse con lo de `master` y volver a poner encima lo de escritorio**,
-que son añadidos pequeños y sin efecto en la web.
-
-| Archivo | Lo que añade esta rama |
+| Archivo | Lo que añade la aplicación |
 |---|---|
 | `backend/api/conversion.py` | `resolver()`, `entorno_de_programas()`, `murio_por_fallo()`, UTF-8, `CREATE_NO_WINDOW` y `taskkill` al cancelar |
 | `backend/api/progreso.py` | `_insistiendo()` alrededor de `os.replace` y `os.unlink` |
@@ -197,7 +198,7 @@ que son añadidos pequeños y sin efecto en la web.
 | `frontend/src/app/app.component.ts`, `pages/home/home.component.ts` | recoger lo abierto con «Abrir con…» |
 | `frontend/src/app/app.component.html` | el aviso del pie cambia en la aplicación: allí no hay servidor ni caducidad de 2 h |
 | `frontend/src/app/pages/acerca-de/` | la versión instalada, que sólo sabe la aplicación |
-| `frontend/src/app/app.routes.ts` | la ruta `ajustes` (la página sólo existe en esta rama) |
+| `frontend/src/app/app.routes.ts` | la ruta `ajustes` (la página sólo sirve en la aplicación) |
 | `frontend/src/app/app.component.html` | además, el enlace a Ajustes en el pie |
 | `frontend/src/app/core/session.service.ts` | `sessionStorage` en vez de `localStorage` cuando hay puente: una sesión por ventana |
 | `frontend/src/app/app.component.html` | además, el botón «Nueva ventana» de la barra, sólo en la aplicación |
@@ -247,9 +248,9 @@ para que aparezcan en «Abrir con…».
   `single-instance` corren en el hilo principal). Fuera de `setup`, siempre con
   `ventanas::crear_aparte`, que la crea desde otro hilo.
 - **El botón «Nueva ventana» usa `bi-plus-lg`, que ya está en la fuente
-  recortada**, a propósito: un icono sólo de esta rama obligaría a regenerar
-  `src/estilos/iconos/` aquí, y el woff2 binario chocaría en cada merge de
-  `master` que añada otro.
+  recortada**. Se eligió cuando la aplicación iba en otra rama, para no
+  regenerar la fuente sólo en ella; ya no hay esa razón y se puede cambiar por
+  `bi-window-plus` regenerando los iconos (`frontend/scripts/generar-iconos.py`).
 
 - **LibreOffice no puede ir en el PATH**: su carpeta `program` trae un
   `python.exe` propio que tapa a cualquier otro. Va por `RUTA_SOFFICE`.

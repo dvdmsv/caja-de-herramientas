@@ -5,8 +5,8 @@ import { DE_SERIE, candidatas, extensionesDe } from '../../core/menu-contextual'
 import { Grupo, Herramienta, agruparPorCategoria, claveDeCategoria } from '../../core/tools';
 
 /**
- * Ajustes de la aplicación de Windows. Sólo existe en la rama `escritorio`, y
- * sólo se enlaza cuando la página va dentro de la aplicación.
+ * Ajustes de la aplicación de Windows. Sólo se enlaza cuando la página va
+ * dentro de la aplicación; en la web la ruta existe, pero no lleva nadie a ella.
  *
  * Lo único que hay hoy es el menú del Explorador: si sale «Caja de
  * herramientas» al hacer clic derecho en un archivo, y con qué acciones. Cada

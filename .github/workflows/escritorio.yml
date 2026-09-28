@@ -1,7 +1,9 @@
 name: Escritorio (Windows)
 
-# La aplicación de escritorio, en un Windows de verdad. Vive sólo en la rama
-# `escritorio`: la CI de la web (`ci.yml`) no se entera de esto.
+# La aplicación de escritorio, en un Windows de verdad. Corre en cada push a
+# `master` que toque código, también si sólo es de la web: la aplicación lleva el
+# mismo backend y el mismo frontend, así que un cambio de la web que la rompa se
+# ve en ese mismo push. La CI de la web (`ci.yml`) va aparte.
 #
 # **No se instala nada en el sistema.** Los programas externos salen de
 # `escritorio/vendor/`, que es lo que irá dentro del instalador, y el backend los
@@ -10,10 +12,22 @@ name: Escritorio (Windows)
 # misma situación que el equipo de quien lo instale.
 on:
   push:
-    branches: [escritorio]
-    # Un cambio que sólo toca documentación no necesita 10 minutos de Windows.
+    branches: [master]
+    # Sólo lo que acaba dentro del instalador o lo prueba. Un cambio de
+    # documentación, del Docker o de nginx no necesita 20 minutos de Windows.
     # (Con las etiquetas no se miran las rutas: siempre corre.)
-    paths-ignore: ['**.md', 'docs/**']
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'escritorio/**'
+      - 'scripts/barrido.py'
+      - '.github/workflows/escritorio.yml'
+      - '!**.md'
+      - '!backend/Dockerfile'
+      - '!backend/.dockerignore'
+      - '!frontend/Dockerfile'
+      - '!frontend/nginx.conf'
+      - '!backend/gunicorn*.py'
     # Una versión: `v0.2.0`. Lo mismo que en cada push y, si todo pasa, se
     # publica en Releases (ver «Publicar la versión»).
     tags: ['v*']

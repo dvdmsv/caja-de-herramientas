@@ -49,8 +49,8 @@ documentos no salen de tu ordenador. Trae dentro todo lo que necesita
 - Aparece en **«Abrir con…»** del Explorador para PDF, imágenes y documentos, sin
   hacerse programa predeterminado de nada.
 
-Se desarrolla en la rama [`escritorio`](https://github.com/dvdmsv/caja-de-herramientas/tree/escritorio),
-que explica en `escritorio/README.md` cómo está hecha y cómo compilarla.
+Cómo está hecha, cómo compilarla y cómo publicar una versión, en
+[`escritorio/README.md`](escritorio/README.md).
 
 ## Herramientas
 
