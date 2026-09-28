@@ -41,7 +41,11 @@
         ],
         "displayLanguageSelector": false,
         "compression": "lzma",
-        "installerHooks": "windows/ganchos.nsh"
+        "installerHooks": "windows/ganchos.nsh",
+        "installerIcon": "icons/instalador.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "headerImage": "windows/cabecera.bmp",
+        "sidebarImage": "windows/lateral.bmp"
       }
     },
     "createUpdaterArtifacts": true
