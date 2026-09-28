@@ -323,6 +323,68 @@ html body .swal2-icon.swal2-info {
   color: var(--bs-secondary-color);
 }
 
+/* El tercer botón («Saltar esta versión» en el aviso de actualización): una
+   salida discreta, que no compita con «Actualizar ahora». */
+html body .swal2-styled.swal2-deny {
+  background-color: transparent;
+  color: var(--bs-secondary-color);
+  text-decoration: underline;
+  font-weight: 400;
+}
+
+/* El aviso de actualización de la aplicación de Windows (`core/novedades.ts`):
+   más ancho que un aviso normal y con las novedades en una lista que se desplaza
+   sola, para que los botones no se salgan nunca de la ventana. Sólo existe en la
+   aplicación, cuya ventana mide como poco 720 × 540: por eso el alto de la lista
+   va en `vh` y no hay más apartado de móvil. */
+html body .swal2-popup.aviso-novedades {
+  width: min(40rem, calc(100vw - 2rem));
+}
+
+.aviso-novedades .swal2-html-container {
+  text-align: left;
+}
+
+.aviso-novedades__lista {
+  max-height: min(18rem, 38vh);
+  overflow-y: auto;
+  margin: 0.5rem 0;
+  padding: 0 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  font-size: 0.95rem;
+}
+
+.aviso-novedades__lista h3 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.aviso-novedades__lista h3 small {
+  color: var(--bs-secondary-color);
+  font-weight: 400;
+}
+
+.aviso-novedades__lista ul {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+}
+
+.aviso-novedades__apartado {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.aviso-novedades__subtitulo,
+.aviso-novedades__pie,
+.aviso-novedades__vacio {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--bs-secondary-color);
+}
+
 /* ─── Accesibilidad ─────────────────────────────────────────────────────── */
 
 /* En oscuro, Bootstrap deja el botón secundario de contorno con su gris de modo

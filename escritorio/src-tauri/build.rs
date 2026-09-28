@@ -17,6 +17,8 @@ const COMANDOS: &[&str] = &[
     "avisar_fin",
     "resultado_autoprueba",
     "nueva_ventana",
+    "actualizacion_pendiente",
+    "responder_actualizacion",
     "elegir_carpeta",
     "elegir_destino",
     "guardar_en_destino",

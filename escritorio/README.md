@@ -48,6 +48,20 @@ pasar por Rust. El frontend sólo se entera de que va dentro de la aplicación
 para dos cosas (`frontend/src/app/core/escritorio.ts`): guardar con el diálogo
 de Windows y recibir lo abierto con «Abrir con…».
 
+## El aspecto del instalador
+
+El icono del `setup.exe` (el de la aplicación con una flecha de descarga) y las
+imágenes del asistente (`windows/lateral.bmp`, `windows/cabecera.bmp`) los dibuja
+`scripts/generar-imagenes-instalador.py` con Pillow, a partir de los colores de
+`icons/icon.png`. Se ejecuta a mano si cambia el icono, y lo generado se versiona:
+
+```bash
+python3 escritorio/scripts/generar-imagenes-instalador.py
+```
+
+Sin ellos, el instalador salía con el icono genérico de NSIS y parecía un
+programa cualquiera.
+
 ## Compilar
 
 Todo esto lo hace la CI (`.github/workflows/escritorio.yml`) en cada push a
@@ -100,8 +114,21 @@ Releases el instalador (con su versión en el nombre y también como
 novedades: los commits desde la versión anterior. Las instalaciones que ya hay
 lo ofrecen al abrirse.
 
-**Lo que ve quien actualiza**: al abrirla, un aviso con «Actualizar» y «Ahora
-no». Al aceptar, una capa sobre la página con la descarga (porcentaje y MB) y la
+**Lo que ve quien actualiza**: al abrirla, un aviso dentro de la aplicación con
+**lo que trae cada versión desde la suya** (también las que se haya saltado),
+para que decida si le compensa: «Actualizar ahora», «Ahora no» (vuelve a
+preguntar la próxima vez) y «Saltar esta versión» (no vuelve a avisar de ella;
+se guarda en `ajustes.json`, `version_saltada`). Las novedades son **las notas de
+cada release**, que la página pide a la API de GitHub (`core/novedades.ts`); si
+no contesta, las de la última, que van en el `notes` de `latest.json`. O sea: el
+tipo de cada commit (`feat`, `fix`) decide lo que lee la gente.
+
+Para probar el aviso sin publicar dos versiones seguidas, `CAJA_ACTUALIZACIONES`
+cambia de dónde se lee `latest.json`: basta uno que anuncie un número mayor con
+el instalador y la firma de una release de verdad. La firma se sigue
+comprobando, así que no abre ninguna puerta.
+
+Al aceptar, una capa sobre la página con la descarga (porcentaje y MB) y la
 misma barra en el icono de la barra de tareas; después, «Instalando…» y la
 ventana de progreso de NSIS, y la aplicación se vuelve a abrir sola. Si la
 descarga falla, se dice y se sigue con la versión que hay. La capa está en

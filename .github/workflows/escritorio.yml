@@ -333,6 +333,7 @@ jobs:
           if ($r.pendientes.error) { $fallos += "archivos_pendientes: $($r.pendientes.error)" }
           if ($r.leer.error -notmatch 'no se ha abierto con la aplicaci') { $fallos += "leer_archivo: $($r.leer | ConvertTo-Json -Compress)" }
           if ($r.menu.error) { $fallos += "menu_contextual: $($r.menu.error)" }
+          if ($r.actualizacion.error) { $fallos += "actualizacion_pendiente: $($r.actualizacion.error)" }
           if ($fallos) { throw ("El puente con Tauri no funciona:`n - " + ($fallos -join "`n - ")) }
           'El puente con Tauri funciona: la página llega a los comandos de la aplicación.'
           # De golpe, como el Administrador de tareas: sin dar ocasión a cerrar
@@ -437,10 +438,37 @@ jobs:
           $nombre = "CajaDeHerramientas_${version}_x64-setup.exe"
           Copy-Item '${{ steps.instalador.outputs.ruta }}' $nombre
           $firma = Get-Content '${{ steps.instalador.outputs.ruta }}.sig' -Raw
-          # Lo que lee el actualizador de las instalaciones que ya hay.
+          # Las novedades: los commits desde la versión anterior, pero sólo los
+          # que cuentan algo a quien la usa, `feat` y `fix`. Desde que la
+          # aplicación vive en `master` entran también los de documentación, CI
+          # y despliegue de la web, que no le dicen nada. Sin prefijo ni ámbito:
+          # «feat(escritorio): varias ventanas» sale como «Varias ventanas».
+          #
+          # Es lo que lee la gente: en la página de la release y en el aviso de
+          # actualización de la aplicación, que las pide a GitHub
+          # (`frontend/src/app/core/novedades.ts` entiende este formato).
+          $anterior = git describe --tags --abbrev=0 "$etiqueta^" 2>$null
+          $rango = if ($anterior) { "$anterior..$etiqueta" } else { $etiqueta }
+          $patron = '^(feat|fix)(\([^)]*\))?!?:\s*(.+)$'
+          $novedades = @(); $arreglos = @()
+          foreach ($asunto in git log --no-merges --format='%s' $rango) {
+            if ($asunto -match $patron) {
+              $texto = $Matches[3].Substring(0, 1).ToUpper() + $Matches[3].Substring(1)
+              if ($Matches[1] -eq 'feat') { $novedades += "- $texto" } else { $arreglos += "- $texto" }
+            }
+          }
+          $desde = if ($anterior) { " desde $anterior" } else { '' }
+          $cambios = @(
+            if ($novedades) { "## Novedades$desde"; ''; $novedades; '' }
+            if ($arreglos) { "## Arreglos$desde"; ''; $arreglos; '' }
+            if (-not $novedades -and -not $arreglos) { 'Mejoras internas y de rendimiento.' }
+          ) -join "`n"
+          # Lo que lee el actualizador de las instalaciones que ya hay. `notes`
+          # lleva las novedades de esta versión: el aviso las enseña si no puede
+          # pedir a GitHub las de todas las versiones que se ha saltado.
           @{
             version = $version
-            notes = "Versión $version de la Caja de herramientas."
+            notes = $cambios.Trim()
             pub_date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
             platforms = @{
               'windows-x86_64' = @{
@@ -455,28 +483,6 @@ jobs:
           # nunca: releases/latest/download/CajaDeHerramientas-setup.exe lleva
           # siempre a la última. Es el que se enlaza desde el README de master.
           Copy-Item $nombre 'CajaDeHerramientas-setup.exe'
-          # Las novedades: los commits desde la versión anterior, pero sólo los
-          # que cuentan algo a quien la usa, `feat` y `fix`. Desde que la
-          # aplicación vive en `master` entran también los de documentación, CI
-          # y despliegue de la web, que no le dicen nada. Sin prefijo ni ámbito:
-          # «feat(escritorio): varias ventanas» sale como «Varias ventanas».
-          $anterior = git describe --tags --abbrev=0 "$etiqueta^" 2>$null
-          $rango = if ($anterior) { "$anterior..$etiqueta" } else { $etiqueta }
-          $patron = '^(feat|fix)(\([^)]*\))?!?:\s*(.+)$'
-          $novedades = @(); $arreglos = @()
-          foreach ($asunto in git log --no-merges --format='%s' $rango) {
-            if ($asunto -match $patron) {
-              $texto = $Matches[3].Substring(0, 1).ToUpper() + $Matches[3].Substring(1)
-              if ($Matches[1] -eq 'feat') { $novedades += "- $texto" } else { $arreglos += "- $texto" }
-            }
-          }
-          $desde = if ($anterior) { " desde $anterior" } else { '' }
-          $notas = @(
-            'Instalador para Windows 10 y 11 (64 bits). ' + $firmado
-            ''
-            if ($novedades) { "## Novedades$desde"; ''; $novedades; '' }
-            if ($arreglos) { "## Arreglos$desde"; ''; $arreglos; '' }
-            if (-not $novedades -and -not $arreglos) { 'Mejoras internas y de rendimiento.' }
-          ) -join "`n"
+          $notas = @('Instalador para Windows 10 y 11 (64 bits). ' + $firmado, '', $cambios) -join "`n"
           gh release create $etiqueta $nombre 'CajaDeHerramientas-setup.exe' latest.json `
             --title "Caja de herramientas $version" --notes $notas

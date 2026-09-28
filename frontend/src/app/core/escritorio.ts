@@ -20,6 +20,7 @@
  */
 
 import { AccionMenu, AjustesMenu } from './menu-contextual';
+import type { AvisoActualizacion } from './novedades';
 
 /** Lo poco de `__TAURI_INTERNALS__` que se usa. */
 export interface PuenteTauri {
@@ -28,6 +29,9 @@ export interface PuenteTauri {
 
 /** El evento con el que main.rs avisa de que han llegado archivos nuevos. */
 export const EVENTO_ABIERTOS = 'escritorio:archivos-abiertos';
+
+/** El evento con el que main.rs avisa de que hay una versión nueva. */
+export const EVENTO_ACTUALIZACION = 'escritorio:actualizacion';
 
 export function puente(ventana: unknown = globalThis): PuenteTauri | null {
   const internos = (ventana as { __TAURI_INTERNALS__?: Partial<PuenteTauri> }).__TAURI_INTERNALS__;
@@ -151,6 +155,18 @@ export async function guardarEnDestino(tauri: PuenteTauri, blob: Blob, nombre: s
 /** Abre otra ventana de la aplicación, vacía y con su propia sesión. */
 export async function nuevaVentana(tauri: PuenteTauri): Promise<void> {
   await tauri.invoke('nueva_ventana');
+}
+
+/** La versión nueva que ha encontrado main.rs, una sola vez; `null` si no hay o ya la enseñó otra ventana. */
+export async function actualizacionPendiente(tauri: PuenteTauri): Promise<AvisoActualizacion | null> {
+  return ((await tauri.invoke('actualizacion_pendiente')) as AvisoActualizacion | null) ?? null;
+}
+
+/** Lo que ha decidido la persona en el aviso de actualización. */
+export async function responderActualizacion(
+  tauri: PuenteTauri, respuesta: 'actualizar' | 'saltar' | 'despues',
+): Promise<void> {
+  await tauri.invoke('responder_actualizacion', { respuesta });
 }
 
 /** Cómo está el menú del Explorador. */

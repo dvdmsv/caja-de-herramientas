@@ -4,12 +4,14 @@ import { Subject } from 'rxjs';
 import Swal from 'sweetalert2';
 
 import {
-  AVISO_DESDE_MS, EVENTO_ABIERTOS, acortarCarpeta, aplicarMenuContextual, avisarFin, describirGuardado, elegirCarpeta, elegirDestino,
+  AVISO_DESDE_MS, EVENTO_ABIERTOS, EVENTO_ACTUALIZACION, acortarCarpeta, actualizacionPendiente,
+  responderActualizacion, aplicarMenuContextual, avisarFin, describirGuardado, elegirCarpeta, elegirDestino,
   esFaltaDePermiso, guardarConDialogo, guardarEnDestino, leerMenuContextual, mostrarGuardado, nuevaVentana, progresoTarea, puente, recogerAbiertos,
   textoDelAviso, versionDeLaAplicacion,
 } from './escritorio';
 import { AvanceTrabajo } from '../shared/progreso';
 import { AjustesMenu, accionesMarcadas, extensionesQueAcepta } from './menu-contextual';
+import type { AvisoActualizacion, NovedadesDeVersion, ReleaseGitHub } from './novedades';
 import { avisoError, avisoInfo, mensajeDeError } from '../shared/notify';
 import { buscarPorSlug, rutaDe } from './tools';
 import { TraspasoService } from './traspaso.service';
@@ -47,6 +49,10 @@ export class EscritorioService {
     // main.rs avisa con un evento del DOM, que zone.js no ve como propio si
     // llega por `eval`: se vuelve a la zona para que se pinte.
     window.addEventListener(EVENTO_ABIERTOS, () => this.zona.run(() => this.recoger()));
+    // La versión nueva: si main.rs la encuentra con la página ya cargada, avisa
+    // con el evento; si la encontró antes, se pregunta aquí al arrancar.
+    window.addEventListener(EVENTO_ACTUALIZACION, () => this.zona.run(() => this.avisarDeActualizacion()));
+    this.avisarDeActualizacion();
     // Ctrl+N, como en cualquier programa de Windows. También escribiendo en un
     // campo: ahí no significa nada, y sin `preventDefault` WebView2 abriría una
     // ventana suya, sin nada de lo que main.rs le pone a las de la aplicación.
@@ -57,6 +63,68 @@ export class EscritorioService {
       }
     });
     this.recoger();
+  }
+
+  /**
+   * El aviso de versión nueva, con lo que trae cada versión desde la instalada
+   * para que cada uno decida si le compensa actualizar ya (ver `novedades.ts`).
+   * Con varias ventanas, lo enseña sólo la primera que lo pide.
+   */
+  private async avisarDeActualizacion(): Promise<void> {
+    let aviso: AvisoActualizacion | null;
+    try {
+      aviso = await actualizacionPendiente(this.tauri!);
+    } catch (error) {
+      console.warn('No se ha podido preguntar por la versión nueva.', error);
+      return;
+    }
+    if (!aviso) {
+      return;
+    }
+    // Se carga aquí y no arriba: sólo lo usa la aplicación, y en la web serían
+    // kilobytes de más para todo el mundo en la carga inicial.
+    const { htmlDelAviso } = await import('./novedades');
+    const { versiones, completas } = await this.novedades(aviso);
+    const respuesta = await Swal.fire({
+      title: `Versión ${aviso.version} disponible`,
+      html: htmlDelAviso(aviso, versiones, completas),
+      customClass: { popup: 'aviso-novedades' },
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: 'Actualizar ahora',
+      cancelButtonText: 'Ahora no',
+      denyButtonText: 'Saltar esta versión',
+      // Cerrar el aviso de cualquier otra forma es «Ahora no»: vuelve a
+      // preguntar la próxima vez que se abra la aplicación.
+      focusConfirm: true,
+    });
+    const decision = respuesta.isConfirmed ? 'actualizar' : respuesta.isDenied ? 'saltar' : 'despues';
+    responderActualizacion(this.tauri!, decision)
+      .catch(error => avisoError(mensajeDeError(error, 'No se ha podido actualizar.')));
+  }
+
+  /**
+   * Las novedades de todas las versiones desde la instalada, pedidas a GitHub.
+   * Si no contesta en unos segundos, las de la última, que trae el aviso.
+   */
+  private async novedades(aviso: AvisoActualizacion): Promise<{ versiones: NovedadesDeVersion[]; completas: boolean }> {
+    const { RELEASES, novedadesEntre, soloLaUltima } = await import('./novedades');
+    try {
+      const respuesta = await fetch(RELEASES, {
+        headers: { Accept: 'application/vnd.github+json' },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!respuesta.ok) {
+        throw new Error(`GitHub ha contestado ${respuesta.status}`);
+      }
+      const versiones = novedadesEntre((await respuesta.json()) as ReleaseGitHub[], aviso.instalada, aviso.version);
+      if (versiones.length > 0) {
+        return { versiones, completas: true };
+      }
+    } catch (error) {
+      console.warn('No se han podido pedir las novedades a GitHub.', error);
+    }
+    return { versiones: soloLaUltima(aviso), completas: false };
   }
 
   /** Otra ventana de la aplicación, vacía y con su propia sesión. */

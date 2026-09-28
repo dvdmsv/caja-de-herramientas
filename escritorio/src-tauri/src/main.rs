@@ -41,14 +41,14 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use tauri::window::{ProgressBarState, ProgressBarStatus};
-use tauri::{AppHandle, Manager, RunEvent, WebviewWindow, WindowEvent};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+use tauri::{AppHandle, Manager, RunEvent, Url, WebviewWindow, WindowEvent};
+use tauri_plugin_dialog::DialogExt;
 
 use ventanas::{Servidor, PRINCIPAL};
 
@@ -215,6 +215,7 @@ fn main() {
         .manage(Abiertos::default())
         .manage(UltimoGuardado::default())
         .manage(Destinos::default())
+        .manage(Actualizacion::default())
         .manage(Servidor::default())
         .invoke_handler(tauri::generate_handler![
             guardar_como,
@@ -227,6 +228,8 @@ fn main() {
             avisar_fin,
             resultado_autoprueba,
             nueva_ventana,
+            actualizacion_pendiente,
+            responder_actualizacion,
             elegir_carpeta,
             elegir_destino,
             guardar_en_destino,
@@ -269,13 +272,41 @@ fn main() {
 
 // --- Actualizaciones ---------------------------------------------------------
 
-/// Mira si hay una versión nueva en GitHub Releases y, si la hay, pregunta.
+/// La versión nueva que se ha encontrado, a la espera de que la persona diga
+/// qué hacer con ella.
+#[derive(Default)]
+struct Actualizacion {
+    nueva: Mutex<Option<tauri_plugin_updater::Update>>,
+    /// Si alguna ventana ya la ha enseñado: con varias abiertas, sólo una
+    /// pregunta.
+    ensenada: AtomicBool,
+}
+
+/// Lo que la página necesita para enseñar el aviso. Las novedades de cada
+/// versión las pide ella a GitHub; `notas` son sólo las de la última, las de
+/// `latest.json`, para cuando GitHub no conteste.
+#[derive(serde::Serialize)]
+struct AvisoActualizacion {
+    version: String,
+    instalada: String,
+    notas: Option<String>,
+    fecha: Option<String>,
+}
+
+/// Mira si hay una versión nueva en GitHub Releases y, si la hay, avisa a la
+/// página, que enseña qué trae y pregunta (`actualizacion_pendiente`).
 ///
 /// Preguntando y no por su cuenta: instalar cierra la aplicación, y alguien
-/// puede estar a mitad de un trabajo. Sin red, o sin versión nueva, no se dice
-/// nada. La descarga la comprueba el plugin con la clave pública de
-/// `tauri.conf.json` antes de ejecutar nada: un instalador que no esté firmado
-/// con la privada (que sólo tiene la CI) se rechaza.
+/// puede estar a mitad de un trabajo. Y enseñando las novedades, para que cada
+/// uno decida si le compensa ahora o no. Sin red, sin versión nueva o con la
+/// versión que se pidió saltar, no se dice nada. La descarga la comprueba el
+/// plugin con la clave pública de `tauri.conf.json` antes de ejecutar nada: un
+/// instalador que no esté firmado con la privada (que sólo tiene la CI) se
+/// rechaza.
+///
+/// `CAJA_ACTUALIZACIONES` cambia de dónde se lee `latest.json`. Es sólo para
+/// probar el aviso sin publicar dos versiones seguidas; la firma se comprueba
+/// igual, así que no abre ninguna puerta.
 ///
 /// En Windows, instalar lanza el instalador y cierra este proceso; el job se
 /// lleva el backend por delante.
@@ -283,25 +314,60 @@ fn buscar_actualizacion(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         use tauri_plugin_updater::UpdaterExt;
 
-        let Ok(actualizador) = app.updater() else { return };
+        let otra_direccion = std::env::var("CAJA_ACTUALIZACIONES").ok().and_then(|url| Url::parse(&url).ok());
+        let actualizador = match otra_direccion {
+            Some(url) => app.updater_builder().endpoints(vec![url]).and_then(|builder| builder.build()),
+            None => app.updater(),
+        };
+        let Ok(actualizador) = actualizador else { return };
         let Ok(Some(nueva)) = actualizador.check().await else { return };
-        let texto = format!(
-            "Hay una versión nueva de la Caja de herramientas: la {}. Tienes la {}.\n\n\
-             ¿La instalo ahora? La aplicación se cerrará un momento y volverá a abrirse.",
-            nueva.version, nueva.current_version
-        );
-        let para_instalar = app.clone();
-        app.dialog()
-            .message(texto)
-            .title("Actualización disponible")
-            .kind(MessageDialogKind::Info)
-            .buttons(MessageDialogButtons::OkCancelCustom("Actualizar".into(), "Ahora no".into()))
-            .show(move |acepta| {
-                if acepta {
-                    tauri::async_runtime::spawn(instalar(para_instalar, nueva));
-                }
-            });
+        if menu::leer(&app).version_saltada.as_deref() == Some(nueva.version.as_str()) {
+            return;
+        }
+        *app.state::<Actualizacion>().nueva.lock().unwrap() = Some(nueva);
+        // Las páginas ya cargadas lo recogen ahora; las que aún no, al arrancar.
+        for ventana in app.webview_windows().into_values() {
+            let _ = ventana.eval("window.dispatchEvent(new Event('escritorio:actualizacion'))");
+        }
     });
+}
+
+/// La versión nueva, si la hay y ninguna otra ventana la ha enseñado ya.
+#[tauri::command]
+fn actualizacion_pendiente(actualizacion: tauri::State<'_, Actualizacion>) -> Option<AvisoActualizacion> {
+    let nueva = actualizacion.nueva.lock().unwrap().clone()?;
+    if actualizacion.ensenada.swap(true, Ordering::SeqCst) {
+        return None;
+    }
+    Some(AvisoActualizacion {
+        fecha: nueva.raw_json.get("pub_date").and_then(|fecha| fecha.as_str()).map(String::from),
+        version: nueva.version,
+        instalada: nueva.current_version,
+        notas: nueva.body,
+    })
+}
+
+/// Lo que ha decidido la persona: `actualizar`, `saltar` (no volver a avisar
+/// de esta versión) o `despues` (preguntar la próxima vez que se abra).
+#[tauri::command]
+fn responder_actualizacion(app: AppHandle, respuesta: String) -> Result<(), String> {
+    let actualizacion = app.state::<Actualizacion>();
+    match respuesta.as_str() {
+        "actualizar" => {
+            let nueva = actualizacion.nueva.lock().unwrap().take().ok_or("No hay ninguna versión nueva.")?;
+            tauri::async_runtime::spawn(instalar(app.clone(), nueva));
+            Ok(())
+        }
+        "saltar" => {
+            let version = actualizacion.nueva.lock().unwrap().take().map(|nueva| nueva.version);
+            match version {
+                Some(version) => menu::saltar_version(&app, &version),
+                None => Ok(()),
+            }
+        }
+        "despues" => Ok(()),
+        otra => Err(format!("Respuesta desconocida: {otra}")),
+    }
 }
 
 /// Descarga e instala, enseñando en todo momento qué está pasando.

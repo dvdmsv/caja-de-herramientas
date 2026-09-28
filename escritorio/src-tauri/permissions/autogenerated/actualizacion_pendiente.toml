@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-actualizacion-pendiente"
+description = "Enables the actualizacion_pendiente command without any pre-configured scope."
+commands.allow = ["actualizacion_pendiente"]
+
+[[permission]]
+identifier = "deny-actualizacion-pendiente"
+description = "Denies the actualizacion_pendiente command without any pre-configured scope."
+commands.deny = ["actualizacion_pendiente"]

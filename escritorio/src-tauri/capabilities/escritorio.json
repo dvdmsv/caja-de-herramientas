@@ -22,6 +22,8 @@
     "allow-avisar-fin",
     "allow-resultado-autoprueba",
     "allow-nueva-ventana",
+    "allow-actualizacion-pendiente",
+    "allow-responder-actualizacion",
     "allow-elegir-carpeta",
     "allow-elegir-destino",
     "allow-guardar-en-destino"

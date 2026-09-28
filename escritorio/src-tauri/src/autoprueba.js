@@ -27,6 +27,8 @@
     // comando con su error, no Tauri con un rechazo por permisos.
     leer: await probar(() => t.invoke('leer_archivo', { ruta: 'C:\\no-existe.pdf' })),
     menu: await probar(() => t.invoke('menu_contextual')),
+    // Sin versión nueva contesta `null`; lo que importa es que conteste él.
+    actualizacion: await probar(() => t.invoke('actualizacion_pendiente')),
   };
   await t.invoke('resultado_autoprueba', { resultado: JSON.stringify(resultado) });
 })();

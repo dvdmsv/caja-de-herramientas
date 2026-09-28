@@ -33,6 +33,11 @@ pub struct Ajustes {
     /// Dónde se escribió la última vez, para poder borrarlo todo después.
     #[serde(default)]
     pub extensiones_escritas: Vec<String>,
+    /// La versión que se ha pedido saltar en el aviso de actualización: no se
+    /// vuelve a avisar de ella, sí de la siguiente. No es del menú, pero vive en
+    /// el mismo archivo de ajustes.
+    #[serde(default)]
+    pub version_saltada: Option<String>,
 }
 
 /// Una acción tal como la manda el frontend.
@@ -77,6 +82,13 @@ fn guardar(app: &AppHandle, ajustes: &Ajustes) -> Result<(), String> {
     fs::write(ruta, texto).map_err(|e| e.to_string())
 }
 
+/// Apunta que no se avise más de esta versión (ver `Ajustes::version_saltada`).
+pub fn saltar_version(app: &AppHandle, version: &str) -> Result<(), String> {
+    let mut ajustes = leer(app);
+    ajustes.version_saltada = Some(version.to_string());
+    guardar(app, &ajustes)
+}
+
 /// Pone o quita el menú según `activo`, con las acciones dadas, y lo recuerda.
 pub fn aplicar(app: &AppHandle, activo: bool, acciones: Vec<AccionMenu>) -> Result<Ajustes, String> {
     for accion in &acciones {
@@ -101,6 +113,7 @@ pub fn aplicar(app: &AppHandle, activo: bool, acciones: Vec<AccionMenu>) -> Resu
         activo,
         acciones: acciones.into_iter().map(|a| a.slug).collect(),
         extensiones_escritas,
+        version_saltada: leer(app).version_saltada,
     };
     guardar(app, &ajustes)?;
     Ok(ajustes)
