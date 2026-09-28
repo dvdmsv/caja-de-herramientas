@@ -234,6 +234,28 @@ def _fabricar(carpeta):
     with open(f'{carpeta}/correo.eml', 'wb') as fichero:
         fichero.write(bytes(correo))
 
+    # Un EPUB mínimo, escrito aquí con zipfile para no depender del escritor de
+    # EPUB del backend, que es justo una de las cosas que se prueban.
+    import zipfile
+    with zipfile.ZipFile(f'{carpeta}/libro.epub', 'w', zipfile.ZIP_DEFLATED) as libro:
+        libro.writestr(zipfile.ZipInfo('mimetype'), 'application/epub+zip', compress_type=zipfile.ZIP_STORED)
+        libro.writestr('META-INF/container.xml',
+                       '<?xml version="1.0"?><container version="1.0" '
+                       'xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+                       '<rootfile full-path="libro.opf" media-type="application/oebps-package+xml"/>'
+                       '</rootfiles></container>')
+        libro.writestr('libro.opf',
+                       '<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" '
+                       'unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+                       '<dc:identifier id="id">barrido</dc:identifier><dc:title>Libro de prueba</dc:title>'
+                       '<dc:language>es</dc:language></metadata><manifest>'
+                       '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/></manifest>'
+                       '<spine><itemref idref="c1"/></spine></package>')
+        libro.writestr('c1.xhtml',
+                       '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Uno</title>'
+                       '</head><body><h1>Capítulo uno</h1>' + '<p>Érase una vez un libro de prueba.</p>' * 40
+                       + '</body></html>')
+
 
 def subir(ruta):
     codigo, cuerpo = peticion('POST', '/api/files', archivo=ruta)
@@ -258,6 +280,7 @@ def main():
     xlsx = subir(f'{carpeta}/cuentas.xlsx')
     pptx_ = subir(f'{carpeta}/charla.pptx')
     eml = subir(f'{carpeta}/correo.eml')
+    epub = subir(f'{carpeta}/libro.epub')
 
     print('\n=== PDF ===')
     prueba('unir-pdf', '/api/tools/unir-pdf', {'file_ids': [pdf, pdf2]})
@@ -347,6 +370,9 @@ def main():
     prueba('a-markdown (correo)', '/api/tools/a-markdown', {'file_ids': [eml]})
     prueba('correo-a-pdf', '/api/tools/correo-a-pdf', {'file_ids': [eml]})
     prueba('pdf-a-word', '/api/tools/pdf-a-word', {'file_ids': [pdf]})
+    prueba('epub-a-pdf', '/api/tools/epub-a-pdf', {'file_ids': [epub], 'pagina': 'a5'})
+    prueba('pdf-a-epub/inspec', '/api/tools/pdf-a-epub/inspeccionar', {'file_ids': [pdf]})
+    prueba('pdf-a-epub', '/api/tools/pdf-a-epub', {'file_ids': [pdf], 'titulo': 'Memoria'})
 
     print('\n=== Lo que tiene que fallar ===')
     codigo, cuerpo = peticion('POST', '/api/tools/pdf-a-imagen',

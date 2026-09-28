@@ -161,6 +161,15 @@ export interface ZonasAnonimizado {
   ejemplos?: string[];
 }
 
+/** Lo que se sabe de un PDF antes de pasarlo a EPUB. */
+export interface DatosDelLibro {
+  titulo: string;
+  autor: string;
+  paginas: number;
+  /** `false` en un escaneado: hace falta pasarlo antes por el OCR. */
+  con_texto: boolean;
+}
+
 /** Lo que dice el servidor al probar una expresión: cada línea, en trozos. */
 export interface PruebaExpresion {
   total: number;
@@ -467,6 +476,11 @@ export class ApiService {
       Observable<ZonasAnonimizado> {
     return this.http.post<ZonasAnonimizado>('/api/tools/anonimizar-pdf/inspeccionar',
                                             { file_ids: [id], tipos, patron });
+  }
+
+  /** Título, autor y si tiene texto, para rellenar «PDF a EPUB» antes de convertir. */
+  datosDelLibro(id: string): Observable<DatosDelLibro> {
+    return this.http.post<DatosDelLibro>('/api/tools/pdf-a-epub/inspeccionar', { file_ids: [id] });
   }
 
   /**

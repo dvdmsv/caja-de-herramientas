@@ -143,10 +143,19 @@ class Tabla:
 # ─── Lectura ────────────────────────────────────────────────────────────────
 
 
-def pdf_a_markdown(ruta: str) -> str:
+def pdf_a_markdown(ruta: str, imagenes: dict | None = None) -> str:
+    """El PDF en Markdown.
+
+    Con `imagenes` (un diccionario vacío), además coloca cada imagen del PDF en
+    su sitio del texto como `![](imagenes/img-001.png)` y deja sus bytes en el
+    diccionario con esa misma ruta. Lo usa «PDF a EPUB», donde un libro sin sus
+    ilustraciones está incompleto. **Va apagado de serie**: «Documento a
+    Markdown» y «Comparar PDF» no lo piden, y para ellos una imagen sería ruido.
+    """
     with fitz.open(ruta) as documento:
         paginas = [_leer_pagina(pagina, numero) for numero, pagina in enumerate(documento)]
         alto = [pagina.rect.height for pagina in documento]
+        colocadas = _imagenes(documento, imagenes) if imagenes is not None else {}
 
     cuerpo, pies = _quitar_cabeceras_y_pies(paginas, alto, len(alto))
     lineas = [linea for _, lineas_pagina, _ in cuerpo for linea in lineas_pagina]
@@ -157,7 +166,7 @@ def pdf_a_markdown(ruta: str) -> str:
     bloques = []
     for numero, lineas_pagina, tablas in cuerpo:
         renglones = _renglones(lineas_pagina, numero)
-        de_la_pagina = _componer_pagina(renglones, tablas, tamano_cuerpo)
+        de_la_pagina = _componer_pagina(renglones, tablas, tamano_cuerpo, colocadas.get(numero, []))
         bloques.extend(de_la_pagina)
         if numero == 0 and len(cuerpo) > 1 and _es_portada(de_la_pagina, tamano_cuerpo):
             bloques.append(Bloque('salto'))
@@ -189,6 +198,82 @@ def _leer_pagina(pagina: fitz.Page, numero: int):
     lineas = _sin_negrita_simulada(lineas)
     _poner_casillas(pagina, lineas)
     return numero, lineas, [tabla for _, tabla in tablas]
+
+
+# Lo más pequeño que se considera una imagen de contenido, en puntos por lado.
+# Por debajo son adornos: viñetas dibujadas, iconos de un pie, separadores.
+IMAGEN_MINIMA = 48
+
+# Una imagen que sale en tantas páginas o más es decoración (el logotipo de la
+# cabecera, una trama de fondo), igual que el texto que se repite en las franjas.
+IMAGEN_REPETIDA = 3
+
+# Los formatos que un lector de EPUB enseña tal cual; los demás (JPEG 2000,
+# JBIG2, TIFF…) se pasan a PNG.
+FORMATOS_WEB = {'png', 'jpeg', 'jpg', 'gif'}
+
+
+def _imagenes(documento: fitz.Document, destino: dict) -> dict:
+    """Las imágenes de contenido de cada página, como bloques con su altura.
+
+    Deja los bytes en `destino`, con la ruta con la que las nombra el Markdown.
+    Cada imagen se guarda una vez aunque se use en varios sitios.
+    """
+    usos = Counter()
+    por_pagina = []
+    for pagina in documento:
+        vistas = []
+        for info in pagina.get_image_info(xrefs=True):
+            caja = fitz.Rect(info['bbox']) & pagina.rect
+            if caja.is_empty or caja.width < IMAGEN_MINIMA or caja.height < IMAGEN_MINIMA:
+                continue
+            vistas.append((info.get('xref', 0), caja))
+        usos.update({xref for xref, _ in vistas if xref})
+        por_pagina.append(vistas)
+
+    colocadas: dict[int, list] = {}
+    nombres: dict[int, str] = {}
+    for numero, vistas in enumerate(por_pagina):
+        for xref, caja in vistas:
+            if xref and usos[xref] >= IMAGEN_REPETIDA:
+                continue
+            nombre = nombres.get(xref) if xref else None
+            if nombre is None:
+                datos, extension = _bytes_de_imagen(documento, documento[numero], xref, caja)
+                if not datos:
+                    continue
+                nombre = f'imagenes/img-{len(destino) + 1:03d}.{extension}'
+                destino[nombre] = datos
+                if xref:
+                    nombres[xref] = nombre
+            colocadas.setdefault(numero, []).append(Bloque('imagen', items=[nombre], y0=caja.y0))
+    return colocadas
+
+
+def _bytes_de_imagen(documento: fitz.Document, pagina: fitz.Page, xref: int, caja: fitz.Rect):
+    """Los bytes de una imagen, en un formato que un lector de EPUB sepa enseñar.
+
+    Tal cual si ya lo está (una foto sigue siendo el mismo JPEG, sin perder
+    calidad); si lleva transparencia aparte o viene en un formato de impresión,
+    en PNG. Las que no tienen `xref` (imágenes metidas en el propio contenido de
+    la página) se rasterizan recortando su caja.
+    """
+    try:
+        if not xref:
+            return pagina.get_pixmap(clip=caja, dpi=150).tobytes('png'), 'png'
+        extraida = documento.extract_image(xref)
+        extension = (extraida.get('ext') or '').lower()
+        if extraida.get('smask') or extension not in FORMATOS_WEB:
+            mapa = fitz.Pixmap(documento, xref)
+            if extraida.get('smask'):
+                mapa = fitz.Pixmap(mapa, fitz.Pixmap(documento, extraida['smask']))
+            if mapa.n - mapa.alpha >= 4:  # CMYK: un PNG no lo admite
+                mapa = fitz.Pixmap(fitz.csRGB, mapa)
+            return mapa.tobytes('png'), 'png'
+        return extraida['image'], 'jpg' if extension == 'jpeg' else extension
+    except (RuntimeError, ValueError):
+        # Una imagen que MuPDF no sabe leer se queda fuera; el resto del libro, no.
+        return None, ''
 
 
 def _poner_casillas(pagina: fitz.Page, lineas: list[Linea]) -> None:
@@ -291,7 +376,17 @@ def merece_ser_tabla(columnas: int, filas: int, llenas: int, lineas_en_la_mayor:
 
 
 def _tablas_con_rejilla(pagina: fitz.Page, numero: int):
-    """Las tablas que se ven dibujadas. Descarta lo que sólo es un marco."""
+    """Las tablas que se ven dibujadas. Descarta lo que sólo es un marco.
+
+    Sin al menos dos bordes horizontales y dos verticales dibujados no puede
+    haber una celda —la estrategia de `find_tables` sale de las líneas y los
+    rectángulos—, y es lo que tiene una novela en casi todas sus páginas. Mirarlo
+    antes cuesta muy poco y ahorra `find_tables`, que es casi todo el tiempo de
+    un libro largo. Los rectángulos que cubren la página entera no cuentan: son
+    el fondo, y un PDF sacado de un EPUB lleva uno en cada página.
+    """
+    if not _puede_tener_rejilla(pagina):
+        return []
     try:
         encontradas = pagina.find_tables().tables
     except Exception:  # noqa: BLE001 — una detección fallida no debe tumbar la conversión
@@ -308,6 +403,28 @@ def _tablas_con_rejilla(pagina: fitz.Page, numero: int):
             continue
         resultado.append((tabla.bbox, _tabla_de_celdas(celdas, tabla.bbox[1], numero)))
     return resultado
+
+
+def _puede_tener_rejilla(pagina: fitz.Page) -> bool:
+    """Si lo dibujado en la página da para formar al menos una celda."""
+    area = abs(pagina.rect)
+    horizontales = verticales = 0
+    for dibujo in pagina.get_cdrawings():
+        if abs(fitz.Rect(dibujo['rect'])) >= area * 0.9:
+            continue
+        for item in dibujo['items']:
+            if item[0] in ('re', 'qu'):  # rectángulo o cuadrilátero: cuatro bordes
+                horizontales += 2
+                verticales += 2
+            elif item[0] == 'l':
+                inicio, fin = fitz.Point(item[1]), fitz.Point(item[2])
+                if abs(inicio.y - fin.y) < 1:
+                    horizontales += 1
+                elif abs(inicio.x - fin.x) < 1:
+                    verticales += 1
+        if horizontales >= 2 and verticales >= 2:
+            return True
+    return False
 
 
 def _celda_rejilla(pagina: fitz.Page, rect):
@@ -468,7 +585,7 @@ def _renglones(lineas: list[Linea], pagina: int) -> list[Renglon]:
 
 @dataclass
 class Bloque:
-    tipo: str  # titulo | parrafo | lista | codigo | cita | tabla | definiciones
+    tipo: str  # titulo | parrafo | lista | codigo | cita | tabla | definiciones | imagen | salto
     renglones: list[Renglon] = field(default_factory=list)
     tabla: Tabla | None = None
     estilo: tuple = ()
@@ -477,14 +594,17 @@ class Bloque:
     y0: float = 0
 
 
-def _componer_pagina(renglones: list[Renglon], tablas: list[Tabla], cuerpo: float) -> list[Bloque]:
+def _componer_pagina(renglones: list[Renglon], tablas: list[Tabla], cuerpo: float,
+                     imagenes: list | None = None) -> list[Bloque]:
     if not renglones and not tablas:
-        return []
+        return list(imagenes or [])
     izquierda = min((r.x0 for r in renglones), default=0)
     derecha = max((r.x1 for r in renglones), default=0)
 
     elementos: list[Bloque] = []
     elementos.extend(Bloque('tabla', tabla=t, y0=t.y0) for t in tablas)
+    # Sin renglones, así que `_fusionar` no las junta con nada.
+    elementos.extend(imagenes or [])
 
     indice = 0
     while indice < len(renglones):
@@ -710,6 +830,8 @@ def _escribir(bloque: Bloque, niveles: dict) -> str:
         return '#' * niveles[bloque.estilo] + ' ' + _escapar_en_linea(texto)
     if bloque.tipo == 'tabla':
         return _escribir_tabla(bloque.tabla)
+    if bloque.tipo == 'imagen':
+        return f'![]({bloque.items[0]})'
     if bloque.tipo == 'definiciones':
         return '\n'.join(
             f'**{_sin_negrita(etiqueta)}** {valor}'.rstrip() + ('  ' if i < len(bloque.items) - 1 else '')

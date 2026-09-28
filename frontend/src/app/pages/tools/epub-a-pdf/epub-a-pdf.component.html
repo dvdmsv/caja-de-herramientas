@@ -1,0 +1,53 @@
+<app-tool-page slug="epub-a-pdf">
+
+  <app-file-queue
+    [items]="archivos"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra tus libros EPUB aquí o haz clic para elegirlos"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarLista()">
+  </app-file-queue>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Tamaño de página</legend>
+    <div class="row g-2">
+      @for (opcion of tamanos; track opcion.id) {
+        <div class="col-12 col-sm-4">
+          <input type="radio" class="btn-check" name="pagina" [id]="'pag-' + opcion.id"
+            [value]="opcion.id" [(ngModel)]="tamano" [disabled]="ocupado" (change)="alCambiarLista()">
+          <label class="btn btn-outline-primary w-100 text-start" [for]="'pag-' + opcion.id">
+            <span class="d-block fw-semibold">{{ opcion.nombre }}</span>
+            <small class="text-body-secondary">{{ opcion.detalle }}</small>
+          </label>
+        </div>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Tamaño de letra</legend>
+    <div class="row g-2">
+      @for (opcion of letras; track opcion.id) {
+        <div class="col-12 col-sm-4">
+          <input type="radio" class="btn-check" name="letra" [id]="'letra-' + opcion.id"
+            [value]="opcion.id" [(ngModel)]="letra" [disabled]="ocupado" (change)="alCambiarLista()">
+          <label class="btn btn-outline-primary w-100 text-start" [for]="'letra-' + opcion.id">
+            <span class="d-block fw-semibold">{{ opcion.nombre }}</span>
+            <small class="text-body-secondary">{{ opcion.detalle }}</small>
+          </label>
+        </div>
+      }
+    </div>
+  </fieldset>
+
+  <p class="form-text mt-3">
+    El índice del libro pasa a los marcadores del PDF. Los libros con DRM (los comprados en
+    tiendas que los protegen) no se pueden convertir.
+  </p>
+
+  <app-tool-controls [pagina]="pagina" accion="Convertir a PDF" icono="bi-filetype-pdf">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados" nombreZip="libros-en-pdf.zip"></app-result-list>
+
+</app-tool-page>

@@ -194,6 +194,18 @@ export const routes: Routes = [
         .then(m => m.DocumentoAPdfComponent),
   },
   {
+    path: 'herramientas/epub-a-pdf',
+    title: 'EPUB a PDF',
+    loadComponent: () =>
+      import('./pages/tools/epub-a-pdf/epub-a-pdf.component').then(m => m.EpubAPdfComponent),
+  },
+  {
+    path: 'herramientas/pdf-a-epub',
+    title: 'PDF a EPUB',
+    loadComponent: () =>
+      import('./pages/tools/pdf-a-epub/pdf-a-epub.component').then(m => m.PdfAEpubComponent),
+  },
+  {
     path: 'herramientas/pdf-a-word',
     title: 'PDF a Word',
     loadComponent: () =>

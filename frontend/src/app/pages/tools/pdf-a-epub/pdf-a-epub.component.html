@@ -1,0 +1,52 @@
+<app-tool-page slug="pdf-a-epub">
+
+  <app-file-queue
+    [items]="archivos"
+    [multiple]="false"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra aquí el PDF que quieras leer en un lector de libros"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarLista()">
+  </app-file-queue>
+
+  @if (escaneado) {
+    <div class="alert alert-warning mt-3 mb-0" role="alert">
+      <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+      Este PDF no tiene texto: es un escaneado, y lo que parecen letras son una imagen. Pásalo antes
+      por <a routerLink="/herramientas/ocr-pdf">PDF con OCR</a> y vuelve aquí.
+    </div>
+  }
+
+  <div class="row g-3 mt-2">
+    <div class="col-sm-7">
+      <label class="form-label" for="epub-titulo">Título</label>
+      <input type="text" class="form-control" id="epub-titulo" maxlength="300"
+        [placeholder]="leyendo ? 'Leyendo el PDF…' : 'Como sale en la biblioteca del lector'"
+        [(ngModel)]="titulo" [disabled]="ocupado" (ngModelChange)="alCambiarLista()">
+    </div>
+    <div class="col-sm-5">
+      <label class="form-label" for="epub-autor">Autor</label>
+      <input type="text" class="form-control" id="epub-autor" maxlength="300"
+        [(ngModel)]="autor" [disabled]="ocupado" (ngModelChange)="alCambiarLista()">
+    </div>
+  </div>
+
+  <div class="form-check mt-3">
+    <input type="checkbox" class="form-check-input" id="epub-portada"
+      [(ngModel)]="portada" [disabled]="ocupado" (ngModelChange)="alCambiarLista()">
+    <label class="form-check-label" for="epub-portada">Usar la primera página como portada</label>
+    <small class="form-text d-block">Es la imagen que enseña el lector en su biblioteca.</small>
+  </div>
+
+  <p class="form-text mt-3">
+    Un EPUB no tiene páginas: el texto se adapta a la pantalla y a la letra que elijas al leer, así
+    que la maquetación del PDF no se conserva. Lo que sí: capítulos e índice (sacados de los
+    títulos), párrafos, listas, tablas e imágenes.
+  </p>
+
+  <app-tool-controls [pagina]="pagina" accion="Convertir a EPUB" icono="bi-journal-arrow-down">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados"></app-result-list>
+
+</app-tool-page>
