@@ -84,6 +84,7 @@ Cómo está hecha, cómo compilarla y cómo publicar una versión, en
 | EPUB a PDF | Pasa un libro electrónico a PDF, con su índice como marcadores | tamaño de página (libro, folio o pantalla de 6″) y de letra; varios libros de una vez |
 | PDF a EPUB | Convierte un PDF en libro electrónico con capítulos, índice, imágenes y portada | título y autor (rellenos con los del PDF), portada |
 | Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo, margen y respetar los saltos de línea |
+| Visor de Markdown | Lee un `.md` o un texto pegado ya maquetado, sin crear ningún archivo | color de acento, tipo de letra, respetar los saltos de línea; sigue el tema claro u oscuro |
 | Correo a PDF | Guarda un correo `.eml` o `.msg` de Outlook como documento y saca sus adjuntos aparte | varios correos de una vez |
 | Editar metadatos | Enseña lo que tus archivos cuentan de ti, y lo corriges o lo borras | campo a campo, valores editables, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
@@ -999,6 +1000,7 @@ la vida de los archivos.
 | `POST` | `/api/tools/limpiar-metadatos/inspeccionar` | qué metadatos lleva un archivo, sin tocarlo |
 | `POST` | `/api/tools/marca-de-agua/previsualizar` | cómo va a quedar una página, en JPEG |
 | `POST` | `/api/tools/numerar-paginas/previsualizar` | lo mismo, con el número puesto |
+| `POST` | `/api/tools/visor-markdown/previsualizar` | un Markdown (archivo subido o texto pegado) maquetado en un HTML aislado con CSP, sin guardar nada |
 | `POST` | `/api/tools/firmar-certificado/certificado` | de quién es un certificado y hasta cuándo vale |
 | `POST` | `/api/tools/firmar-certificado/apariencia` | el recuadro del sello, en PNG |
 | `POST` | `/api/tools/firmar-certificado/autofirma` | colocación, rúbrica y algoritmo para que firme AutoFirma |
@@ -1124,8 +1126,8 @@ táctil con `.sin-tactil` / `.solo-tactil`.
 ## Pruebas
 
 ```bash
-cd frontend && npm test                                    # 143 tests, Vitest
-cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 139 tests
+cd frontend && npm test                                    # 250 tests, Vitest
+cd backend && pip install -r requirements-dev.txt && python -m pytest tests/ -q   # 401 tests
 
 docker compose up -d --build && python3 scripts/barrido.py # las 32 herramientas, de verdad
 ```
@@ -1167,12 +1169,12 @@ Cada push y cada pull request pasan por
 que comprobaría alguien clonando el repositorio por primera vez:
 
 - `npm ci` desde el lockfile —falla si el lockfile y el `package.json` no
-  concuerdan—, compilación y los 143 tests del frontend.
+  concuerdan—, compilación y los 250 tests del frontend.
 - Que la salida sigue donde el `Dockerfile` la espera: `dist/merge-pdf/browser`,
   el worker de pdf.js como `.mjs` y `autoscript.js` publicado. Son tres cosas
   que **sólo se rompen en producción** y que ningún test detectaría.
 - `docker compose build` de las imágenes.
-- Los 139 tests del backend con pytest.
+- Los 401 tests del backend con pytest.
 - La pila completa levantada y `scripts/barrido.py` contra ella: es lo único
   que prueba OCR, LibreOffice y WeasyPrint de verdad.
 - Que el backend arranca y registra sus rutas, que descarta un import roto o un

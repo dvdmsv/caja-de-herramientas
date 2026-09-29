@@ -425,6 +425,17 @@ export const HERRAMIENTAS: Herramienta[] = [
     disponible: true,
   },
   {
+    slug: 'visor-markdown',
+    nombre: 'Visor de Markdown',
+    descripcion: 'Lee un .md o un texto pegado ya maquetado, sin crear ningún archivo.',
+    icono: 'bi-markdown',
+    categoria: 'Documentos',
+    acepta: '.md',
+    varios: false,
+    palabras: ['md', 'leer', 'ver', 'abrir', 'previsualizar', 'markdown', 'pegar', 'ia', 'chatgpt', 'llm'],
+    disponible: true,
+  },
+  {
     slug: 'correo-a-pdf',
     nombre: 'Correo a PDF',
     descripcion: 'Guarda un correo .eml o .msg de Outlook como PDF y saca sus adjuntos aparte.',

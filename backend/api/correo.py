@@ -328,7 +328,7 @@ def _cabecera_sin_codificar(mensaje, clave: str) -> str:
     Lo prohíbe el estándar pero lo hacen programas viejos, y `email` deja
     entonces un `�` por cada letra. El valor crudo aún guarda los bytes: se leen
     como UTF-8 y, si no lo son, como la página de códigos de Windows, igual que
-    `markdown_a_pdf._leer`.
+    `markdown_html.leer`.
     """
     for nombre, crudo in mensaje.raw_items():
         if nombre.lower() == clave.lower():

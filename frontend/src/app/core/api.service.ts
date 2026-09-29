@@ -34,6 +34,13 @@ export interface VistaPrevia {
   palabras: number;
 }
 
+/** Un Markdown ya maquetado para verlo en pantalla, sin archivo detrás. */
+export interface MarkdownMaquetado {
+  /** El documento HTML completo, con su hoja de estilos y su CSP: va a un iframe con `sandbox`. */
+  html: string;
+  palabras: number;
+}
+
 /** Un dato que un archivo lleva dentro sin que su dueño lo sepa. */
 export interface CampoMetadato {
   /** Con la que se le dice al servidor que lo borre o lo cambie. */
@@ -382,6 +389,14 @@ export class ApiService {
     return this.http
       .post(`/api/tools/${slug}/previsualizar`, cuerpo, { responseType: 'blob' })
       .pipe(map(blob => URL.createObjectURL(blob)));
+  }
+
+  /**
+   * Un Markdown maquetado para leerlo en pantalla: el del archivo subido
+   * (`file_ids`) o el pegado (`texto`). No crea ningún archivo.
+   */
+  verMarkdown(cuerpo: unknown): Observable<MarkdownMaquetado> {
+    return this.http.post<MarkdownMaquetado>('/api/tools/visor-markdown/previsualizar', cuerpo);
   }
 
   /**

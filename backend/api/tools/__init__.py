@@ -16,7 +16,7 @@ from api.tools import (a_markdown, anonimizar_pdf, aplanar_pdf, comparar_pdf, co
                        marca_de_agua, markdown_a_pdf, numerar_paginas, ocr_pdf, organizar_pdf,
                        pdf_a_epub, pdf_a_grises, pdf_a_imagen, pdf_a_pdfa, pdf_a_word, proteger_pdf,
                        unir_pdf,
-                       visor)
+                       visor, visor_markdown)
 
 BLUEPRINTS = [
     unir_pdf.bp,
@@ -55,6 +55,7 @@ BLUEPRINTS = [
     comprobar_firmas.bp,
     crear_certificado.bp,
     visor.bp,
+    visor_markdown.bp,
 ]
 
 

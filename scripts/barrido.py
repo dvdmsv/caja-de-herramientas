@@ -364,6 +364,9 @@ def main():
             'cambios': {pdf: {'title': 'Título nuevo'}}})
     prueba('a-markdown', '/api/tools/a-markdown', {'file_ids': [pdf]})
     prueba('markdown-a-pdf', '/api/tools/markdown-a-pdf', {'file_ids': [md]})
+    prueba('visor-markdown', '/api/tools/visor-markdown/previsualizar', {'file_ids': [md]})
+    prueba('visor-markdown (texto)', '/api/tools/visor-markdown/previsualizar',
+           {'texto': '# Hola\n\n- [x] listo\n\n| a | b |\n|---|--:|\n| x | 1,50 € |'})
     prueba('documento-a-pdf', '/api/tools/documento-a-pdf', {'file_ids': [txt]})
     prueba('documento-a-pdf (Excel y PowerPoint)', '/api/tools/documento-a-pdf',
            {'file_ids': [xlsx, pptx_]})

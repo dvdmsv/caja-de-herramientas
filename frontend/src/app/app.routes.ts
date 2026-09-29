@@ -232,6 +232,13 @@ export const routes: Routes = [
         .then(m => m.MarkdownAPdfComponent),
   },
   {
+    path: 'herramientas/visor-markdown',
+    title: 'Visor de Markdown',
+    loadComponent: () =>
+      import('./pages/tools/visor-markdown/visor-markdown.component')
+        .then(m => m.VisorMarkdownComponent),
+  },
+  {
     path: 'herramientas/correo-a-pdf',
     title: 'Correo a PDF',
     loadComponent: () =>

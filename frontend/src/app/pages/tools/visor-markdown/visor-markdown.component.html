@@ -1,0 +1,102 @@
+<app-tool-page slug="visor-markdown">
+
+  <p class="text-body-secondary small">
+    <i class="bi bi-shield-check me-1"></i>
+    Solo para leer: no se crea ningún archivo. Se ve como quedaría en «Markdown a PDF»; las
+    imágenes enlazadas no se cargan, solo las que el propio archivo trae dentro.
+  </p>
+
+  <fieldset>
+    <legend class="visually-hidden">Qué quieres ver</legend>
+    <div class="d-flex flex-wrap gap-2">
+      @for (opcion of modos; track opcion.id) {
+        <input type="radio" class="btn-check" name="modo" [id]="'modo-' + opcion.id"
+          [checked]="modo === opcion.id" [disabled]="ocupado"
+          (change)="elegirModo(opcion.id)">
+        <label class="btn btn-outline-primary" [for]="'modo-' + opcion.id">
+          <i class="bi {{ opcion.icono }} me-1"></i>{{ opcion.nombre }}
+        </label>
+      }
+    </div>
+  </fieldset>
+
+  @if (modo === 'archivo') {
+    <app-file-queue class="d-block mt-3"
+      [items]="archivos"
+      [multiple]="false"
+      [deshabilitado]="ocupado"
+      ayuda="Arrastra tu archivo .md aquí o haz clic para elegirlo"
+      (agregados)="alAgregar($event)"
+      (itemsChange)="alCambiarLista()">
+    </app-file-queue>
+  } @else {
+    <label for="texto-md" class="form-label mt-3 mb-1">Pega aquí tu Markdown</label>
+    <textarea id="texto-md" class="form-control texto-md" rows="8" spellcheck="false"
+      placeholder="# Título&#10;&#10;Texto con **negrita**, listas, tablas, código…"
+      [(ngModel)]="texto" (ngModelChange)="alCambiarAjuste()"></textarea>
+  }
+
+  <div class="ajustes mt-4">
+    <fieldset>
+      <legend class="h6">Color de acento</legend>
+      <div class="d-flex flex-wrap gap-2">
+        @for (opcion of acentos; track opcion.id) {
+          <input type="radio" class="btn-check" name="acento" [id]="'ace-' + opcion.id"
+            [checked]="acento === opcion.id" (change)="elegirAcento(opcion.id)">
+          <label class="btn btn-outline-primary" [for]="'ace-' + opcion.id">
+            <span class="d-inline-block rounded-circle me-2 align-middle"
+              style="width: .8rem; height: .8rem;" [style.background-color]="opcion.color"></span>
+            <span class="align-middle">{{ opcion.nombre }}</span>
+          </label>
+        }
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="h6">Tipo de letra</legend>
+      <div class="d-flex flex-wrap gap-2">
+        @for (opcion of familias; track opcion.id) {
+          <input type="radio" class="btn-check" name="familia" [id]="'fam-' + opcion.id"
+            [checked]="familia === opcion.id" (change)="elegirFamilia(opcion.id)">
+          <label class="btn btn-outline-primary" [for]="'fam-' + opcion.id">{{ opcion.nombre }}</label>
+        }
+      </div>
+    </fieldset>
+  </div>
+
+  <div class="form-check mt-3">
+    <input class="form-check-input" type="checkbox" id="saltos"
+      [(ngModel)]="saltos" (ngModelChange)="alCambiarAjuste()">
+    <label class="form-check-label" for="saltos">Respetar los saltos de línea</label>
+    <p class="form-text mt-0 mb-0">
+      Cada renglón se queda donde está. Quítalo si los párrafos vienen partidos a lo ancho y
+      prefieres que fluyan.
+    </p>
+  </div>
+
+  <section class="card mt-4" aria-label="Vista del documento">
+    <div class="card-header d-flex align-items-center gap-2">
+      <strong class="me-auto">Vista</strong>
+      @if (cargando) {
+        <span class="spinner-border spinner-border-sm" role="status">
+          <span class="visually-hidden">Preparando la vista…</span>
+        </span>
+      }
+      @if (documento) {
+        <span class="small text-body-secondary">{{ palabras }} palabras</span>
+      }
+    </div>
+    @if (documento) {
+      <!-- Sin allow-scripts ni allow-same-origin, a propósito: ver el comentario del componente. -->
+      <iframe class="lectura" title="El documento Markdown maquetado"
+        sandbox="allow-popups allow-popups-to-escape-sandbox"
+        [srcdoc]="documento"></iframe>
+    } @else {
+      <p class="vacio text-body-secondary mb-0">
+        <i class="bi bi-markdown me-1"></i>
+        {{ modo === 'archivo' ? 'Elige un archivo .md para verlo aquí.' : 'Escribe o pega algo de Markdown para verlo aquí.' }}
+      </p>
+    }
+  </section>
+
+</app-tool-page>
