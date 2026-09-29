@@ -6,7 +6,7 @@ y devuelven resultados que se descargan por aquí.
 import os
 import zipfile
 
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, current_app, jsonify, request, send_file
 
 import config
 from api import current_session, params, progreso
@@ -158,12 +158,17 @@ def uso_de_la_sesion():
     cuentan.
 
     `caduca` es una marca de tiempo Unix, o `null` si no hay nada guardado.
-    Preguntar no la mueve: mirar el indicador no es actividad.
+    Preguntar no la mueve: mirar el indicador no es actividad. `plazo` es cuánto
+    dura sin actividad, en segundos, para que el texto no lo diga de memoria.
+    `al_cerrar` sólo es verdad en la aplicación, cuando se ha elegido borrarlos
+    al cerrarla (`escritorio.aplicar_plazo`): entonces no hay hora que dar.
     """
     session_id = current_session()
     tope = config.SESSION_QUOTA_MB * 1024 * 1024
     usado = storage.tamano_sesion(session_id)
-    return jsonify({'usado': usado, 'tope': tope, 'caduca': storage.caducidad(session_id)})
+    return jsonify({'usado': usado, 'tope': tope, 'caduca': storage.caducidad(session_id),
+                    'plazo': storage.ttl_seconds,
+                    'al_cerrar': bool(current_app.config.get('PLAZO_AL_CERRAR'))})
 
 
 @bp.get('/progreso/<trabajo>')

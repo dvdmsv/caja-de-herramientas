@@ -35,14 +35,21 @@
       </p>
     }
 
-    @if (ocupacion.caduca) {
+    @if (!ocupacion.caduca) {
+      <p class="mb-3 text-body-secondary small">No tienes archivos guardados.</p>
+    } @else if (ocupacion.al_cerrar) {
+      <!-- La aplicación con «Al cerrar la aplicación» (Ajustes → Espacio): la
+           hora de `caduca` es sólo la red de 7 días, no lo que pasa. -->
       <p class="mb-3 text-body-secondary small">
         <i class="bi bi-clock me-1" aria-hidden="true"></i>
-        Si no haces nada más, se borrarán a partir de {{ cuando(ocupacion.caduca) }}. Cada vez que
-        subes o generas un archivo, el plazo de 2 horas vuelve a empezar.
+        Se borrarán al cerrar la aplicación. Si los quieres borrar antes, «Vaciar ahora».
       </p>
     } @else {
-      <p class="mb-3 text-body-secondary small">No tienes archivos en el servidor.</p>
+      <p class="mb-3 text-body-secondary small">
+        <i class="bi bi-clock me-1" aria-hidden="true"></i>
+        Si no haces nada más, se borrarán {{ cuando(ocupacion.caduca) }}. Cada vez que subes o
+        generas un archivo, el plazo de {{ duracion(ocupacion.plazo) }} vuelve a empezar.
+      </p>
     }
 
     @if (!confirmando) {

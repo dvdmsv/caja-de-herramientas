@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, filter, from, map, switchMap } from 'rxjs';
 
 import { EstadoTrabajo } from '../shared/progreso';
+import type { Plazo } from './ajustes-escritorio';
 import { EscritorioService } from './escritorio.service';
 
 /** Archivo tal y como lo describe el servidor. */
@@ -20,6 +21,10 @@ export interface UsoSesion {
   tope: number;
   /** Desde cuándo se puede borrar, en segundos Unix; `null` si no hay nada guardado. */
   caduca: number | null;
+  /** Cuánto dura sin actividad, en segundos. */
+  plazo: number;
+  /** En la aplicación, si se borran al cerrarla: entonces `caduca` no es lo que cuenta. */
+  al_cerrar: boolean;
 }
 
 export interface ResumenTamano {
@@ -509,6 +514,11 @@ export class ApiService {
   /** Sólo en la aplicación: borra los archivos de trabajo que no están en uso. */
   liberarEspacioDeTrabajo(): Observable<EspacioDeTrabajo & { liberado: number }> {
     return this.http.post<EspacioDeTrabajo & { liberado: number }>('/api/escritorio/liberar', {});
+  }
+
+  /** Sólo en la aplicación: cuándo se borran los archivos de trabajo, al momento. */
+  cambiarPlazo(plazo: Plazo | null): Observable<{ plazo: string }> {
+    return this.http.post<{ plazo: string }>('/api/escritorio/plazo', { plazo: plazo ?? 'al_cerrar' });
   }
 
   /** Título, autor y si tiene texto, para rellenar «PDF a EPUB» antes de convertir. */

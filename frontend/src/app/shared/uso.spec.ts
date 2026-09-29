@@ -1,4 +1,4 @@
-import { horaDeBorrado, nivelDeUso, porcentajeDeUso } from './uso';
+import { duracionDelPlazo, horaDeBorrado, nivelDeUso, porcentajeDeUso } from './uso';
 
 describe('nivelDeUso', () => {
   const GB = 1024 ** 3;
@@ -37,12 +37,23 @@ describe('horaDeBorrado', () => {
   it('sólo la hora si es hoy', () => {
     const ahora = new Date(2026, 8, 23, 10, 30);
     const caduca = new Date(2026, 8, 23, 12, 40).getTime() / 1000;
-    expect(horaDeBorrado(caduca, ahora)).toBe('las 12:40');
+    expect(horaDeBorrado(caduca, ahora)).toBe('a partir de las 12:40');
   });
 
-  it('con el día si cae en otro', () => {
+  it('con el día si cae en otro, y «del», no «de el»', () => {
     const ahora = new Date(2026, 8, 23, 23, 30);
     const caduca = new Date(2026, 8, 24, 1, 30).getTime() / 1000;
-    expect(horaDeBorrado(caduca, ahora)).toBe('el jueves 24 a las 01:30');
+    expect(horaDeBorrado(caduca, ahora)).toBe('a partir del jueves 24 a las 01:30');
+  });
+});
+
+describe('duracionDelPlazo', () => {
+  it('en la unidad más grande que cuadre, con su plural', () => {
+    expect(duracionDelPlazo(7200)).toBe('2 horas');
+    expect(duracionDelPlazo(3600)).toBe('1 hora');
+    expect(duracionDelPlazo(86400)).toBe('1 día');
+    expect(duracionDelPlazo(7 * 86400)).toBe('7 días');
+    expect(duracionDelPlazo(1800)).toBe('30 minutos');
+    expect(duracionDelPlazo(90 * 60)).toBe('90 minutos');
   });
 });

@@ -37,6 +37,7 @@ pub struct Ajustes {
     pub guardado: Guardado,
     pub avisos: Avisos,
     pub actualizaciones: Actualizaciones,
+    pub espacio: Espacio,
     pub avanzado: Avanzado,
 }
 
@@ -89,6 +90,20 @@ impl Default for Actualizaciones {
     }
 }
 
+/// Lo de «Espacio».
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Debug)]
+#[serde(default)]
+pub struct Espacio {
+    /// Cuándo se borran los archivos de trabajo: el nombre de uno de los
+    /// `PLAZOS` de `backend/escritorio.py`, que es quien sabe cuántos minutos
+    /// son. `None` es el de serie, al cerrar la aplicación. La página lo aplica
+    /// también al momento (`/api/escritorio/plazo`); esto es para el arranque.
+    pub plazo: Option<String>,
+}
+
+/// Los plazos que se pueden elegir, además del de serie.
+pub const PLAZOS: [&str; 2] = ["horas_2", "dia_1"];
+
 /// Lo de «Avanzado». `None` es el valor de serie; se aplica al volver a abrir.
 #[derive(Serialize, Deserialize, Clone, Default, PartialEq, Debug)]
 #[serde(default)]
@@ -123,6 +138,7 @@ impl Ajustes {
         avanzado.subida_max_mb = avanzado.subida_max_mb.map(|mb| en(mb, SUBIDA_MB));
         avanzado.cuota_mb = avanzado.cuota_mb.map(|mb| en(mb, CUOTA_MB));
         avanzado.sello_tiempo = avanzado.sello_tiempo.take().filter(|url| es_url_segura(url));
+        self.espacio.plazo = self.espacio.plazo.take().filter(|plazo| PLAZOS.contains(&plazo.as_str()));
         if self.guardado.modo == ModoGuardado::Carpeta && self.guardado.carpeta.is_none() {
             self.guardado.modo = ModoGuardado::Preguntar;
         }
@@ -141,6 +157,9 @@ impl Ajustes {
         }
         if let Some(url) = &self.avanzado.sello_tiempo {
             entorno.push(("TSA_URL", url.clone()));
+        }
+        if let Some(plazo) = &self.espacio.plazo {
+            entorno.push(("ESCRITORIO_PLAZO", plazo.clone()));
         }
         entorno
     }
@@ -177,7 +196,7 @@ pub fn guardar(app: &AppHandle, ajustes: &Ajustes) -> Result<(), String> {
 
 /// Mezcla en los ajustes lo que manda la página y guarda.
 ///
-/// **La página sólo puede tocar lo suyo**: avisos, actualizaciones, avanzado,
+/// **La página sólo puede tocar lo suyo**: avisos, actualizaciones, espacio, avanzado,
 /// el modo de guardado y borrar la versión saltada. El menú del Explorador va
 /// por `menu::aplicar`, que es quien escribe en el registro, y la carpeta fija
 /// sólo la pone el diálogo de `elegir_carpeta_de_guardado`: si la página
@@ -190,7 +209,7 @@ pub fn mezclar(app: &AppHandle, cambios: serde_json::Value) -> Result<Ajustes, S
     };
     for (clave, nuevo) in cambios {
         match clave.as_str() {
-            "avisos" | "actualizaciones" | "avanzado" => mezclar_objeto(&mut valor[clave.as_str()], nuevo),
+            "avisos" | "actualizaciones" | "espacio" | "avanzado" => mezclar_objeto(&mut valor[clave.as_str()], nuevo),
             "guardado" => {
                 if let Some(modo) = nuevo.get("modo") {
                     valor["guardado"]["modo"] = modo.clone();
@@ -229,19 +248,22 @@ mod tests {
         assert!(ajustes.actualizaciones.al_abrir);
         assert_eq!(ajustes.guardado.modo, ModoGuardado::Preguntar);
         assert_eq!(ajustes.avanzado, Avanzado::default());
+        assert_eq!(ajustes.espacio.plazo, None);
     }
 
     #[test]
     fn lo_que_se_sale_de_rango_se_recorta() {
         let raro = r#"{"avisos": {"desde_segundos": 1}, "avanzado": {"memoria_porcentaje": 150,
             "subida_max_mb": 1, "cuota_mb": 999999999, "sello_tiempo": "http://inseguro"},
-            "guardado": {"modo": "carpeta"}}"#;
+            "guardado": {"modo": "carpeta"}, "espacio": {"plazo": "5_minutos"}}"#;
         let ajustes = serde_json::from_str::<Ajustes>(raro).unwrap().recortar();
         assert_eq!(ajustes.avisos.desde_segundos, AVISOS_DESDE.0);
         assert_eq!(ajustes.avanzado.memoria_porcentaje, Some(MEMORIA.1));
         assert_eq!(ajustes.avanzado.subida_max_mb, Some(SUBIDA_MB.0));
         assert_eq!(ajustes.avanzado.cuota_mb, Some(CUOTA_MB.1));
         assert_eq!(ajustes.avanzado.sello_tiempo, None);
+        // Un plazo que el backend no conoce: el de serie.
+        assert_eq!(ajustes.espacio.plazo, None);
         // Carpeta fija sin carpeta: se vuelve a preguntar.
         assert_eq!(ajustes.guardado.modo, ModoGuardado::Preguntar);
     }
@@ -260,9 +282,11 @@ mod tests {
         assert!(ajustes.entorno_del_backend().is_empty());
         ajustes.avanzado.subida_max_mb = Some(4096);
         ajustes.avanzado.sello_tiempo = Some("https://tsa.example/tsr".into());
+        ajustes.espacio.plazo = Some("horas_2".into());
         assert_eq!(ajustes.entorno_del_backend(), vec![
             ("MAX_CONTENT_LENGTH_MB", "4096".to_string()),
             ("TSA_URL", "https://tsa.example/tsr".to_string()),
+            ("ESCRITORIO_PLAZO", "horas_2".to_string()),
         ]);
     }
 

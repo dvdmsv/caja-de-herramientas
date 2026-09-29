@@ -5,6 +5,7 @@ Un servidor local no es privado: lo alcanza cualquier web abierta en el
 navegador del usuario y cualquier programa del equipo. Estos tests son la
 garantía de que sin el token no se llega a nada, ni a la API ni a la página.
 """
+import io
 import os
 
 import pytest
@@ -273,6 +274,7 @@ def test_espacio_y_liberar_solo_existen_en_la_aplicacion(entorno, monkeypatch):
 
     assert cliente.get('/api/escritorio/espacio').status_code == 404
     assert cliente.post('/api/escritorio/liberar').status_code in (404, 405)
+    assert cliente.post('/api/escritorio/plazo', json={'plazo': 'dia_1'}).status_code in (404, 405)
 
 
 def test_liberar_no_toca_la_propia_ni_las_activas(cliente, monkeypatch, tmp_path):
@@ -314,6 +316,67 @@ def test_espacio_cuenta_lo_que_deje_una_actualizacion(cliente, monkeypatch, tmp_
     con_token(cliente)
 
     assert cliente.get('/api/escritorio/espacio').get_json()['actualizacion'] == 500
+
+
+def test_el_plazo_de_serie_es_al_cerrar_la_aplicacion(cliente):
+    """Sin hora que dar: lo que los borra es volver a abrirla. Los 7 días son la red."""
+    from storage import storage
+
+    datos = con_token(cliente).get('/api/session/uso', headers={'X-Session-Id': SESION}).get_json()
+    assert datos['al_cerrar'] is True
+    assert datos['plazo'] == storage.ttl_seconds == 7 * 24 * 3600
+
+
+def test_el_plazo_elegido_llega_al_arrancar_y_uno_raro_es_el_de_serie(entorno, monkeypatch):
+    import escritorio
+    from flask import Flask
+
+    entorno(ESCRITORIO_TOKEN=TOKEN)
+    from storage import storage
+    for nombre, segundos, al_cerrar in (('horas_2', 7200, False), ('dia_1', 86400, False),
+                                        ('otro', 7 * 24 * 3600, True)):
+        monkeypatch.setenv('ESCRITORIO_PLAZO', nombre)
+        aplicacion = Flask(__name__)
+        escritorio.registrar_rutas(aplicacion)
+        assert storage.ttl_seconds == segundos, nombre
+        assert aplicacion.config['PLAZO_AL_CERRAR'] is al_cerrar
+
+
+def test_los_plazos_son_los_mismos_en_el_backend_en_rust_y_en_la_pagina():
+    """Los minutos sólo los sabe el backend, pero los nombres viajan: Rust sólo
+    guarda los que conoce y la página los ofrece. Si uno se desalinea, el ajuste
+    se pierde en silencio al recortarlo."""
+    import re
+    from pathlib import Path
+
+    import escritorio
+
+    raiz = Path(__file__).resolve().parents[2]
+    elegibles = set(escritorio.PLAZOS) - {escritorio.PLAZO_DE_SERIE}
+    rust = (raiz / 'escritorio/src-tauri/src/ajustes.rs').read_text(encoding='utf-8')
+    pagina = (raiz / 'frontend/src/app/core/ajustes-escritorio.ts').read_text(encoding='utf-8')
+    en_rust = re.search(r'pub const PLAZOS: \[&str; \d+\] = \[([^\]]*)\]', rust).group(1)
+    en_pagina = re.search(r"export type Plazo = ([^;]*);", pagina).group(1)
+    assert set(re.findall(r'"(\w+)"', en_rust)) == elegibles
+    assert set(re.findall(r"'(\w+)'", en_pagina)) == elegibles
+
+
+def test_cambiar_el_plazo_se_nota_al_momento(cliente):
+    """Sin reiniciar: la hora de borrado que se enseña es la del plazo nuevo."""
+    con_token(cliente)
+    cabeceras = {'X-Session-Id': SESION}
+    cliente.post('/api/files', headers=cabeceras, data={'files': (io.BytesIO(b'hola'), 'a.txt')},
+                 content_type='multipart/form-data')
+    antes = cliente.get('/api/session/uso', headers=cabeceras).get_json()
+
+    respuesta = cliente.post('/api/escritorio/plazo', json={'plazo': 'horas_2'})
+    assert respuesta.get_json() == {'plazo': 'horas_2'}
+    despues = cliente.get('/api/session/uso', headers=cabeceras).get_json()
+    assert despues['al_cerrar'] is False and despues['plazo'] == 7200
+    assert despues['caduca'] == pytest.approx(antes['caduca'] - (7 * 24 - 2) * 3600, abs=5)
+
+    assert cliente.post('/api/escritorio/plazo', json={'plazo': '5 minutos'}).status_code == 400
+    assert cliente.post('/api/escritorio/plazo', json={}).status_code == 400
 
 
 def test_lo_que_lanza_ocrmypdf_no_hereda_entrada_ni_salida():

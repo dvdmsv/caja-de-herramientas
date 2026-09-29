@@ -76,7 +76,7 @@
               (cambiar)="guardar($event)"></app-ajustes-actualizaciones>
           }
           @case ('espacio') {
-            <app-ajustes-espacio [estado]="estado"></app-ajustes-espacio>
+            <app-ajustes-espacio [estado]="estado" [ocupada]="guardando" (cambiar)="guardar($event)"></app-ajustes-espacio>
           }
           @case ('ayuda') {
             <app-ajustes-ayuda [estado]="estado"></app-ajustes-ayuda>

@@ -40,6 +40,13 @@ def test_sin_archivos_no_hay_nada_que_caduque(cliente):
     assert datos['caduca'] is None
 
 
+def test_dice_el_plazo_para_que_el_texto_no_lo_diga_de_memoria(cliente):
+    """En la web, 2 horas y con hora de borrado: `al_cerrar` es cosa de la aplicación."""
+    datos = uso(cliente)
+    assert datos['plazo'] == 7200
+    assert datos['al_cerrar'] is False
+
+
 def test_al_subir_caduca_en_dos_horas(cliente):
     antes = time.time()
     subir(cliente)

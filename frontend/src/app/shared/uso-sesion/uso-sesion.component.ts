@@ -7,7 +7,7 @@ import { filter } from 'rxjs';
 import { UsoService } from '../../core/uso.service';
 import { avisoError, avisoExito, mensajeDeError } from '../notify';
 import { PesoPipe } from '../peso.pipe';
-import { NivelDeUso, horaDeBorrado, nivelDeUso, porcentajeDeUso } from '../uso';
+import { NivelDeUso, duracionDelPlazo, horaDeBorrado, nivelDeUso, porcentajeDeUso } from '../uso';
 
 /**
  * Cuánto ocupa la sesión en el servidor, siempre a la vista en la barra.
@@ -56,6 +56,10 @@ export class UsoSesionComponent implements OnInit {
 
   cuando(caduca: number): string {
     return horaDeBorrado(caduca);
+  }
+
+  duracion(segundos: number): string {
+    return duracionDelPlazo(segundos);
   }
 
   alternar(): void {

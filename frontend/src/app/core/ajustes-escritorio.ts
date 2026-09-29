@@ -21,8 +21,22 @@ export interface AjustesEscritorio {
   guardado: { modo: ModoGuardado; carpeta: string | null };
   avisos: { activos: boolean; desde_segundos: number };
   actualizaciones: { al_abrir: boolean };
+  espacio: { plazo: Plazo | null };
   avanzado: Avanzado;
 }
+
+/**
+ * Cuándo se borran los archivos de trabajo. Los minutos de cada uno los sabe
+ * el backend (`escritorio.PLAZOS`); `null` es el de serie, al cerrar.
+ */
+export type Plazo = 'horas_2' | 'dia_1';
+
+/** En el orden del desplegable. Los mismos nombres que `PLAZOS` en `ajustes.rs`. */
+export const PLAZOS: { valor: Plazo | null; texto: string }[] = [
+  { valor: null, texto: 'Al cerrar la aplicación' },
+  { valor: 'horas_2', texto: 'Tras 2 horas sin usarlos' },
+  { valor: 'dia_1', texto: 'Tras 1 día sin usarlos' },
+];
 
 export interface Avanzado {
   /** % de la RAM; 0 es sin tope. */
@@ -45,6 +59,7 @@ export type CambiosAjustes = Partial<{
   guardado: { modo: ModoGuardado };
   avisos: Partial<AjustesEscritorio['avisos']>;
   actualizaciones: Partial<AjustesEscritorio['actualizaciones']>;
+  espacio: Partial<AjustesEscritorio['espacio']>;
   avanzado: Partial<Avanzado>;
   version_saltada: null;
 }>;

@@ -162,16 +162,53 @@ def proteger(app, token: str) -> None:
             abort(403)
 
 
+# Cuándo se borran los archivos de trabajo, en minutos sin subir ni generar
+# nada (Ajustes → Espacio). La aplicación sólo dice el nombre (`ESCRITORIO_PLAZO`
+# al arrancar, `/api/escritorio/plazo` al cambiarlo): los minutos se saben aquí.
+#
+# «Al cerrar» es lo de siempre: lo que borra es `borrar_sesiones_anteriores` al
+# volver a abrir, porque la ventana que los usaba ya no existe. Los 7 días son
+# sólo una red por si la aplicación se queda abierta semanas. Con las otras dos
+# se borran también al volver a abrir, por lo mismo.
+PLAZOS = {'al_cerrar': 7 * 24 * 60, 'horas_2': 2 * 60, 'dia_1': 24 * 60}
+PLAZO_DE_SERIE = 'al_cerrar'
+
+
+def aplicar_plazo(app, nombre: str | None) -> str:
+    """Pone el plazo en marcha **ya**: el recolector y `caducidad()` leen
+    `ttl_seconds` en cada pasada. Un nombre que no existe es el de serie."""
+    from storage import storage
+
+    if nombre not in PLAZOS:
+        nombre = PLAZO_DE_SERIE
+    storage.ttl_seconds = PLAZOS[nombre] * 60
+    # Para el panel de uso (`api/files.py`): con «al cerrar» no hay hora que dar.
+    app.config['PLAZO_AL_CERRAR'] = nombre == 'al_cerrar'
+    return nombre
+
+
 def registrar_rutas(app) -> None:
     """Lo que sólo tiene sentido en la aplicación: la sección «Espacio» de Ajustes.
 
     Se registra únicamente en modo escritorio (`app.py`, con `ESCRITORIO_TOKEN`),
     detrás de `proteger`: en la web, cuánto ocupan las sesiones de los demás no
-    es asunto de nadie.
+    es asunto de nadie, y el plazo es el mismo para todos.
     """
     from flask import jsonify, request
 
+    from errors import ApiError
     from storage import storage, validate_session_id
+
+    aplicar_plazo(app, os.environ.get('ESCRITORIO_PLAZO'))
+
+    @app.post('/api/escritorio/plazo')
+    def plazo():
+        """Cambia cuándo se borran los archivos de trabajo, sin reiniciar.
+        Lo guarda para la próxima vez la aplicación (`ajustes.rs`)."""
+        nombre = (request.get_json(silent=True) or {}).get('plazo')
+        if nombre not in PLAZOS:
+            raise ApiError('Ese plazo no existe.', 400)
+        return jsonify({'plazo': aplicar_plazo(app, nombre)})
 
     def resumen() -> dict:
         ocupado, sesiones = storage.resumen()
@@ -297,9 +334,8 @@ def preparar_entorno() -> tuple[str, bool]:
     # memoria son del propio usuario, y un PDF escaneado de 400 MB es normal.
     os.environ.setdefault('MAX_CONTENT_LENGTH_MB', '2048')
     os.environ.setdefault('SESSION_QUOTA_MB', '20480')
-    # Sin caducidad práctica mientras la ventana esté abierta: al cerrarla, la
-    # propia aplicación borra la sesión.
-    os.environ.setdefault('SESSION_TTL_MINUTES', str(7 * 24 * 60))
+    # El plazo de los archivos de trabajo no va aquí: lo elige Ajustes → Espacio
+    # y lo pone `registrar_rutas` (`PLAZOS`).
     token = os.environ.get('ESCRITORIO_TOKEN', '').strip()
     if token:
         return token, False

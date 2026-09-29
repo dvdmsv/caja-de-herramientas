@@ -27,18 +27,32 @@ export function porcentajeDeUso(usado: number, tope: number): number {
 }
 
 /**
- * Cuándo se borrarán los archivos, dicho como lo diría una persona.
+ * Desde cuándo se borrarán los archivos, dicho como lo diría una persona.
  *
  * `caduca` viene del servidor en segundos Unix. Sólo la hora si es hoy; si
  * cae en otro día, también el día, que un «a las 01:10» a las once de la noche
- * se lee como si fuera de hoy.
+ * se lee como si fuera de hoy. Devuelve la frase entera por la contracción:
+ * «a partir de las 12:40», pero «a partir **del** jueves 24».
  */
 export function horaDeBorrado(caduca: number, ahora: Date = new Date()): string {
   const cuando = new Date(caduca * 1000);
   const hora = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(cuando);
   if (cuando.toDateString() === ahora.toDateString()) {
-    return `las ${hora}`;
+    return `a partir de las ${hora}`;
   }
   const dia = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric' }).format(cuando);
-  return `el ${dia} a las ${hora}`;
+  return `a partir del ${dia} a las ${hora}`;
+}
+
+/**
+ * Cuánto dura el plazo sin actividad: «2 horas», «1 día», «30 minutos». Viene
+ * del servidor en segundos; escrito a mano en el texto, mentía en cuanto no era
+ * el de la web.
+ */
+export function duracionDelPlazo(segundos: number): string {
+  const minutos = Math.round(segundos / 60);
+  const [cuantos, unidad, plural] = minutos % 1440 === 0 ? [minutos / 1440, 'día', 'días']
+    : minutos % 60 === 0 ? [minutos / 60, 'hora', 'horas']
+      : [minutos, 'minuto', 'minutos'];
+  return `${cuantos} ${cuantos === 1 ? unidad : plural}`;
 }

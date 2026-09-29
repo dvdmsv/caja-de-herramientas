@@ -38,7 +38,7 @@ describe('AppComponent', () => {
     fixture.detectChanges();
 
     TestBed.inject(HttpTestingController).expectOne('/api/session/uso')
-      .flush({ usado: 9 * 1024 * 1024, tope: 1024 ** 3, caduca: null });
+      .flush({ usado: 9 * 1024 * 1024, tope: 1024 ** 3, caduca: null, plazo: 7200, al_cerrar: false });
     fixture.detectChanges();
 
     const boton: HTMLElement = fixture.nativeElement.querySelector('app-uso-sesion .uso__boton');

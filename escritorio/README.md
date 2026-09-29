@@ -223,9 +223,14 @@ no cambia nunca:
   - **Avisos**: la notificación al terminar, sí o no y desde cuántos segundos.
   - **Actualizaciones**: buscar al abrir, «Buscar ahora» y deshacer una versión
     saltada.
-  - **Espacio**: lo que ocupan los archivos de trabajo y «Liberar», que no toca
+  - **Espacio**: cuándo se borran los archivos de trabajo —al cerrar la
+    aplicación (de serie), tras 2 horas o tras 1 día sin usarlos; en la web
+    son siempre 2 horas—, lo que ocupan y «Liberar», que no toca
     la sesión de la ventana que lo pide ni las usadas en los últimos minutos
-    (`/api/escritorio/*` en `backend/escritorio.py`, que sólo existe aquí). Si
+    (`/api/escritorio/*` en `backend/escritorio.py`, que sólo existe aquí). El
+    plazo se aplica al momento (`/api/escritorio/plazo`) y se guarda para el
+    arranque (`ESCRITORIO_PLAZO`); los minutos de cada opción sólo los sabe
+    `escritorio.PLAZOS`, y un test cruza sus nombres con Rust y la página. Si
     una actualización ha dejado algo, sale también: se borra solo al volver a
     abrir, pero no ocupa sitio sin que se sepa.
   - **Ayuda**: «Copiar información para soporte» (`soporte.rs`: versión,
