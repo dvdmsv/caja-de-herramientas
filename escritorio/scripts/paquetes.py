@@ -212,7 +212,10 @@ def _principal(argumentos: list[str]) -> int:
         print(f'{ruta.name}: {len(plan["archivos"])} archivos, {len(plan["borrar"])} a borrar, '
               f'{ruta.stat().st_size / 1e6:.1f} MB')
     elif opciones.orden == 'anteriores':
-        print('\n'.join(anteriores(json.load(sys.stdin), opciones.actual)))
+        # Una por línea y nada si no hay ninguna: con `'\n'.join`, una lista vacía
+        # imprimía una línea en blanco, y la CI buscaba el manifiesto de «».
+        for etiqueta in anteriores(json.load(sys.stdin), opciones.actual):
+            print(etiqueta)
     else:
         for etiqueta, recurso in a_podar(json.load(sys.stdin), opciones.ultima):
             print(f'{etiqueta}\t{recurso}')

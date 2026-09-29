@@ -321,7 +321,10 @@ jobs:
           # no hay paquete: sólo NSIS sabe aplicar esos cambios.
           $etiqueta = '${{ inputs.etiqueta || github.ref_name }}'
           gh api "repos/${{ github.repository }}/releases?per_page=100" > releases.json
-          $desde = Get-Content releases.json -Raw | python escritorio\scripts\paquetes.py anteriores --actual $etiqueta
+          $desde = @(Get-Content releases.json -Raw | python escritorio\scripts\paquetes.py anteriores --actual $etiqueta) |
+            Where-Object { $_ }
+          if ($LASTEXITCODE) { throw 'No se han podido leer las versiones anteriores.' }
+          if (-not $desde) { 'Ninguna versión anterior tiene manifiesto: esta sale sin paquetes.' }
           foreach ($anterior in $desde) {
             gh release download $anterior --pattern archivos.json --output "anteriores\$anterior.json"
             if ($LASTEXITCODE) { throw "No se ha podido bajar el manifiesto de $anterior." }

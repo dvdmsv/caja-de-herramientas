@@ -128,6 +128,21 @@ def test_paquetes_desde_las_ultimas_cinco_con_manifiesto():
     assert paquetes.anteriores(releases, 'v0.3.0') == ['v0.2.6', 'v0.2.5', 'v0.2.4', 'v0.2.3', 'v0.2.2']
 
 
+def test_sin_versiones_anteriores_no_imprime_nada(monkeypatch, capsys):
+    """La primera publicación con paquetes: ninguna anterior tiene manifiesto.
+    Una línea en blanco hizo que la CI buscara el manifiesto de la versión «»."""
+    import io
+    releases = [{'tag_name': 'v0.2.4', 'assets': [{'name': 'CajaDeHerramientas-setup.exe'}]}]
+    monkeypatch.setattr('sys.stdin', io.StringIO(json.dumps(releases)))
+    assert paquetes._principal(['anteriores', '--actual', 'v0.2.5']) == 0
+    assert capsys.readouterr().out == ''
+
+    con = [{'tag_name': t, 'assets': [{'name': 'archivos.json'}]} for t in ('v0.2.6', 'v0.2.5')]
+    monkeypatch.setattr('sys.stdin', io.StringIO(json.dumps(con)))
+    paquetes._principal(['anteriores', '--actual', 'v0.2.7'])
+    assert capsys.readouterr().out == 'v0.2.6\nv0.2.5\n'
+
+
 def test_los_origenes_son_los_recursos_de_tauri_conf():
     """Si tauri.conf.json cambia dónde pone las cosas, el manifiesto tiene que cambiar con él."""
     conf = json.loads((RAIZ / 'escritorio' / 'src-tauri' / 'tauri.conf.json').read_text(encoding='utf-8'))
