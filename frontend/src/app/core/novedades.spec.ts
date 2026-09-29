@@ -1,5 +1,5 @@
 import {
-  AvisoActualizacion, ReleaseGitHub, compararVersiones, htmlDelAviso, leerNotas, novedadesEntre, soloLaUltima,
+  AvisoActualizacion, ReleaseGitHub, compararVersiones, comoSeActualiza, htmlDelAviso, leerNotas, novedadesEntre, soloLaUltima,
 } from './novedades';
 
 // Tal cual están en GitHub: la 0.1.4 con el formato antiguo, la 0.2.0 con el de ahora.
@@ -86,6 +86,21 @@ describe('novedades de una actualización', () => {
     const html = htmlDelAviso(aviso, [{ version: '0.2.1', fecha: null, url: null, novedades: [], arreglos: [] }], false);
     expect(html).toContain('Mejoras internas');
     expect(html).toContain('No se ha podido consultar GitHub');
+  });
+
+  it('con paquete dice cuánto se baja; sin él, que es la versión completa', () => {
+    expect(comoSeActualiza({ ...aviso, descarga: 12.4 * 1024 * 1024 })).toContain('Descarga: 12 MB');
+    expect(comoSeActualiza({ ...aviso, descarga: 3.46 * 1024 * 1024 })).toContain('Descarga: 3,5 MB');
+    expect(comoSeActualiza(aviso)).toContain('versión completa');
+    expect(htmlDelAviso({ ...aviso, descarga: 1024 * 1024 }, [], true)).toContain('Descarga: 1 MB');
+  });
+
+  it('si la vez anterior falló, dice por qué y que va la versión completa', () => {
+    const texto = comoSeActualiza({ ...aviso, descarga: 1024, fallo_anterior: 'backend/x: acceso denegado' });
+    expect(texto).toContain('backend/x: acceso denegado');
+    expect(texto).toContain('versión completa');
+    expect(texto).not.toContain('Descarga:');
+    expect(htmlDelAviso({ ...aviso, fallo_anterior: '<b>' }, [], true)).toContain('&lt;b&gt;');
   });
 });
 

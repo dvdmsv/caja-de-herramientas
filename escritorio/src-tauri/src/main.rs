@@ -33,6 +33,8 @@
 
 mod ajustes;
 mod menu;
+mod parche;
+mod parche_plan;
 mod soporte;
 #[cfg(windows)]
 mod trabajo;
@@ -204,6 +206,12 @@ fn avisar_cuando_paren(app: &AppHandle, etiqueta: String) {
 }
 
 fn main() {
+    // La copia que aplica una actualización por paquete (`parche.rs`): no es
+    // la aplicación, no abre ventanas ni cuenta como otra instancia.
+    if let Some(codigo) = parche::aplicar_si_se_pide() {
+        std::process::exit(codigo);
+    }
+
     let aplicacion = tauri::Builder::default()
         // Abrir la aplicación con ella ya abierta no arranca un segundo backend:
         // abre otra ventana de ésta (ver `ventanas.rs`).
@@ -252,13 +260,20 @@ fn main() {
             app.state::<Abiertos>().anotar(PRINCIPAL, herramienta, rutas);
 
             ventanas::crear(app.handle(), PRINCIPAL, None)?;
+            // Antes que el backend, y sin esperar a nada: lo que haya dejado
+            // una actualización no sirve de un arranque a otro.
+            let fallo = parche::limpiar_restos(app.handle());
+            let volver_a_ofrecer = fallo.is_some();
+            *app.state::<Actualizacion>().fallo_anterior.lock().unwrap() = fallo;
             // Los de «Avanzado» se leen una vez, al arrancar: son los que valen
             // hasta volver a abrir, y con ellos se sabe si hay cambios pendientes.
             let ajustes = ajustes::leer(app.handle());
             let backend = arrancar_backend(app.handle(), &ajustes)?;
             app.manage(backend);
             app.manage(AvanzadoAplicado(ajustes.avanzado.clone()));
-            if ajustes.actualizaciones.al_abrir {
+            // Si la actualización que se pidió no se pudo aplicar, se vuelve a
+            // ofrecer aunque no se busque al abrir: la persona ya dijo que sí.
+            if ajustes.actualizaciones.al_abrir || volver_a_ofrecer {
                 buscar_actualizacion(app.handle().clone());
             }
             Ok(())
@@ -295,6 +310,10 @@ struct Actualizacion {
     /// Si alguna ventana ya la ha enseñado: con varias abiertas, sólo una
     /// pregunta.
     ensenada: AtomicBool,
+    /// Por qué no se pudo aplicar la última actualización por paquete, si
+    /// falló (`parche::limpiar_restos`). Entonces esta vez va el instalador
+    /// completo, que no depende de cómo esté la instalación.
+    fallo_anterior: Mutex<Option<String>>,
 }
 
 /// Lo que la página necesita para enseñar el aviso. Las novedades de cada
@@ -306,6 +325,10 @@ struct AvisoActualizacion {
     instalada: String,
     notas: Option<String>,
     fecha: Option<String>,
+    /// Lo que se va a bajar, si hay paquete (`parche.rs`). Sin él es el
+    /// instalador completo, cuyo tamaño `latest.json` no dice.
+    descarga: Option<u64>,
+    fallo_anterior: Option<String>,
 }
 
 /// Mira si hay una versión nueva en GitHub Releases y, si la hay, avisa a la
@@ -323,8 +346,8 @@ struct AvisoActualizacion {
 /// probar el aviso sin publicar dos versiones seguidas; la firma se comprueba
 /// igual, así que no abre ninguna puerta.
 ///
-/// En Windows, instalar lanza el instalador y cierra este proceso; el job se
-/// lleva el backend por delante.
+/// Instalar (`instalar`) cierra este proceso, con un paquete de lo que cambia
+/// o con el instalador completo; el job se lleva el backend por delante.
 fn buscar_actualizacion(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         if let Ok(Some(_)) = comprobar_actualizacion(&app, true).await {
@@ -378,7 +401,10 @@ fn actualizacion_pendiente(actualizacion: tauri::State<'_, Actualizacion>) -> Op
     if actualizacion.ensenada.swap(true, Ordering::SeqCst) {
         return None;
     }
+    let fallo_anterior = actualizacion.fallo_anterior.lock().unwrap().clone();
     Some(AvisoActualizacion {
+        descarga: paquete_a_usar(&actualizacion, &nueva).map(|paquete| paquete.tamano),
+        fallo_anterior,
         fecha: nueva.raw_json.get("pub_date").and_then(|fecha| fecha.as_str()).map(String::from),
         version: nueva.version,
         instalada: nueva.current_version,
@@ -409,15 +435,30 @@ fn responder_actualizacion(app: AppHandle, respuesta: String) -> Result<(), Stri
     }
 }
 
+/// El paquete con sólo lo que cambia (`parche.rs`), si `latest.json` trae uno
+/// para esta versión y no es el que acaba de fallar.
+fn paquete_a_usar(actualizacion: &Actualizacion, nueva: &tauri_plugin_updater::Update) -> Option<parche::Paquete> {
+    if actualizacion.fallo_anterior.lock().unwrap().is_some() {
+        return None;
+    }
+    parche::paquete_para(nueva)
+}
+
 /// Descarga e instala, enseñando en todo momento qué está pasando.
 ///
-/// Sin esto, tras pulsar «Actualizar» no se veía nada durante la descarga
-/// (~310 MB) y después la ventana desaparecía de golpe. Ahora hay una capa sobre
-/// la página (`actualizacion.js`) y la barra de progreso en el icono de la barra
-/// de tareas, que se ve aunque la ventana esté minimizada.
+/// Sin esto, tras pulsar «Actualizar» no se veía nada durante la descarga y
+/// después la ventana desaparecía de golpe. Ahora hay una capa sobre la página
+/// (`actualizacion.js`) y la barra de progreso en el icono de la barra de
+/// tareas, que se ve aunque la ventana esté minimizada.
 ///
-/// Al terminar la descarga, el plugin lanza el instalador NSIS en modo pasivo
-/// —con su propia ventana de progreso— y cierra este proceso con
+/// **Con paquete** (`parche.rs`) se bajan sólo los archivos que cambian, se
+/// lanza la copia que los pone en su sitio y esta aplicación sale; esa copia
+/// abre la versión nueva. Si algo falla antes de salir —la descarga, la firma,
+/// la carpeta de la instalación—, no se ha tocado nada y se sigue con el
+/// instalador completo, diciendo por qué.
+///
+/// **Con el instalador**, al terminar la descarga el plugin lanza NSIS en modo
+/// pasivo —con su propia ventana de progreso— y cierra este proceso con
 /// `process::exit`; NSIS vuelve a abrir la aplicación al acabar. Por eso aquí no
 /// hay un `restart()`: en Windows no llegaría a ejecutarse.
 ///
@@ -425,9 +466,31 @@ fn responder_actualizacion(app: AppHandle, respuesta: String) -> Result<(), Stri
 async fn instalar(app: AppHandle, nueva: tauri_plugin_updater::Update) {
     let version = nueva.version.clone();
 
+    let mut motivo = None;
+    if let Some(paquete) = paquete_a_usar(&app.state::<Actualizacion>(), &nueva) {
+        let mut progreso = pintor_de_descarga(app.clone(), version.clone(), None);
+        let preparada = parche::preparar(&app, &paquete, &nueva.current_version, &version, |descargado, total| {
+            progreso(descargado, Some(total))
+        })
+        .await;
+        let lanzada = preparada.and_then(|preparada| {
+            pintar(&app, serde_json::json!({ "fase": "aplicando", "version": version }), ProgressBarState {
+                status: Some(ProgressBarStatus::Indeterminate),
+                progress: None,
+            });
+            parche::lanzar(&preparada)
+        });
+        match lanzada {
+            Ok(()) => {
+                app.exit(0);
+                return;
+            }
+            Err(error) => motivo = Some(error),
+        }
+    }
+
+    let mut progreso = pintor_de_descarga(app.clone(), version.clone(), motivo);
     let mut descargado: u64 = 0;
-    let mut ultimo_pintado: Option<Instant> = None;
-    let para_progreso = app.clone();
     let para_fin = app.clone();
     let version_fin = version.clone();
 
@@ -435,20 +498,7 @@ async fn instalar(app: AppHandle, nueva: tauri_plugin_updater::Update) {
         .download_and_install(
             move |trozo, total| {
                 descargado += trozo as u64;
-                // Llega un aviso por cada trozo descargado: se pinta como mucho
-                // cada 200 ms, que es fluido y no inunda la página de `eval`.
-                let toca = ultimo_pintado.map_or(true, |antes| antes.elapsed() >= Duration::from_millis(200));
-                if !toca {
-                    return;
-                }
-                ultimo_pintado = Some(Instant::now());
-                let porcentaje = total.filter(|t| *t > 0).map(|t| (descargado * 100 / t).min(100));
-                pintar(&para_progreso, serde_json::json!({
-                    "fase": "descargando", "version": version, "descargado": descargado, "total": total,
-                }), ProgressBarState {
-                    status: Some(if porcentaje.is_some() { ProgressBarStatus::Normal } else { ProgressBarStatus::Indeterminate }),
-                    progress: porcentaje,
-                });
+                progreso(descargado, total);
             },
             move || {
                 pintar(&para_fin, serde_json::json!({ "fase": "instalando", "version": version_fin }), ProgressBarState {
@@ -468,6 +518,26 @@ async fn instalar(app: AppHandle, nueva: tauri_plugin_updater::Update) {
         }), ProgressBarState {
             status: Some(ProgressBarStatus::Error),
             progress: Some(100),
+        });
+    }
+}
+
+/// Pinta el progreso de una descarga. Llega un aviso por cada trozo: se pinta
+/// como mucho cada 200 ms, que es fluido y no inunda la página de `eval`.
+/// `motivo`: por qué se baja el instalador completo cuando había paquete.
+fn pintor_de_descarga(app: AppHandle, version: String, motivo: Option<String>) -> impl FnMut(u64, Option<u64>) + Send {
+    let mut ultimo_pintado: Option<Instant> = None;
+    move |descargado, total| {
+        if ultimo_pintado.is_some_and(|antes| antes.elapsed() < Duration::from_millis(200)) {
+            return;
+        }
+        ultimo_pintado = Some(Instant::now());
+        let porcentaje = total.filter(|t| *t > 0).map(|t| (descargado * 100 / t).min(100));
+        pintar(&app, serde_json::json!({
+            "fase": "descargando", "version": version, "descargado": descargado, "total": total, "motivo": motivo,
+        }), ProgressBarState {
+            status: Some(if porcentaje.is_some() { ProgressBarStatus::Normal } else { ProgressBarStatus::Indeterminate }),
+            progress: porcentaje,
         });
     }
 }

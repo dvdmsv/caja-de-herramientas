@@ -46,6 +46,10 @@ export interface AvisoActualizacion {
   /** Las novedades de la última versión, de `latest.json`. */
   notas: string | null;
   fecha: string | null;
+  /** Bytes a bajar si hay paquete con sólo lo que cambia; sin él, el instalador completo. */
+  descarga?: number | null;
+  /** Por qué no se pudo aplicar la vez anterior: esta vez va el instalador completo. */
+  fallo_anterior?: string | null;
 }
 
 const PREFIJO = /^(\w+)(\([^)]*\))?!?:\s*(.+)$/;
@@ -167,6 +171,28 @@ export function htmlDelAviso(aviso: AvisoActualizacion, versiones: NovedadesDeVe
   return `<p class="aviso-novedades__subtitulo">Tienes la ${escapar(aviso.instalada)}. `
     + 'Esto es lo que cambia:</p>'
     + `<div class="aviso-novedades__lista" tabindex="0">${bloques}${incompleto}</div>`
-    + '<p class="aviso-novedades__pie">Al actualizar, la aplicación se cerrará un momento y volverá a abrirse. '
+    + `<p class="aviso-novedades__pie">${escapar(comoSeActualiza(aviso))} `
     + `<a href="${PAGINA_DE_VERSIONES}" target="_blank" rel="noopener">Ver todas las versiones en GitHub</a></p>`;
+}
+
+/**
+ * Cuánto se baja y qué pasa al actualizar. Con paquete se dice el tamaño, que
+ * es lo que decide si compensa ahora (unos MB frente a los ~300 del
+ * instalador); sin él, `latest.json` no dice cuánto pesa el instalador.
+ */
+export function comoSeActualiza(aviso: AvisoActualizacion): string {
+  if (aviso.fallo_anterior) {
+    return `La última vez no se pudo aplicar (${aviso.fallo_anterior}), así que esta vez se descargará `
+      + 'la versión completa. La aplicación se cerrará un momento y volverá a abrirse.';
+  }
+  if (aviso.descarga) {
+    return `Descarga: ${megas(aviso.descarga)}, sólo lo que cambia. La aplicación se cerrará `
+      + 'unos segundos y volverá a abrirse ya actualizada.';
+  }
+  return 'Se descargará la versión completa. La aplicación se cerrará un momento y volverá a abrirse.';
+}
+
+function megas(bytes: number): string {
+  const cuantos = bytes / (1024 * 1024);
+  return `${cuantos.toLocaleString('es-ES', { maximumFractionDigits: cuantos < 10 ? 1 : 0 })} MB`;
 }

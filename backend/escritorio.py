@@ -173,10 +173,13 @@ def registrar_rutas(app) -> None:
 
     from storage import storage, validate_session_id
 
+    def resumen() -> dict:
+        ocupado, sesiones = storage.resumen()
+        return {'ocupado': ocupado, 'sesiones': sesiones, 'actualizacion': tamano_de_la_actualizacion()}
+
     @app.get('/api/escritorio/espacio')
     def espacio():
-        ocupado, sesiones = storage.resumen()
-        return jsonify({'ocupado': ocupado, 'sesiones': sesiones})
+        return jsonify(resumen())
 
     @app.post('/api/escritorio/liberar')
     def liberar():
@@ -189,8 +192,21 @@ def registrar_rutas(app) -> None:
         propia = request.headers.get('X-Session-Id')
         propia = validate_session_id(propia) if propia else None
         liberado = storage.liberar_espacio(float('inf'), excepto=propia)
-        ocupado, sesiones = storage.resumen()
-        return jsonify({'liberado': liberado, 'ocupado': ocupado, 'sesiones': sesiones})
+        return jsonify({'liberado': liberado, **resumen()})
+
+
+def tamano_de_la_actualizacion() -> int:
+    """Lo que ocupa lo que haya dejado una actualización por paquete
+    (`escritorio/src-tauri/src/parche.rs`). La aplicación lo borra al arrancar,
+    así que casi siempre es cero; si no lo es, que se vea en «Espacio»."""
+    total = 0
+    for carpeta, _, archivos in os.walk(os.path.join(carpeta_de_datos(), 'actualizacion')):
+        for nombre in archivos:
+            try:
+                total += os.path.getsize(os.path.join(carpeta, nombre))
+            except OSError:
+                pass
+    return total
 
 
 def servir_frontend(app, carpeta: str) -> None:

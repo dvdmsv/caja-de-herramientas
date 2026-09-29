@@ -275,9 +275,11 @@ def test_espacio_y_liberar_solo_existen_en_la_aplicacion(entorno, monkeypatch):
     assert cliente.post('/api/escritorio/liberar').status_code in (404, 405)
 
 
-def test_liberar_no_toca_la_propia_ni_las_activas(cliente):
+def test_liberar_no_toca_la_propia_ni_las_activas(cliente, monkeypatch, tmp_path):
     """Con varias ventanas, la de al lado puede estar a mitad de algo."""
     import time
+
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path / 'datos'))
 
     from storage import storage
 
@@ -296,11 +298,22 @@ def test_liberar_no_toca_la_propia_ni_las_activas(cliente):
     con_token(cliente)
 
     antes = cliente.get('/api/escritorio/espacio').get_json()
-    assert antes == {'ocupado': 3000, 'sesiones': 3}
+    assert antes == {'ocupado': 3000, 'sesiones': 3, 'actualizacion': 0}
 
     despues = cliente.post('/api/escritorio/liberar', headers={'X-Session-Id': 'a' * 32}).get_json()
-    assert despues == {'liberado': 1000, 'ocupado': 2000, 'sesiones': 2}
+    assert despues == {'liberado': 1000, 'ocupado': 2000, 'sesiones': 2, 'actualizacion': 0}
     assert os.path.isdir(propia) and os.path.isdir(activa) and not os.path.exists(vieja)
+
+
+def test_espacio_cuenta_lo_que_deje_una_actualizacion(cliente, monkeypatch, tmp_path):
+    """La aplicación la borra al arrancar; si algo se queda, tiene que verse."""
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path / 'datos'))
+    resto = tmp_path / 'datos' / 'merge-pdf' / 'actualizacion' / '0.2.5-1234' / 'nuevos'
+    resto.mkdir(parents=True)
+    (resto / 'a.bin').write_bytes(b'x' * 500)
+    con_token(cliente)
+
+    assert cliente.get('/api/escritorio/espacio').get_json()['actualizacion'] == 500
 
 
 def test_lo_que_lanza_ocrmypdf_no_hereda_entrada_ni_salida():

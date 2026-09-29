@@ -260,6 +260,16 @@ jobs:
           # Una caché por modo (ver CARGO_PROFILE_RELEASE_* arriba).
           key: publicar-${{ env.PUBLICAR }}
 
+      # Lo que decide qué se pone y qué se quita al aplicar un paquete de
+      # actualización. Sólo usa std, así que se prueba con rustc suelto, sin
+      # compilar Tauri para los tests.
+      - name: Tests del plan de actualización
+        run: |
+          rustc --edition 2021 --test escritorio\src-tauri\src\parche_plan.rs -o "$env:RUNNER_TEMP\parche_plan.exe"
+          if ($LASTEXITCODE) { throw 'No compila.' }
+          & "$env:RUNNER_TEMP\parche_plan.exe"
+          if ($LASTEXITCODE) { throw 'Fallan los tests del plan de actualización.' }
+
       - name: Compilar el instalador
         id: instalador
         working-directory: escritorio
@@ -277,6 +287,55 @@ jobs:
           $nsis = Get-ChildItem src-tauri\target\release\bundle\nsis\*.exe | Select-Object -First 1
           '{0}: {1:N0} MB' -f $nsis.Name, ($nsis.Length / 1MB)
           "ruta=$($nsis.FullName)" >> $env:GITHUB_OUTPUT
+
+      # --- Paquetes de actualización -------------------------------------------
+      #
+      # El manifiesto de esta versión (cada archivo que pone el instalador, con
+      # su SHA-256) y, al publicar, un paquete con sólo lo que cambia desde cada
+      # una de las últimas versiones (escritorio/scripts/paquetes.py; los aplica
+      # la aplicación, src-tauri/src/parche.rs). Una versión normal son unos MB
+      # en vez de los ~310 del instalador.
+      #
+      # En cada push, el manifiesto y un paquete contra sí mismo, que tiene que
+      # salir vacío: así el script se prueba en Windows sin esperar a publicar.
+      # El manifiesto lo usa también la prueba de aplicar de más abajo.
+      - name: Paquetes de actualización
+        id: paquetes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content escritorio\src-tauri\tauri.conf.json -Raw | ConvertFrom-Json).version
+          New-Item -ItemType Directory paquetes, anteriores -Force | Out-Null
+          python escritorio\scripts\paquetes.py manifiesto --version $version --salida paquetes\archivos.json
+          if ($LASTEXITCODE) { throw 'No se ha podido hacer el manifiesto.' }
+          if ($env:PUBLICAR -ne 'true') {
+            python escritorio\scripts\paquetes.py paquete --viejo paquetes\archivos.json --nuevo paquetes\archivos.json --salida anteriores
+            $vacio = Get-ChildItem anteriores\*.tar.gz | Select-Object -First 1
+            python -c "import sys, tarfile; sys.exit(tarfile.open(sys.argv[1]).getnames() != ['cambios.json'])" $vacio.FullName
+            if ($LASTEXITCODE) { throw 'El paquete de una versión contra sí misma no sale vacío.' }
+            'El paquete contra sí misma sale vacío.'
+            exit 0
+          }
+          # Desde las últimas versiones publicadas que tengan manifiesto. Si el
+          # instalador ha cambiado desde alguna (paquetes.py, huella), desde ésa
+          # no hay paquete: sólo NSIS sabe aplicar esos cambios.
+          $etiqueta = '${{ inputs.etiqueta || github.ref_name }}'
+          gh api "repos/${{ github.repository }}/releases?per_page=100" > releases.json
+          $desde = Get-Content releases.json -Raw | python escritorio\scripts\paquetes.py anteriores --actual $etiqueta
+          foreach ($anterior in $desde) {
+            gh release download $anterior --pattern archivos.json --output "anteriores\$anterior.json"
+            if ($LASTEXITCODE) { throw "No se ha podido bajar el manifiesto de $anterior." }
+            python escritorio\scripts\paquetes.py paquete --viejo "anteriores\$anterior.json" --nuevo paquetes\archivos.json --salida paquetes
+            if ($LASTEXITCODE) { throw "No se ha podido hacer el paquete desde $anterior." }
+          }
+          # Con la misma clave que el instalador: la aplicación comprueba la
+          # firma con la pública de tauri.conf.json antes de abrir el paquete.
+          Push-Location escritorio
+          foreach ($paquete in Get-ChildItem ..\paquetes\*.tar.gz) {
+            npx tauri signer sign $paquete.FullName
+            if ($LASTEXITCODE) { throw "No se ha podido firmar $($paquete.Name)." }
+          }
+          Pop-Location
 
       # Instalado de verdad, como lo haría alguien: que el backend arranque desde
       # la carpeta de instalación (encuentra vendor\ solo) y, sobre todo, que
@@ -356,15 +415,58 @@ jobs:
           }
           'En «Abrir con…» de los PDF, sin ser el predeterminado.'
 
-          # Y al desinstalar no queda nada de eso.
-          $desinstalador = Join-Path $exe.DirectoryName 'uninstall.exe'
+          # Una actualización por paquete, aplicada por la propia aplicación
+          # (src/parche.rs) sobre lo recién instalado: trae un archivo nuevo, y
+          # uno que sobra tiene que desaparecer. Sin descarga ni firma, que se
+          # prueban en una VM. Lo que se prueba aquí es que el manifiesto
+          # coincide con lo que pone el instalador —si no, se niega por «falta
+          # un archivo»—, el cambio de archivos y la versión en el registro.
+          $instalacion = $exe.DirectoryName
+          $prueba = "$env:LOCALAPPDATA\merge-pdf\actualizacion\9.9.9-1"
+          $nuevo = 'backend/_internal/frontend/prueba-de-paquete.txt'
+          New-Item -ItemType Directory "$prueba\nuevos\backend\_internal\frontend" -Force | Out-Null
+          Set-Content "$prueba\nuevos\backend\_internal\frontend\prueba-de-paquete.txt" 'nuevo' -NoNewline
+          Set-Content "$instalacion\backend\_internal\frontend\resto-de-otra-version.js" 'viejo'
+          $manifiesto = (Get-Content paquetes\archivos.json -Raw | ConvertFrom-Json -AsHashtable).archivos
+          # Lo que haya en la instalación y no en el manifiesto se borra al
+          # aplicar. Si sale algo más que el resto puesto a mano, es que la
+          # aplicación escribe en su carpeta y el barrido se lo llevaría.
+          $sobran = Get-ChildItem "$instalacion\backend", "$instalacion\vendor" -Recurse -File |
+            ForEach-Object { $_.FullName.Substring($instalacion.Length + 1).Replace('\', '/') } |
+            Where-Object { -not $manifiesto.ContainsKey($_) }
+          "Sobran antes de aplicar: $($sobran -join ', ')"
+          @{
+            formato = 1; desde = $version; hasta = '9.9.9'; borrar = @()
+            archivos = @{ $nuevo = (Get-FileHash "$prueba\nuevos\backend\_internal\frontend\prueba-de-paquete.txt").Hash.ToLower() }
+            todos = @($manifiesto.Keys) + $nuevo
+          } | ConvertTo-Json -Depth 4 | Set-Content "$prueba\cambios.json" -Encoding utf8NoBOM
+          $aplicar = Start-Process $exe.FullName -PassThru -Wait -ArgumentList `
+            '--aplicar-actualizacion', "`"$prueba`"", '--instalacion', "`"$instalacion`"", '--sin-abrir'
+          Get-Content "$env:LOCALAPPDATA\merge-pdf\actualizacion\resultado.json" -ErrorAction SilentlyContinue
+          if ($aplicar.ExitCode -ne 0) { throw "Aplicar el paquete ha salido con $($aplicar.ExitCode)." }
+          if ((Get-Content "$instalacion\backend\_internal\frontend\prueba-de-paquete.txt" -Raw) -ne 'nuevo') {
+            throw 'El archivo del paquete no está en su sitio.'
+          }
+          if (Test-Path "$instalacion\backend\_internal\frontend\resto-de-otra-version.js") { throw 'Lo que sobraba sigue ahí.' }
+          $registrada = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' |
+            Get-ItemProperty | Where-Object { $_.DisplayVersion -eq '9.9.9' }
+          if (-not $registrada) { throw 'La versión en el registro no ha cambiado.' }
+          'Paquete aplicado: lo nuevo en su sitio, lo que sobraba fuera y la versión en el registro.'
+
+          # Y al desinstalar no queda nada: ni en el registro ni en la carpeta,
+          # tampoco lo que llegó con el paquete, que la plantilla de NSIS no
+          # conoce (lo borra el gancho de windows/ganchos.nsh).
+          $desinstalador = Join-Path $instalacion 'uninstall.exe'
           Start-Process $desinstalador -ArgumentList '/S' -Wait
           Start-Sleep -Seconds 5
           if (Test-Path 'HKCU:\Software\Classes\CajaDeHerramientas.Archivo') {
             throw 'Desinstalada, sigue registrada en «Abrir con…».'
           }
-          if (Test-Path $exe.FullName) { throw 'Desinstalada, el ejecutable sigue ahí.' }
-          'Desinstalada sin dejar rastro en el registro.'
+          if (Test-Path $instalacion) {
+            Get-ChildItem $instalacion -Recurse | Select-Object -First 20 -ExpandProperty FullName
+            throw 'Desinstalada, la carpeta de la aplicación sigue ahí.'
+          }
+          'Desinstalada sin dejar rastro en el registro ni en la carpeta.'
 
       - uses: actions/upload-artifact@v7
         id: artefacto
@@ -464,6 +566,20 @@ jobs:
             if ($arreglos) { "## Arreglos$desde"; ''; $arreglos; '' }
             if (-not $novedades -and -not $arreglos) { 'Mejoras internas y de rendimiento.' }
           ) -join "`n"
+          # Los paquetes con sólo lo que cambia (paso «Paquetes de
+          # actualización»), por la versión desde la que sirven. El actualizador
+          # de Tauri no mira este campo; lo lee la aplicación (src/parche.rs).
+          $paquetes = @{}
+          $tamanos = @()
+          foreach ($paquete in Get-ChildItem paquetes\*.tar.gz) {
+            $desde = $paquete.Name -replace '^CajaDeHerramientas-cambios-desde-(.+)\.tar\.gz$', '$1'
+            $paquetes[$desde] = @{
+              url = "https://github.com/${{ github.repository }}/releases/download/$etiqueta/$($paquete.Name)"
+              firma = (Get-Content "$($paquete.FullName).sig" -Raw).Trim()
+              tamano = $paquete.Length
+            }
+            $tamanos += '- Desde la {0}: {1:N1} MB' -f $desde, ($paquete.Length / 1MB)
+          }
           # Lo que lee el actualizador de las instalaciones que ya hay. `notes`
           # lleva las novedades de esta versión: el aviso las enseña si no puede
           # pedir a GitHub las de todas las versiones que se ha saltado.
@@ -477,13 +593,33 @@ jobs:
                 url = "https://github.com/${{ github.repository }}/releases/download/$etiqueta/$nombre"
               }
             }
-          } | ConvertTo-Json -Depth 4 | Set-Content latest.json -Encoding utf8NoBOM
+            paquetes = $paquetes
+          } | ConvertTo-Json -Depth 5 | Set-Content latest.json -Encoding utf8NoBOM
           $firmado = if ('${{ steps.firma.outcome }}' -eq 'success') { 'Firmado con SignPath.' } else {
             'Todavía **sin firmar**: Windows avisará al abrirlo («Más información» → «Ejecutar de todas formas»).' }
           # Y una copia con nombre fijo, para que haya un enlace que no cambie
           # nunca: releases/latest/download/CajaDeHerramientas-setup.exe lleva
           # siempre a la última. Es el que se enlaza desde el README de master.
           Copy-Item $nombre 'CajaDeHerramientas-setup.exe'
-          $notas = @('Instalador para Windows 10 y 11 (64 bits). ' + $firmado, '', $cambios) -join "`n"
-          gh release create $etiqueta $nombre 'CajaDeHerramientas-setup.exe' latest.json `
-            --title "Caja de herramientas $version" --notes $notas
+          $actualizar = if ($tamanos) {
+            @('', '### Lo que se descarga al actualizar desde la aplicación', '') + $tamanos + @('',
+              'Desde una versión más antigua, el instalador completo.') } else { @() }
+          $notas = (@('Instalador para Windows 10 y 11 (64 bits). ' + $firmado, '', $cambios) + $actualizar) -join "`n"
+          # El manifiesto se sube siempre: sin él, la versión siguiente no
+          # podría hacer paquete desde ésta. Las firmas de los paquetes ya van
+          # en latest.json.
+          $recursos = @($nombre, 'CajaDeHerramientas-setup.exe', 'latest.json', 'paquetes\archivos.json') +
+            @(Get-ChildItem paquetes\*.tar.gz | ForEach-Object FullName)
+          gh release create $etiqueta @recursos --title "Caja de herramientas $version" --notes $notas
+          if ($LASTEXITCODE) { throw 'No se ha podido crear la release.' }
+
+          # Los paquetes de las releases anteriores ya no los enlaza nadie
+          # (latest.json es el de ésta): se borran para que no se queden
+          # ocupando sitio. Se quedan su instalador y su manifiesto.
+          gh api "repos/${{ github.repository }}/releases?per_page=100" |
+            python escritorio\scripts\paquetes.py podar --ultima $etiqueta |
+            ForEach-Object {
+              $release, $recurso = $_ -split "`t"
+              gh release delete-asset $release $recurso --yes
+              "Quitado $recurso de $release"
+            }

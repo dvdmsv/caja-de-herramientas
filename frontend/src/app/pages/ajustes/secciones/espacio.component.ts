@@ -30,6 +30,13 @@ import { SeccionAjustes } from './seccion';
         </button>
         <p debajo class="small text-success mt-1 mb-0" role="status">{{ resultado }}</p>
       </app-fila-ajuste>
+      @if (espacio?.actualizacion) {
+        <!-- Casi nunca sale: la aplicación borra esto al arrancar. Si se ve, es
+             una actualización a medias, y así no ocupa sitio sin que se sepa. -->
+        <app-fila-ajuste titulo="Restos de una actualización"
+          [detalle]="(espacio!.actualizacion! | peso) + ' · se borran solos al volver a abrir la aplicación'">
+        </app-fila-ajuste>
+      }
       <app-fila-ajuste titulo="Carpeta de datos"
         detalle="Los archivos de trabajo, los ajustes y los registros.">
         <button type="button" class="btn btn-outline-secondary" (click)="abrir()">

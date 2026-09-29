@@ -117,3 +117,21 @@
   DeleteRegKey SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 !macroend
+
+!macro NSIS_HOOK_POSTUNINSTALL
+  ; La plantilla de Tauri borra sólo los archivos que conoce, uno a uno, y sus
+  ; carpetas sin `/r`. Lo que haya llegado con una actualización por paquetes
+  ; (src/parche.rs) no lo conoce, y se quedaría en el disco para siempre. Son
+  ; las carpetas de la propia aplicación, así que no se toca nada ajeno. Con
+  ; /UPDATE no: es el instalador de la versión nueva quien desinstala y vuelve
+  ; a poner lo mismo.
+  ${If} $UpdateMode <> 1
+    RMDir /r "$INSTDIR\backend"
+    RMDir /r "$INSTDIR\vendor"
+    RMDir "$INSTDIR"
+    ; Lo temporal de la carpeta de datos: los archivos de trabajo y lo que haya
+    ; dejado una actualización. Los ajustes y los registros se quedan.
+    RMDir /r "$LOCALAPPDATA\merge-pdf\actualizacion"
+    RMDir /r "$LOCALAPPDATA\merge-pdf\uploads"
+  ${EndIf}
+!macroend

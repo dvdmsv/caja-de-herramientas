@@ -172,6 +172,8 @@ export interface ZonasAnonimizado {
 export interface EspacioDeTrabajo {
   ocupado: number;
   sesiones: number;
+  /** Lo que haya dejado una actualización; se borra solo al volver a abrir. */
+  actualizacion?: number;
 }
 
 /** Lo que se sabe de un PDF antes de pasarlo a EPUB. */

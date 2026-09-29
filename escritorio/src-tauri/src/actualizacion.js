@@ -8,8 +8,11 @@
 // claro u oscuro.
 //
 // Estados:
-//   { fase: 'descargando', version, descargado, total }  (bytes; total puede ser null)
-//   { fase: 'instalando', version }
+//   { fase: 'descargando', version, descargado, total, motivo }
+//       (bytes; total puede ser null; motivo, por qué se baja el instalador
+//       completo cuando había paquete)
+//   { fase: 'aplicando', version }   (paquete bajado: se cierra y se abre sola)
+//   { fase: 'instalando', version }  (el instalador completo)
 //   { fase: 'error', mensaje }
 (function () {
   if (window.__cajaActualizacion) {
@@ -18,8 +21,10 @@
 
   var ID = 'caja-actualizacion';
 
+  // Con un decimal por debajo de 10: un paquete de 0,4 MB no puede salir como «0 de 0 MB».
   function megas(bytes) {
-    return Math.round(bytes / (1024 * 1024));
+    var cuantos = bytes / (1024 * 1024);
+    return cuantos < 10 ? cuantos.toFixed(1).replace('.', ',') : String(Math.round(cuantos));
   }
 
   function capa() {
@@ -63,16 +68,26 @@
       titulo.textContent = 'Descargando la versión ' + estado.version + '…';
       boton.style.display = 'none';
       barra.style.display = '';
+      // Por qué va el instalador completo si había paquete: si no, la persona
+      // ve bajar 300 MB después de que se le dijera cuánto menos.
+      var motivo = estado.motivo ? 'La actualización rápida no se ha podido usar (' + estado.motivo +
+        '), así que se descarga la versión completa. ' : '';
       if (estado.total) {
         var porcentaje = Math.min(100, Math.round((estado.descargado / estado.total) * 100));
         barra.value = porcentaje;
-        texto.textContent = porcentaje + ' % · ' + megas(estado.descargado) + ' de ' +
+        texto.textContent = motivo + porcentaje + ' % · ' + megas(estado.descargado) + ' de ' +
           megas(estado.total) + ' MB. No cierres la aplicación mientras tanto.';
       } else {
         // Sin el total, la barra se queda indeterminada: mejor que un 0 % que no se mueve.
         barra.removeAttribute('value');
-        texto.textContent = megas(estado.descargado) + ' MB descargados.';
+        texto.textContent = motivo + megas(estado.descargado) + ' MB descargados.';
       }
+    } else if (estado.fase === 'aplicando') {
+      titulo.textContent = 'Aplicando la versión ' + estado.version;
+      boton.style.display = 'none';
+      barra.style.display = '';
+      barra.removeAttribute('value');
+      texto.textContent = 'La aplicación se cerrará y se volverá a abrir ya actualizada en unos segundos.';
     } else if (estado.fase === 'instalando') {
       titulo.textContent = 'Instalando la versión ' + estado.version;
       boton.style.display = 'none';

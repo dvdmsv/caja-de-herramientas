@@ -129,11 +129,58 @@ el instalador y la firma de una release de verdad. La firma se sigue
 comprobando, así que no abre ninguna puerta.
 
 Al aceptar, una capa sobre la página con la descarga (porcentaje y MB) y la
-misma barra en el icono de la barra de tareas; después, «Instalando…» y la
-ventana de progreso de NSIS, y la aplicación se vuelve a abrir sola. Si la
-descarga falla, se dice y se sigue con la versión que hay. La capa está en
-`src-tauri/src/actualizacion.js`. **Cuidado al probarlo**: lo que se ve lo decide
-la versión que ya está instalada, no la nueva.
+misma barra en el icono de la barra de tareas, y la aplicación se vuelve a abrir
+sola. Si la descarga falla, se dice y se sigue con la versión que hay. La capa
+está en `src-tauri/src/actualizacion.js`. **Cuidado al probarlo**: lo que se ve
+lo decide la versión que ya está instalada, no la nueva.
+
+### Actualizar sin bajarlo todo: los paquetes
+
+La instalación ocupa 1270 MB y el instalador son ~310 de descarga, pero una
+versión normal sólo cambia nuestro backend, el frontend y el ejecutable de
+Tauri: unos MB. LibreOffice, Tesseract y las bibliotecas de Python casi nunca.
+Así que cada release publica además:
+
+- **`archivos.json`**, el manifiesto: cada archivo que pone el instalador, con
+  su SHA-256, más una huella de lo que sólo aplica NSIS (`ganchos.nsh`, iconos,
+  imágenes y `tauri.conf.json` sin el número). Se queda para siempre en cada
+  release: sin él, la siguiente no podría hacer paquete desde ésta.
+- **Un paquete firmado por cada una de las 5 versiones anteriores**
+  (`CajaDeHerramientas-cambios-desde-0.2.5.tar.gz`), con los archivos nuevos o
+  distintos y `cambios.json`. `latest.json` los lista en `paquetes`, con su
+  firma. Si la huella del instalador cambia desde una versión, **desde ésa no
+  hay paquete**: las asociaciones de «Abrir con…» o el registro sólo los sabe
+  poner NSIS.
+
+Lo hace `scripts/paquetes.py`, con tests en `backend/tests/test_paquetes.py`. La
+aplicación (`src-tauri/src/parche.rs`), si hay paquete para su versión exacta:
+
+1. lo baja comprobando la firma con la clave del actualizador mientras llega, y
+   lo abre comprobando el SHA-256 de cada archivo;
+2. se copia a sí misma a `%LOCALAPPDATA%\merge-pdf\actualizacion\` y se lanza
+   desde ahí con `--aplicar-actualizacion` (lo atiende `main()` antes de crear
+   Tauri), y sale;
+3. esa copia espera a que salga, pone cada archivo guardando el que sustituye,
+   **quita todo lo que sobre en `backend\` y `vendor\`** —también los restos de
+   las actualizaciones con el instalador, que nunca borraba nada—, cambia la
+   versión en «Aplicaciones instaladas» y abre la nueva. **Si algo falla a
+   mitad, devuelve lo guardado** y abre la de antes, que ofrece el instalador
+   completo diciendo por qué.
+
+Sin paquete para su versión (viene de más de 5 atrás, o el instalador cambió) o
+si algo falla antes de tocar la instalación, el instalador completo de siempre.
+
+**Nada se queda ocupando sitio.** Al arrancar se borra la carpeta de la
+actualización entera y los instaladores que deja en `%TEMP%` el actualizador de
+Tauri. Al publicar, la CI quita los paquetes de las releases anteriores, que ya
+no enlaza nadie: en GitHub nunca hay más de 5. Y el desinstalador borra
+`backend\` y `vendor\` enteras (`ganchos.nsh`), porque la plantilla de Tauri
+sólo borra los archivos que conoce.
+
+La primera versión que lo trae no se puede alcanzar por paquete —las anteriores
+no tienen manifiesto—; las siguientes, sí. En cada push, la CI hace el
+manifiesto, un paquete contra sí mismo que tiene que salir vacío, y aplica uno
+de prueba sobre la aplicación instalada.
 
 Si la prueba falla, el número se queda gastado (commit y etiqueta existen, la
 release no): se arregla y se vuelve a pulsar, y sale el siguiente.
@@ -178,7 +225,9 @@ no cambia nunca:
     saltada.
   - **Espacio**: lo que ocupan los archivos de trabajo y «Liberar», que no toca
     la sesión de la ventana que lo pide ni las usadas en los últimos minutos
-    (`/api/escritorio/*` en `backend/escritorio.py`, que sólo existe aquí).
+    (`/api/escritorio/*` en `backend/escritorio.py`, que sólo existe aquí). Si
+    una actualización ha dejado algo, sale también: se borra solo al volver a
+    abrir, pero no ocupa sitio sin que se sepa.
   - **Ayuda**: «Copiar información para soporte» (`soporte.rs`: versión,
     Windows, memoria, ajustes cambiados y el final del registro; sin nombres de
     archivo) y la carpeta de registros.
@@ -342,6 +391,17 @@ para que aparezcan en «Abrir con…».
   del instalador sólo añaden una entrada a `OpenWithProgids`.
 - **El actualizador usa el TLS de Windows**, no rustls: respeta los certificados
   y el proxy del sistema y no arrastra `ring`, que necesita compilar C.
+- **Un ejecutable en marcha no se puede sobrescribir** (sí renombrar), y el
+  backend tiene abiertas sus DLL. Por eso un paquete no lo aplica la aplicación
+  sino una copia suya lanzada desde fuera de la carpeta de instalación, que
+  espera a que salga. Y aun así, el backend muere con el job un momento después
+  que la aplicación: `parche.rs` reintenta unos segundos los archivos que siguen
+  abiertos antes de darlo por fallido.
+- **Las carpetas `backend\` y `vendor\` quedan exactamente como dice el
+  manifiesto** al aplicar un paquete: lo que no esté en él, se borra. Si algún
+  día algo escribe dentro mientras funciona (una caché, un perfil), se lo
+  llevaría cada actualización. La prueba de aplicar de la CI lista lo que sobra
+  antes de aplicar, y ahí se vería.
 
 ## Lo que falta por comprobar a mano
 
@@ -353,4 +413,5 @@ si falta el runtime de Visual C++):
 - abrir un PDF con «Abrir con…», con la aplicación cerrada y con ella abierta;
 - firmar con AutoFirma: el protocolo `afirma://` tiene que salir de la ventana y
   lanzar AutoFirma;
-- una actualización de una versión a la siguiente.
+- una actualización de una versión a la siguiente, por paquete: la primera que
+  se publique después de la que trae los paquetes.
