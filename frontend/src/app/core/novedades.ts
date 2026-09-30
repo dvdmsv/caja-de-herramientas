@@ -46,8 +46,6 @@ export interface AvisoActualizacion {
   /** Las novedades de la última versión, de `latest.json`. */
   notas: string | null;
   fecha: string | null;
-  /** Bytes a bajar si hay paquete con sólo lo que cambia; sin él, el instalador completo. */
-  descarga?: number | null;
   /** Por qué no se pudo aplicar la vez anterior: esta vez va el instalador completo. */
   fallo_anterior?: string | null;
 }
@@ -176,23 +174,15 @@ export function htmlDelAviso(aviso: AvisoActualizacion, versiones: NovedadesDeVe
 }
 
 /**
- * Cuánto se baja y qué pasa al actualizar. Con paquete se dice el tamaño, que
- * es lo que decide si compensa ahora (unos MB frente a los ~300 del
- * instalador); sin él, `latest.json` no dice cuánto pesa el instalador.
+ * Qué pasa al actualizar. **Sin tamaños**: el aviso es para ver qué trae la
+ * versión, no cuánto ocupa, y cómo se baja (paquete o instalador completo) es
+ * cosa de la aplicación. Tras un fallo sí se dice por qué, porque la persona ya
+ * lo pidió una vez y le toca saber qué pasó.
  */
 export function comoSeActualiza(aviso: AvisoActualizacion): string {
   if (aviso.fallo_anterior) {
-    return `La última vez no se pudo aplicar (${aviso.fallo_anterior}), así que esta vez se descargará `
-      + 'la versión completa. La aplicación se cerrará un momento y volverá a abrirse.';
+    return `La última vez no se pudo terminar (${aviso.fallo_anterior}); se volverá a intentar. `
+      + 'La aplicación se cerrará un momento y volverá a abrirse.';
   }
-  if (aviso.descarga) {
-    return `Descarga: ${megas(aviso.descarga)}, sólo lo que cambia. La aplicación se cerrará `
-      + 'unos segundos y volverá a abrirse ya actualizada.';
-  }
-  return 'Se descargará la versión completa. La aplicación se cerrará un momento y volverá a abrirse.';
-}
-
-function megas(bytes: number): string {
-  const cuantos = bytes / (1024 * 1024);
-  return `${cuantos.toLocaleString('es-ES', { maximumFractionDigits: cuantos < 10 ? 1 : 0 })} MB`;
+  return 'Al actualizar, la aplicación se cerrará un momento y volverá a abrirse.';
 }

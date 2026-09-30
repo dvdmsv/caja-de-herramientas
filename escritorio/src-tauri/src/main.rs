@@ -328,9 +328,6 @@ struct AvisoActualizacion {
     instalada: String,
     notas: Option<String>,
     fecha: Option<String>,
-    /// Lo que se va a bajar, si hay paquete (`parche.rs`). Sin él es el
-    /// instalador completo, cuyo tamaño `latest.json` no dice.
-    descarga: Option<u64>,
     fallo_anterior: Option<String>,
 }
 
@@ -406,7 +403,6 @@ fn actualizacion_pendiente(actualizacion: tauri::State<'_, Actualizacion>) -> Op
     }
     let fallo_anterior = actualizacion.fallo_anterior.lock().unwrap().clone();
     Some(AvisoActualizacion {
-        descarga: paquete_a_usar(&actualizacion, &nueva).map(|paquete| paquete.tamano),
         fallo_anterior,
         fecha: nueva.raw_json.get("pub_date").and_then(|fecha| fecha.as_str()).map(String::from),
         version: nueva.version,

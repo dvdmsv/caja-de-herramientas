@@ -88,18 +88,16 @@ describe('novedades de una actualización', () => {
     expect(html).toContain('No se ha podido consultar GitHub');
   });
 
-  it('con paquete dice cuánto se baja; sin él, que es la versión completa', () => {
-    expect(comoSeActualiza({ ...aviso, descarga: 12.4 * 1024 * 1024 })).toContain('Descarga: 12 MB');
-    expect(comoSeActualiza({ ...aviso, descarga: 3.46 * 1024 * 1024 })).toContain('Descarga: 3,5 MB');
-    expect(comoSeActualiza(aviso)).toContain('versión completa');
-    expect(htmlDelAviso({ ...aviso, descarga: 1024 * 1024 }, [], true)).toContain('Descarga: 1 MB');
+  it('no habla de tamaños: sólo de lo que pasa al actualizar', () => {
+    const texto = comoSeActualiza(aviso);
+    expect(texto).toBe('Al actualizar, la aplicación se cerrará un momento y volverá a abrirse.');
+    expect(htmlDelAviso(aviso, [], true)).not.toMatch(/\d+(,\d+)? ?(MB|KB|GB)/);
   });
 
-  it('si la vez anterior falló, dice por qué y que va la versión completa', () => {
-    const texto = comoSeActualiza({ ...aviso, descarga: 1024, fallo_anterior: 'backend/x: acceso denegado' });
+  it('si la vez anterior falló, dice por qué', () => {
+    const texto = comoSeActualiza({ ...aviso, fallo_anterior: 'backend/x: acceso denegado' });
     expect(texto).toContain('backend/x: acceso denegado');
-    expect(texto).toContain('versión completa');
-    expect(texto).not.toContain('Descarga:');
+    expect(texto).toContain('se volverá a intentar');
     expect(htmlDelAviso({ ...aviso, fallo_anterior: '<b>' }, [], true)).toContain('&lt;b&gt;');
   });
 });
