@@ -34,7 +34,10 @@ export interface ResumenTamano {
 
 /** Texto convertido que algunas herramientas devuelven para enseñarlo en pantalla. */
 export interface VistaPrevia {
-  texto: string;
+  /** El documento del que sale; con «Unir», el archivo unido. */
+  nombre: string;
+  /** `null` si ya no cabía en la respuesta: se dice y se descarga. */
+  texto: string | null;
   caracteres: number;
   palabras: number;
 }
@@ -206,7 +209,8 @@ export interface InformeFirmas {
 export interface Resultado {
   files: ArchivoServidor[];
   resumen?: ResumenTamano;
-  vista_previa?: VistaPrevia;
+  /** Una por archivo de salida, en el orden de la lista. */
+  vistas_previas?: VistaPrevia[];
   /** Sólo la manda "Comparar PDF": el recuento de páginas de su informe. */
   comparacion?: ResumenComparacion;
   /** Sólo la manda "Comprimir PDF" cuando se le pide un tamaño: si ha llegado. */

@@ -7,8 +7,10 @@ import { PaginaHerramienta } from '../../../shared/pagina-herramienta';
 import { ResultListComponent } from '../../../shared/result-list/result-list.component';
 import { ToolControlsComponent } from '../../../shared/tool-controls/tool-controls.component';
 import { ToolPageComponent } from '../../../shared/tool-page/tool-page.component';
+import { Resultado, VistaPrevia } from '../../../core/api.service';
 import { avisoError, avisoExito } from '../../../shared/notify';
 import { copiarAlPortapapeles } from '../../../shared/portapapeles';
+import { markdownUnido } from './vistas';
 
 /** Regla de andar por casa para estimar tokens a partir de caracteres. */
 const CARACTERES_POR_TOKEN = 4;
@@ -27,24 +29,38 @@ export class AMarkdownComponent extends PaginaHerramienta {
   }
 
   unir = false;
+  /** Cuál de las vistas previas se enseña, con varios documentos sin «Unir». */
+  seleccionada = 0;
 
   protected override opciones(): Record<string, unknown> {
     return { unir: this.unir };
   }
 
-  /** Para saber de un vistazo si el texto le cabe al modelo. */
-  get tokensAproximados(): number {
-    return Math.ceil((this.vistaPrevia?.caracteres ?? 0) / CARACTERES_POR_TOKEN);
+  protected override alTerminar(_resultado: Resultado): void {
+    this.seleccionada = 0;
   }
 
-  async copiar(): Promise<void> {
-    const texto = this.vistaPrevia?.texto;
+  get vista(): VistaPrevia | null {
+    return this.vistasPrevias[this.seleccionada] ?? this.vistasPrevias[0] ?? null;
+  }
+
+  /** «Copiar todos», o `null` si a alguno le falta el texto. */
+  get todos(): string | null {
+    return markdownUnido(this.vistasPrevias);
+  }
+
+  /** Para saber de un vistazo si el texto le cabe al modelo. */
+  get tokensAproximados(): number {
+    return Math.ceil((this.vista?.caracteres ?? 0) / CARACTERES_POR_TOKEN);
+  }
+
+  async copiar(texto: string | null | undefined, exito: string): Promise<void> {
     if (!texto) {
       return;
     }
     try {
       await copiarAlPortapapeles(texto);
-      avisoExito('Markdown copiado');
+      avisoExito(exito);
     } catch {
       avisoError('El navegador no ha dejado copiar. Descarga el archivo o selecciona el texto a mano.');
     }

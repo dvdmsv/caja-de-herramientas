@@ -53,7 +53,7 @@ export abstract class PaginaHerramienta {
   resultados: ArchivoServidor[] = [];
   resumen: ResumenTamano | null = null;
   /** Sólo la rellenan las herramientas que devuelven texto, como "a Markdown". */
-  vistaPrevia: VistaPrevia | null = null;
+  vistasPrevias: VistaPrevia[] = [];
 
   /** -1 cuando no hay ninguna subida en marcha. */
   progreso = -1;
@@ -207,7 +207,7 @@ export abstract class PaginaHerramienta {
         this.avisarAlTerminar(true);
         this.resultados = resultado.files;
         this.resumen = resultado.resumen ?? null;
-        this.vistaPrevia = resultado.vista_previa ?? null;
+        this.vistasPrevias = resultado.vistas_previas ?? [];
         this.alTerminar(resultado);
         // Los resultados también ocupan sitio, y es justo lo que sorprende.
         this.usoSesion.refrescar();
@@ -406,7 +406,7 @@ export abstract class PaginaHerramienta {
     this.trabajo = null;
     this.resultados = [];
     this.resumen = null;
-    this.vistaPrevia = null;
+    this.vistasPrevias = [];
   }
 
   /**

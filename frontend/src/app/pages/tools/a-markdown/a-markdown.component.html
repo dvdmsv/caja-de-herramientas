@@ -25,18 +25,48 @@
   <app-tool-controls [pagina]="pagina" accion="Convertir a Markdown" icono="bi-markdown">
   </app-tool-controls>
 
-  @if (vistaPrevia; as previa) {
+  @if (vista; as previa) {
     <section class="card mt-4">
-      <div class="card-header d-flex flex-wrap align-items-center gap-2">
-        <strong class="me-auto">Markdown</strong>
-        <span class="small text-body-secondary">
+      <div class="card-header cabecera">
+        @if (vistasPrevias.length > 1) {
+          <!-- Con varios documentos sin «Unir», uno cada vez: así se puede copiar
+               el Markdown sin descargar nada. -->
+          <select class="form-select form-select-sm documento" aria-label="Documento que se ve"
+            [(ngModel)]="seleccionada">
+            @for (una of vistasPrevias; track $index) {
+              <option [ngValue]="$index">{{ una.nombre }}</option>
+            }
+          </select>
+          <!-- Sólo en móvil, donde el desplegable lo corta (ver el CSS). El
+               desplegable ya lo anuncia: el lector de pantalla no lo repite. -->
+          <span class="nombre-entero" aria-hidden="true">{{ previa.nombre }}</span>
+        } @else {
+          <strong class="me-auto">Markdown</strong>
+        }
+        <span class="small text-body-secondary cifras">
           {{ previa.palabras }} palabras · {{ previa.caracteres }} caracteres · ≈ {{ tokensAproximados }} tokens
         </span>
-        <button type="button" class="btn btn-sm btn-outline-primary" (click)="copiar()">
-          <i class="bi bi-clipboard me-1"></i>Copiar
-        </button>
+        <div class="botones">
+          <button type="button" class="btn btn-sm btn-outline-primary" [disabled]="!previa.texto"
+            (click)="copiar(previa.texto, 'Markdown copiado')">
+            <i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copiar
+          </button>
+          @if (vistasPrevias.length > 1) {
+            <button type="button" class="btn btn-sm btn-outline-primary" [disabled]="!todos"
+              [title]="todos ? 'Todos juntos, cada uno bajo su título' : 'Alguno es demasiado largo para copiarlo desde aquí'"
+              (click)="copiar(todos, 'Copiados todos los documentos')">
+              <i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copiar todos
+            </button>
+          }
+        </div>
       </div>
-      <pre class="markdown mb-0"><code>{{ previa.texto }}</code></pre>
+      @if (previa.texto !== null) {
+        <pre class="markdown mb-0"><code>{{ previa.texto }}</code></pre>
+      } @else {
+        <p class="card-body mb-0 text-body-secondary">
+          Este documento es demasiado largo para verlo aquí: descárgalo abajo.
+        </p>
+      }
     </section>
   }
 

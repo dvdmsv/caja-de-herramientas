@@ -147,7 +147,7 @@ def test_documento_a_markdown_acepta_eml_y_entrega_los_adjuntos(cliente):
     assert respuesta.status_code == 201, respuesta.get_json()
     datos = respuesta.get_json()
     assert [f['name'] for f in datos['files']] == ['correo.md', 'presupuesto.pdf']
-    assert datos['vista_previa']['texto'].startswith('# Presupuesto del año 2026')
+    assert datos['vistas_previas'][0]['texto'].startswith('# Presupuesto del año 2026')
     with open(storage.path_of(SESION, datos['files'][1]['id']), 'rb') as fh:
         assert fh.read() == b'%PDF-1.4 falso'
 
@@ -247,4 +247,4 @@ def test_documento_a_markdown_acepta_msg(cliente):
                              json={'file_ids': [file_id]})
 
     assert respuesta.status_code == 201, respuesta.get_json()
-    assert respuesta.get_json()['vista_previa']['texto'].startswith('# Test Email Message')
+    assert respuesta.get_json()['vistas_previas'][0]['texto'].startswith('# Test Email Message')

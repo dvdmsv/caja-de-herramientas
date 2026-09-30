@@ -9,3 +9,53 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.documento {
+  width: auto;
+  max-width: 100%;
+  margin-right: auto;
+}
+
+.botones {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nombre-entero {
+  display: none;
+}
+
+/* Móvil (ESTRECHA): la cabecera en columna. El desplegable a todo el ancho,
+   porque al lado de las cifras el nombre del documento se quedaba en unas
+   letras; y aun así un nombre largo se corta («…migracion-ve» a 360 px), y dos
+   archivos de nombre parecido sólo se distinguen al final: debajo va el nombre
+   entero, partido en las líneas que haga falta. Los botones, repartidos a
+   partes iguales. */
+@media (max-width: 575.98px) {
+  .cabecera {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .documento {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .nombre-entero {
+    display: block;
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+  }
+
+  .botones .btn {
+    flex: 1;
+  }
+}

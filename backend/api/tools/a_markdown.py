@@ -24,8 +24,9 @@ PLAZO_EN_PROCESO = config.entorno_entero('MARKDOWN_TIMEOUT_SECONDS', 120)
 
 SALIDA_UNIDA = 'documentos.md'
 
-# Por encima de esto no se manda la vista previa en la respuesta: el archivo
-# está para descargarlo, no para pasear medio mega de texto por el JSON.
+# Lo más que se manda de vista previa en la respuesta, **sumando todos los
+# documentos**: los archivos están para descargarlos, no para pasear megas de
+# texto por el JSON. Los que ya no quepan van sin texto, sólo con sus cuentas.
 MAXIMO_VISTA_PREVIA = 1024 * 1024
 
 
@@ -56,24 +57,37 @@ def a_markdown():
     adjuntos = [guardado for mensaje in correos
                 for guardado in correo.guardar_adjuntos(session_id, mensaje)]
 
+    # (nombre que se enseña, archivo que se guarda, texto)
     if unir and len(convertidos) > 1:
-        # Cada documento bajo su propio título: quien lo lea, humano o modelo,
-        # sabe dónde empieza y acaba cada uno.
-        texto = '\n\n'.join(f'# {record.name}\n\n{markdown}' for record, markdown in convertidos)
-        salidas = [_guardar(session_id, SALIDA_UNIDA, texto)]
+        textos = [(SALIDA_UNIDA, SALIDA_UNIDA, _unidos(convertidos))]
     else:
-        salidas = [_guardar(session_id, f'{_base(record.name)}.md', markdown)
-                   for record, markdown in convertidos]
-        texto = convertidos[0][1]
+        textos = [(record.name, f'{_base(record.name)}.md', markdown) for record, markdown in convertidos]
+    salidas = [_guardar(session_id, archivo, texto) for _, archivo, texto in textos]
 
-    respuesta = {'files': [salida.to_json() for salida in salidas + adjuntos]}
-    if len(salidas) == 1 and len(texto) <= MAXIMO_VISTA_PREVIA:
-        respuesta['vista_previa'] = {
-            'texto': texto,
-            'caracteres': len(texto),
-            'palabras': len(texto.split()),
-        }
+    respuesta = {'files': [salida.to_json() for salida in salidas + adjuntos],
+                 'vistas_previas': _vistas_previas([(nombre, texto) for nombre, _, texto in textos])}
     return jsonify(respuesta), 201
+
+
+def _unidos(convertidos) -> str:
+    """Todos en uno, cada documento bajo su propio título: quien lo lea, humano o
+    modelo, sabe dónde empieza y acaba cada uno. «Copiar todos» de la página
+    hace lo mismo (`markdownUnido`, `pages/tools/a-markdown/vistas.ts`): si se
+    cambia uno, el otro también."""
+    return '\n\n'.join(f'# {record.name}\n\n{markdown}' for record, markdown in convertidos)
+
+
+def _vistas_previas(textos: list[tuple[str, str]]) -> list[dict]:
+    """Lo que la página enseña para copiar sin descargar, uno por documento y en
+    el orden de la lista. Con texto mientras quepan en `MAXIMO_VISTA_PREVIA`
+    entre todos; los demás, sólo con sus cuentas."""
+    vistas, quedan = [], MAXIMO_VISTA_PREVIA
+    for nombre, texto in textos:
+        cabe = len(texto) <= quedan
+        quedan -= len(texto) if cabe else 0
+        vistas.append({'nombre': nombre, 'texto': texto if cabe else None,
+                       'caracteres': len(texto), 'palabras': len(texto.split())})
+    return vistas
 
 
 def _convertir(ruta: str, nombre: str) -> str:
