@@ -32,6 +32,11 @@
   display: none;
 }
 
+/* Entero o a la línea siguiente: partido, en el móvil se leía «de 28 / B». */
+.adelgaza {
+  white-space: nowrap;
+}
+
 /* Móvil (ESTRECHA): la cabecera en columna. El desplegable a todo el ancho,
    porque al lado de las cifras el nombre del documento se quedaba en unas
    letras; y aun así un nombre largo se corta («…migracion-ve» a 360 px), y dos

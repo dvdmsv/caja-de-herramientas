@@ -61,3 +61,14 @@ def test_el_tope_es_de_todas_juntas_y_lo_que_no_cabe_va_sin_texto(cliente, monke
     # El segundo ya no cabe; el tercero, más corto, sí.
     assert [vista['texto'] is not None for vista in vistas] == [True, False, True]
     assert vistas[1]['caracteres'] == len('El segundo documento')
+
+
+def test_dice_cuanto_pesaba_el_original_y_cuanto_el_markdown(cliente):
+    """Para «de 2,3 MB a 14 KB»: el `.md` pesa lo mismo que en la lista de resultados."""
+    datos = convertir(cliente, DOCUMENTOS)
+    for vista, (_, texto), archivo in zip(datos['vistas_previas'], DOCUMENTOS.items(), datos['files']):
+        assert vista['original'] == len(texto.encode())
+        assert vista['markdown'] == archivo['size']
+
+    [unida] = convertir(cliente, DOCUMENTOS, unir=True)['vistas_previas']
+    assert unida['original'] == sum(len(texto.encode()) for texto in DOCUMENTOS.values())

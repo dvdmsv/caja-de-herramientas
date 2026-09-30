@@ -57,15 +57,16 @@ def a_markdown():
     adjuntos = [guardado for mensaje in correos
                 for guardado in correo.guardar_adjuntos(session_id, mensaje)]
 
-    # (nombre que se enseña, archivo que se guarda, texto)
+    # (nombre que se enseña, archivo que se guarda, texto, bytes de lo que entró)
     if unir and len(convertidos) > 1:
-        textos = [(SALIDA_UNIDA, SALIDA_UNIDA, _unidos(convertidos))]
+        textos = [(SALIDA_UNIDA, SALIDA_UNIDA, _unidos(convertidos), sum(record.size for record, _ in convertidos))]
     else:
-        textos = [(record.name, f'{_base(record.name)}.md', markdown) for record, markdown in convertidos]
-    salidas = [_guardar(session_id, archivo, texto) for _, archivo, texto in textos]
+        textos = [(record.name, f'{_base(record.name)}.md', markdown, record.size) for record, markdown in convertidos]
+    salidas = [_guardar(session_id, archivo, texto) for _, archivo, texto, _ in textos]
 
     respuesta = {'files': [salida.to_json() for salida in salidas + adjuntos],
-                 'vistas_previas': _vistas_previas([(nombre, texto) for nombre, _, texto in textos])}
+                 'vistas_previas': _vistas_previas([(nombre, texto, original, salida.size)
+                                                    for (nombre, _, texto, original), salida in zip(textos, salidas)])}
     return jsonify(respuesta), 201
 
 
@@ -77,16 +78,21 @@ def _unidos(convertidos) -> str:
     return '\n\n'.join(f'# {record.name}\n\n{markdown}' for record, markdown in convertidos)
 
 
-def _vistas_previas(textos: list[tuple[str, str]]) -> list[dict]:
+def _vistas_previas(textos: list[tuple[str, str, int, int]]) -> list[dict]:
     """Lo que la página enseña para copiar sin descargar, uno por documento y en
     el orden de la lista. Con texto mientras quepan en `MAXIMO_VISTA_PREVIA`
-    entre todos; los demás, sólo con sus cuentas."""
+    entre todos; los demás, sólo con sus cuentas.
+
+    `original` y `markdown` son bytes, para decir cuánto adelgaza: lo que se
+    subió y el `.md` tal como se descarga, que es el mismo número que enseña la
+    lista de resultados."""
     vistas, quedan = [], MAXIMO_VISTA_PREVIA
-    for nombre, texto in textos:
+    for nombre, texto, original, markdown in textos:
         cabe = len(texto) <= quedan
         quedan -= len(texto) if cabe else 0
         vistas.append({'nombre': nombre, 'texto': texto if cabe else None,
-                       'caracteres': len(texto), 'palabras': len(texto.split())})
+                       'caracteres': len(texto), 'palabras': len(texto.split()),
+                       'original': original, 'markdown': markdown})
     return vistas
 
 

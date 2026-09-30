@@ -40,6 +40,9 @@ export interface VistaPrevia {
   texto: string | null;
   caracteres: number;
   palabras: number;
+  /** Bytes de lo que entró (con «Unir», de todos) y del `.md` que sale. */
+  original: number;
+  markdown: number;
 }
 
 /** Un Markdown ya maquetado para verlo en pantalla, sin archivo detrás. */

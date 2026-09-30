@@ -45,6 +45,9 @@
         }
         <span class="small text-body-secondary cifras">
           {{ previa.palabras }} palabras · {{ previa.caracteres }} caracteres · ≈ {{ tokensAproximados }} tokens
+          @if (adelgaza; as texto) {
+            · <span class="adelgaza" title="Lo que pesaba el documento y lo que pesa el Markdown">{{ texto }}</span>
+          }
         </span>
         <div class="botones">
           <button type="button" class="btn btn-sm btn-outline-primary" [disabled]="!previa.texto"

@@ -10,7 +10,7 @@ import { ToolPageComponent } from '../../../shared/tool-page/tool-page.component
 import { Resultado, VistaPrevia } from '../../../core/api.service';
 import { avisoError, avisoExito } from '../../../shared/notify';
 import { copiarAlPortapapeles } from '../../../shared/portapapeles';
-import { markdownUnido } from './vistas';
+import { adelgazamiento, markdownUnido } from './vistas';
 
 /** Regla de andar por casa para estimar tokens a partir de caracteres. */
 const CARACTERES_POR_TOKEN = 4;
@@ -47,6 +47,11 @@ export class AMarkdownComponent extends PaginaHerramienta {
   /** «Copiar todos», o `null` si a alguno le falta el texto. */
   get todos(): string | null {
     return markdownUnido(this.vistasPrevias);
+  }
+
+  /** «de 2,3 MB a 14 KB (0,6 %)». */
+  get adelgaza(): string | null {
+    return this.vista ? adelgazamiento(this.vista.original, this.vista.markdown) : null;
   }
 
   /** Para saber de un vistazo si el texto le cabe al modelo. */

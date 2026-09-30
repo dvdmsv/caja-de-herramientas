@@ -354,8 +354,9 @@ correos `.eml`.
 Los PDF los lee con PyMuPDF (`backend/api/pdf_estructura.py`) y el resto con
 [markitdown](https://github.com/microsoft/markitdown) de Microsoft. Conserva
 la estructura —títulos, listas y tablas— en vez de escupir texto plano, enseña
-el resultado en pantalla con el recuento de palabras y una estimación de tokens,
-y lo copia al portapapeles de un clic. Con varios documentos, un desplegable
+el resultado en pantalla con el recuento de palabras, una estimación de tokens
+y cuánto adelgaza («de 2,3 MB a 14 KB (0,6 %)»), y lo copia al portapapeles de
+un clic. Con varios documentos, un desplegable
 elige cuál se ve, y «Copiar todos» los junta como «Unir», sin volver a
 convertir. Un PDF escaneado no da texto y la
 herramienta lo dice claramente: no hace OCR.
