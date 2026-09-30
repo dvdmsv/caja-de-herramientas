@@ -86,6 +86,42 @@ def prueba(nombre, ruta, cuerpo=None, metodo='POST', espera=(200, 201)):
     comprobar(nombre, codigo in espera, detalle or f'{codigo} {texto_del_error(respuesta)[:70]}')
 
 
+def letras_del_pdf(pdf):
+    """Los nombres de las letras incrustadas en un PDF («Inter», «Charis-SIL»…),
+    sin PyMuPDF: WeasyPrint las describe dentro de flujos comprimidos, así que se
+    descomprimen con zlib y se buscan sus `/BaseFont`, quitando el prefijo del
+    subconjunto (`ABCDEF+`)."""
+    import re
+    import zlib
+
+    trozos = [pdf]
+    for flujo in re.findall(rb'stream\r?\n(.*?)\r?\nendstream', pdf, re.S):
+        try:
+            trozos.append(zlib.decompress(flujo))
+        except zlib.error:
+            pass
+    return sorted({nombre.split(b'+', 1)[-1].decode('latin-1') for trozo in trozos
+                   for nombre in re.findall(rb'/BaseFont\s*/([^\s/<>\[\]()]+)', trozo)})
+
+
+def prueba_letras(md):
+    """«Markdown a PDF» tiene que salir con las letras que pide, no con las que
+    haya en el equipo: si no las encuentra, WeasyPrint no falla, sustituye, y el
+    PDF sale con otra letra sin que nada avise. Así pasó en Windows."""
+    for familia, esperada in (('sans', 'Inter'), ('serif', 'Charis-SIL')):
+        nombre = f'markdown-a-pdf (letra {familia})'
+        codigo, respuesta = peticion('POST', '/api/tools/markdown-a-pdf', {'file_ids': [md], 'familia': familia})
+        if codigo not in (200, 201):
+            comprobar(nombre, False, f'{codigo} {texto_del_error(respuesta)[:70]}')
+            continue
+        archivo = json.loads(respuesta)['files'][0]['id']
+        codigo, pdf = peticion('GET', f'/api/files/{archivo}/download')
+        letras = letras_del_pdf(pdf) if codigo == 200 else []
+        bien = any(letra.startswith(esperada) for letra in letras) \
+            and any(letra.startswith('DejaVu-Sans-Mono') for letra in letras)
+        comprobar(nombre, bien, ', '.join(letras) or f'{codigo}, sin letras')
+
+
 def material(carpeta):
     """Fabrica los archivos de prueba: un PDF con todo dentro, una imagen y texto.
 
@@ -204,7 +240,7 @@ def _fabricar(carpeta):
     with open(f'{carpeta}/texto.txt', 'w', encoding='utf-8') as fichero:
         fichero.write('Título\n\nPárrafo de prueba con acentos: ñ á é.\n')
     with open(f'{carpeta}/notas.md', 'w', encoding='utf-8') as fichero:
-        fichero.write('# Título\n\nPárrafo **en negrita**:\n\n| a | b |\n|---|---|\n| 1 | 2 |\n')
+        fichero.write('# Título\n\nPárrafo **en negrita** y `código`:\n\n| a | b |\n|---|---|\n| 1 | 2 |\n')
 
     # Una hoja de cálculo y una presentación, para "Documento a PDF": son las
     # que necesitan Calc e Impress, y sin ellos LibreOffice no escribe nada.
@@ -364,6 +400,7 @@ def main():
             'cambios': {pdf: {'title': 'Título nuevo'}}})
     prueba('a-markdown', '/api/tools/a-markdown', {'file_ids': [pdf]})
     prueba('markdown-a-pdf', '/api/tools/markdown-a-pdf', {'file_ids': [md]})
+    prueba_letras(md)
     prueba('visor-markdown', '/api/tools/visor-markdown/previsualizar', {'file_ids': [md]})
     prueba('visor-markdown (texto)', '/api/tools/visor-markdown/previsualizar',
            {'texto': '# Hola\n\n- [x] listo\n\n| a | b |\n|---|--:|\n| x | 1,50 € |'})
