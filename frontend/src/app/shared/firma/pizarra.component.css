@@ -1,3 +1,5 @@
+/* Con `data-bs-theme="light"` en el HTML: estas variables son las del modo
+   claro en los dos modos, porque la pizarra es papel (ver el comentario allí). */
 .pizarra {
   position: relative;
   border: 1px dashed var(--bs-border-color);

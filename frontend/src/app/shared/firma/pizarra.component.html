@@ -1,4 +1,7 @@
-<div class="pizarra">
+<!-- Una hoja de papel también en modo oscuro: la tinta es la que se estampa en
+     el PDF, oscura, y tiene que verse sobre lo que será, papel blanco. Con el
+     fondo del tema oscuro no se distinguía (1,1:1 de contraste). -->
+<div class="pizarra" data-bs-theme="light">
   <canvas #lienzo
     (pointerdown)="alPulsar($event)"
     (pointermove)="alMover($event)"
