@@ -428,7 +428,9 @@ si falta el runtime de Visual C++):
 - una actualización por paquete de verdad, desde GitHub y con la firma de la
   clave real: de la 0.2.6 a la 0.2.7. En la VM se probó todo lo demás (aplicar
   con la aplicación abierta, volver atrás con un archivo bloqueado, no dejar
-  restos), pero no la descarga firmada, porque la clave sólo la tiene la CI. En
-  las notas de la 0.2.7 sale lo que pesa el paquete: si son cientos de MB, el
-  empaquetado no sale idéntico entre compilaciones, y se ve comparando los
-  `archivos.json` de las dos releases.
+  restos), pero no la descarga firmada, porque la clave sólo la tiene la CI.
+  El paquete de la 0.2.6 a la 0.2.7 pesa **26,9 MB** (el instalador, 312): lleva
+  nuestro backend, el ejecutable de Tauri y el frontend, y nada de `vendor\` ni
+  de las bibliotecas de Python, que salen idénticos entre compilaciones. Si un
+  paquete pesara cientos de MB, se vería comparando los `archivos.json` de las
+  dos releases.
