@@ -41,12 +41,15 @@ eso no existe, y lo sustituye el mismo job object (`src-tauri/src/trabajo.rs`):
   backend (en la web va con `SIGALRM`, que Windows no tiene): para eso está
   cancelar.
 
-**Lo que sabe cada parte.** Tauri sólo arranca, enseña y mata. Dónde está cada
-programa externo y qué variables necesita lo decide el backend
+**Lo que sabe cada parte.** Tauri arranca, enseña y mata, y se encarga de lo
+que es de Windows: ventanas, ajustes, menú del Explorador y actualizaciones.
+Dónde está cada programa externo y qué variables necesita lo decide el backend
 (`backend/escritorio.py`), porque así se prueba con el barrido de la CI sin
-pasar por Rust. El frontend sólo se entera de que va dentro de la aplicación
-para dos cosas (`frontend/src/app/core/escritorio.ts`): guardar con el diálogo
-de Windows y recibir lo abierto con «Abrir con…».
+pasar por Rust. El frontend se entera de que va dentro de la aplicación por
+`puente()` (`frontend/src/app/core/escritorio.ts`) y sólo lo usa para lo que no
+existe en la web: guardar con el diálogo de Windows, recibir lo abierto con
+«Abrir con…», los ajustes, otra ventana, los avisos al terminar y el de
+actualización.
 
 ## El aspecto del instalador
 
@@ -177,8 +180,10 @@ no enlaza nadie: en GitHub nunca hay más de 5. Y el desinstalador borra
 `backend\` y `vendor\` enteras (`ganchos.nsh`), porque la plantilla de Tauri
 sólo borra los archivos que conoce.
 
-La primera versión que lo trae no se puede alcanzar por paquete —las anteriores
-no tienen manifiesto—; las siguientes, sí. En cada push, la CI hace el
+La primera versión con manifiesto es la **0.2.6** (la publicación de la 0.2.5
+falló en el paso de los paquetes y su número quedó gastado): a ella se llega con
+el instalador completo, porque las anteriores no tienen manifiesto. **Desde la
+0.2.7, por paquete.** En cada push, la CI hace el
 manifiesto, un paquete contra sí mismo que tiene que salir vacío, y aplica uno
 de prueba sobre la aplicación instalada.
 
@@ -316,6 +321,8 @@ que siga sin hacer nada fuera de ella**: en el backend, detrás de
 | `frontend/src/app/core/session.service.ts` | `sessionStorage` en vez de `localStorage` cuando hay puente: una sesión por ventana |
 | `frontend/src/app/app.component.html` | además, el botón «Nueva ventana» de la barra, sólo en la aplicación |
 | `frontend/src/app/shared/pagina-herramienta.ts` | `escritorio.progreso()` en `refrescarAvance()` y `avisarAlTerminar()` al acabar |
+| `backend/api/files.py` | `al_cerrar` en `/api/session/uso`: sólo es verdad si `escritorio.aplicar_plazo` pone `PLAZO_AL_CERRAR` |
+| `frontend/src/app/shared/uso-sesion/` | con `al_cerrar`, «se borrarán al cerrar la aplicación» en vez de la hora |
 | `backend/tests/test_limites.py`, `test_arranque.py` | los `skipif` de Windows y el fallo nativo con `faulthandler` |
 | `scripts/barrido.py` | la variable `TOKEN` |
 
@@ -418,5 +425,10 @@ si falta el runtime de Visual C++):
 - abrir un PDF con «Abrir con…», con la aplicación cerrada y con ella abierta;
 - firmar con AutoFirma: el protocolo `afirma://` tiene que salir de la ventana y
   lanzar AutoFirma;
-- una actualización de una versión a la siguiente, por paquete: la primera que
-  se publique después de la que trae los paquetes.
+- una actualización por paquete de verdad, desde GitHub y con la firma de la
+  clave real: de la 0.2.6 a la 0.2.7. En la VM se probó todo lo demás (aplicar
+  con la aplicación abierta, volver atrás con un archivo bloqueado, no dejar
+  restos), pero no la descarga firmada, porque la clave sólo la tiene la CI. En
+  las notas de la 0.2.7 sale lo que pesa el paquete: si son cientos de MB, el
+  empaquetado no sale idéntico entre compilaciones, y se ve comparando los
+  `archivos.json` de las dos releases.

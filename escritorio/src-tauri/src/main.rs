@@ -23,11 +23,14 @@
 //!    ayuda, la descarga de AutoFirma, el protocolo `afirma://`) se abre fuera,
 //!    con el programa que Windows tenga para él.
 //!
-//! Y tres comandos que el frontend llama cuando va dentro de la aplicación
-//! (`frontend/src/app/core/escritorio.ts`): `guardar_como`, que enseña el
-//! diálogo de Windows en vez de dejar el archivo en Descargas, y
-//! `archivos_pendientes` / `leer_archivo`, por los que entra lo que se abre con
-//! «Abrir con…».
+//! Y los comandos que el frontend llama cuando va dentro de la aplicación
+//! (`frontend/src/app/core/escritorio.ts`; la lista, en `generate_handler!` más
+//! abajo). Los de siempre: `guardar_como`, que enseña el diálogo de Windows en
+//! vez de dejar el archivo en Descargas, y `archivos_pendientes` /
+//! `leer_archivo`, por los que entra lo que se abre con «Abrir con…». Los
+//! demás son de módulos propios: ventanas (`ventanas.rs`), ajustes
+//! (`ajustes.rs`), menú del Explorador (`menu.rs`), soporte (`soporte.rs`) y
+//! actualizaciones (aquí y en `parche.rs`).
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
