@@ -297,18 +297,28 @@ Sacar (Traer 'dejavu') @{
 }
 
 # Sólo nuestras letras, no las de Windows: así "Markdown a PDF" sale igual que
-# en el contenedor, que tampoco tiene otras. Las rutas van relativas a este
-# archivo (lo admite fontconfig), porque no se sabe dónde se instalará.
+# en el contenedor, que tampoco tiene otras.
+#
+# **Va en gtk\etc\fonts\, que es donde fontconfig lo busca solo**: con su DLL en
+# una carpeta `bin`, toma `..\etc\fonts` (su DllMain, en fccfg.c). Se le pasaba
+# con FONTCONFIG_FILE y no llegaba nunca: esa DLL es de MSYS2 MINGW64, o sea de
+# msvcrt, y el backend pone la variable desde Python, que es de ucrt; cada CRT
+# tiene su copia del entorno. Sin configuración, fontconfig cogía las letras de
+# C:\Windows\Fonts y todo salía en Cascadia Code. El barrido lo vigila.
+#
+# La carpeta de letras va relativa a este archivo (lo admite fontconfig),
+# porque no se sabe dónde se instalará: de gtk\etc\fonts a vendor\letras.
 # LOCAL_APPDATA_FONTCONFIG_CACHE es un valor especial de fontconfig en Windows:
 # la caché va a %LOCALAPPDATA%, que es escribible, y no junto al programa.
+$confFuentes = New-Item -ItemType Directory -Force (Join-Path $Destino 'gtk\etc\fonts')
 @'
 <?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
 <fontconfig>
-  <dir prefix="relative">letras</dir>
+  <dir prefix="relative">../../../letras</dir>
   <cachedir>LOCAL_APPDATA_FONTCONFIG_CACHE</cachedir>
 </fontconfig>
-'@ | Set-Content (Join-Path $Destino 'fonts.conf') -Encoding utf8NoBOM
+'@ | Set-Content (Join-Path $confFuentes 'fonts.conf') -Encoding utf8NoBOM
 
 # --- Qué ha quedado --------------------------------------------------------------
 $versiones = @(

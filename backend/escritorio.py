@@ -85,8 +85,12 @@ def usar_vendor(vendor: str) -> None:
     - Ghostscript, cuando se llama directamente, con su ruta (`RUTA_GS`).
     - LibreOffice tampoco va en el PATH, ni en el de los hijos: su carpeta
       `program` trae un `python.exe` propio. Se usa `RUTA_SOFFICE`.
-    - WeasyPrint lee `WEASYPRINT_DLL_DIRECTORIES` al importarse, y fontconfig su
-      `FONTCONFIG_FILE`, que sólo ve las letras del paquete.
+    - WeasyPrint lee `WEASYPRINT_DLL_DIRECTORIES` al importarse.
+    - **Fontconfig no se configura aquí**: su `fonts.conf` va en
+      `vendor/gtk/etc/fonts/`, donde lo busca solo (`traer-dependencias.ps1`).
+      Una `FONTCONFIG_FILE` puesta desde aquí no le llega: su DLL es de msvcrt
+      y Python de ucrt, y cada CRT tiene su copia del entorno. Estuvo así, y
+      «Markdown a PDF» salía con las letras de Windows.
 
     Con `setdefault`: quien lance el backend puede señalar otra cosa a propósito.
     """
@@ -98,7 +102,6 @@ def usar_vendor(vendor: str) -> None:
     os.environ.setdefault('RUTA_SOFFICE',
                           os.path.join(vendor, 'libreoffice', 'program', 'soffice.exe'))
     os.environ.setdefault('WEASYPRINT_DLL_DIRECTORIES', os.path.join(vendor, 'gtk', 'bin'))
-    os.environ.setdefault('FONTCONFIG_FILE', os.path.join(vendor, 'fonts.conf'))
 
 
 # Las que abre WeasyPrint (weasyprint/text/ffi.py), en orden de dependencia.

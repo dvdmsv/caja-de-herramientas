@@ -391,6 +391,15 @@ para que aparezcan en «Abrir con…».
 - **La extracción del MSI de LibreOffice saca todo**: traducciones a un centenar
   de idiomas, diccionarios, extensiones. 1,5 GB que se quedan en ~700 quitando lo
   que convertir a PDF no usa.
+- **El `fonts.conf` va en `vendor\gtk\etc\fonts\`, no se pasa por
+  `FONTCONFIG_FILE`.** Fontconfig es de MSYS2 MINGW64, o sea de `msvcrt`, y el
+  backend es Python, de `ucrt`: cada CRT tiene su copia del entorno, y una
+  variable puesta con `os.environ` no le llega. Sin su configuración cogía las
+  letras de `C:\Windows\Fonts`, y «Markdown a PDF» salía entero en Cascadia
+  Code, sin error ninguno, porque WeasyPrint sustituye en silencio. Con su DLL
+  en una carpeta `bin`, fontconfig busca `..\etc\fonts\fonts.conf` solo. El
+  barrido mira qué letras lleva el PDF (`prueba_letras`), así que si vuelve a
+  pasar, la CI falla.
 - **Charis SIL en la 6.200**: en la 7 la familia se llama «Charis» y la hoja de
   estilo de «Markdown a PDF» la pide como `'Charis SIL'`.
 - **El runner de Windows mata al acabar cada paso lo que ese paso lanzó**: el

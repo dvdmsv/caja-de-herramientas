@@ -148,14 +148,14 @@ jobs:
       # Con el Pango y las letras de vendor\, que son los que se reparten. Sin
       # decírselo, WeasyPrint los busca en C:\msys64\mingw64\bin, y eso sólo
       # funcionaba porque preparar vendor instalaba Pango ahí de paso: con
-      # vendor\ sacado de la caché, no hay nada.
+      # vendor\ sacado de la caché, no hay nada. Las letras no hace falta
+      # decírselas: fontconfig lee vendor\gtk\etc\fonts\fonts.conf solo.
       - name: Tests
         id: tests
         continue-on-error: true
         working-directory: backend
         run: |
           $env:WEASYPRINT_DLL_DIRECTORIES = (Resolve-Path ..\escritorio\vendor\gtk\bin).Path
-          $env:FONTCONFIG_FILE = (Resolve-Path ..\escritorio\vendor\fonts.conf).Path
           python -m pytest tests/ -q -p no:cacheprovider -rf
 
       # Arrancar y barrer en el **mismo** paso: en Windows el runner mata todo

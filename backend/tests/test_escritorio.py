@@ -209,7 +209,9 @@ def test_el_vendor_dice_donde_esta_cada_programa(monkeypatch, tmp_path):
     assert os.environ['RUTA_GS'] == os.path.join(vendor, 'gs', 'bin', 'gswin64c.exe')
     assert os.environ['RUTA_SOFFICE'].endswith(os.path.join('libreoffice', 'program', 'soffice.exe'))
     assert os.environ['TESSDATA_PREFIX'] == os.path.join(vendor, 'tesseract', 'tessdata')
-    assert os.environ['FONTCONFIG_FILE'] == os.path.join(vendor, 'fonts.conf')
+    # Fontconfig busca su configuración solo, junto a su DLL: una variable
+    # puesta desde Python no le llega en Windows (ver `usar_vendor`).
+    assert 'FONTCONFIG_FILE' not in os.environ
 
 
 def test_los_programas_reciben_su_path_y_el_backend_no(monkeypatch):
