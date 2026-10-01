@@ -2,8 +2,9 @@
 
   <p class="text-body-secondary small">
     <i class="bi bi-shield-check me-1"></i>
-    Solo para leer: no se crea ningún archivo. Se ve como quedaría en «Markdown a PDF»; las
-    imágenes enlazadas no se cargan, solo las que el propio archivo trae dentro.
+    Solo para leer: no se guarda nada. Se ve como quedaría en «Markdown a PDF»; las
+    imágenes enlazadas no se cargan, solo las que el propio archivo trae dentro. Lo que pegues
+    puedes descargarlo como .md o como PDF.
   </p>
 
   <fieldset>
@@ -84,6 +85,30 @@
       }
       @if (documento) {
         <span class="small text-body-secondary">{{ palabras }} palabras</span>
+      }
+      @if (documento && modo === 'texto') {
+        <div class="descargas d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-primary" aria-label="Descargar como .md"
+            [disabled]="descargando !== null" (click)="descargarMd()">
+            @if (descargando === 'md') {
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            } @else {
+              <i class="bi bi-download me-1"></i>
+            }
+            .md
+          </button>
+          <!-- El PDF va en papel blanco aunque la vista esté en oscuro: se imprime. -->
+          <button type="button" class="btn btn-sm btn-outline-primary" aria-label="Descargar como PDF"
+            title="Con el acento y la letra elegidos, en hoja A4 y en claro"
+            [disabled]="descargando !== null" (click)="descargarPdf()">
+            @if (descargando === 'pdf') {
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            } @else {
+              <i class="bi bi-file-earmark-pdf me-1"></i>
+            }
+            PDF
+          </button>
+        </div>
       }
     </div>
     @if (documento) {

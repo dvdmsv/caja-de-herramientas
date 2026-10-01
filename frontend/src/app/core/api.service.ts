@@ -367,14 +367,16 @@ export class ApiService {
   descargar(archivo: ArchivoServidor): Observable<void> {
     return this.http
       .get(`/api/files/${archivo.id}/download`, { responseType: 'blob' })
-      .pipe(switchMap(blob => from(this.guardar(blob, archivo.name))));
+      .pipe(switchMap(blob => from(this.guardarArchivo(blob, archivo.name))));
   }
 
   /**
    * En la aplicación de escritorio, con el diálogo «Guardar como» de Windows;
    * en el navegador, como una descarga. Cerrar el diálogo no es un error.
+   * Sirve también para lo que se crea en el propio navegador, como el `.md`
+   * del «Visor de Markdown».
    */
-  private async guardar(blob: Blob, nombre: string): Promise<void> {
+  async guardarArchivo(blob: Blob, nombre: string): Promise<void> {
     if (!(await this.escritorio.guardar(blob, nombre))) {
       guardarComo(blob, nombre);
     }

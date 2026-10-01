@@ -427,12 +427,13 @@ export const HERRAMIENTAS: Herramienta[] = [
   {
     slug: 'visor-markdown',
     nombre: 'Visor de Markdown',
-    descripcion: 'Lee un .md o un texto pegado ya maquetado, sin crear ningún archivo.',
+    descripcion: 'Lee un .md o un texto pegado ya maquetado; lo pegado se descarga como .md o PDF.',
     icono: 'bi-markdown',
     categoria: 'Documentos',
     acepta: '.md',
     varios: false,
-    palabras: ['md', 'leer', 'ver', 'abrir', 'previsualizar', 'markdown', 'pegar', 'ia', 'chatgpt', 'llm'],
+    palabras: ['md', 'leer', 'ver', 'abrir', 'previsualizar', 'markdown', 'pegar', 'ia', 'chatgpt', 'llm',
+               'descargar', 'guardar'],
     disponible: true,
   },
   {

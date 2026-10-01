@@ -87,7 +87,7 @@ Cómo está hecha, cómo compilarla y cómo publicar una versión, en
 | EPUB a PDF | Pasa un libro electrónico a PDF, con su índice como marcadores | tamaño de página (libro, folio o pantalla de 6″) y de letra; varios libros de una vez |
 | PDF a EPUB | Convierte un PDF en libro electrónico con capítulos, índice, imágenes y portada | título y autor (rellenos con los del PDF), portada |
 | Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo, margen y respetar los saltos de línea |
-| Visor de Markdown | Lee un `.md` o un texto pegado ya maquetado, sin crear ningún archivo | color de acento, tipo de letra, respetar los saltos de línea; sigue el tema claro u oscuro |
+| Visor de Markdown | Lee un `.md` o un texto pegado ya maquetado, sin guardar nada; lo pegado se descarga como `.md` o como PDF (por «Markdown a PDF», borrando después lo subido) | color de acento, tipo de letra, respetar los saltos de línea; sigue el tema claro u oscuro |
 | Correo a PDF | Guarda un correo `.eml` o `.msg` de Outlook como documento y saca sus adjuntos aparte | varios correos de una vez |
 | Editar metadatos | Enseña lo que tus archivos cuentan de ti, y lo corriges o lo borras | campo a campo, valores editables, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |

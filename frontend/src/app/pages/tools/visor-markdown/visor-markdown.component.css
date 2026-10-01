@@ -42,6 +42,24 @@
     height: 65vh;
     min-height: 18rem;
   }
+
+  /* Las descargas bajan a su propio renglón y se reparten el ancho: junto a
+     «Vista» y las palabras, a 360 px, el recuento se partía en dos líneas. */
+  .card-header {
+    flex-wrap: wrap;
+  }
+
+  .descargas {
+    flex-basis: 100%;
+  }
+
+  .descargas .btn {
+    flex: 1;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* Apaisado en el móvil: poca altura, la vista ocupa lo que hay. */

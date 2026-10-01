@@ -1,16 +1,21 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { filter, finalize, first, map, switchMap } from 'rxjs';
 
 import { FileQueueComponent } from '../../../shared/file-queue/file-queue.component';
 import { avisoError, mensajeDeError } from '../../../shared/notify';
 import { PaginaHerramienta } from '../../../shared/pagina-herramienta';
 import { ToolPageComponent } from '../../../shared/tool-page/tool-page.component';
+import { nombreDelTexto } from './nombre';
 
 type Modo = 'archivo' | 'texto';
 
 /** Espera antes de pedir otro render mientras se teclea o se cambia un ajuste. */
 const ESPERA = 350;
+
+/** El servidor no ha admitido el texto como `.md`: su motivo ya es para el usuario. */
+class TextoRechazado extends Error {}
 
 /**
  * Lee un Markdown en pantalla, maquetado y sin crear ningún archivo.
@@ -25,6 +30,11 @@ const ESPERA = 350;
  * ese saneado. Es aceptable sólo por lo que lo rodea: el iframe no tiene
  * `allow-scripts` ni `allow-same-origin`, y el servidor le pone una CSP que
  * corta la red (ver `api/tools/visor_markdown.py`).
+ *
+ * **Lo pegado se puede descargar**, como `.md` o como PDF. El PDF no tiene
+ * camino propio: sube el texto, llama a «Markdown a PDF» con los mismos ajustes
+ * y borra los dos archivos del servidor después, así que la página sigue sin
+ * dejar nada guardado en la sesión.
  */
 @Component({
   selector: 'app-visor-markdown',
@@ -68,6 +78,8 @@ export class VisorMarkdownComponent extends PaginaHerramienta implements OnDestr
   documento: SafeHtml | null = null;
   palabras = 0;
   cargando = false;
+  /** Qué se está descargando, para el giro de su botón y para no lanzar otra a la vez. */
+  descargando: 'md' | 'pdf' | null = null;
 
   private temporizador?: ReturnType<typeof setTimeout>;
   /** Cuál es la petición vigente: si llegan desordenadas, no debe quedar pintada una vieja. */
@@ -133,6 +145,55 @@ export class VisorMarkdownComponent extends PaginaHerramienta implements OnDestr
     super.alReiniciar();
     this.texto = '';
     this.olvidar();
+  }
+
+  async descargarMd(): Promise<void> {
+    this.descargando = 'md';
+    try {
+      const blob = new Blob([this.texto], { type: 'text/markdown;charset=utf-8' });
+      await this.api.guardarArchivo(blob, `${nombreDelTexto(this.texto)}.md`);
+    } catch (err) {
+      avisoError(mensajeDeError(err, 'No se ha podido guardar el archivo.'));
+    } finally {
+      this.descargando = null;
+    }
+  }
+
+  /**
+   * Subir, convertir con «Markdown a PDF» y bajar. Los ajustes que no hay aquí
+   * (hoja, márgenes, cuerpo) van con los de serie, que son los que imita la vista.
+   */
+  descargarPdf(): void {
+    this.descargando = 'pdf';
+    const archivo = new File([this.texto], `${nombreDelTexto(this.texto)}.md`, { type: 'text/markdown' });
+    const restos: string[] = [];
+    this.api.subir([archivo]).pipe(
+      filter(estado => estado.tipo === 'hecho'),
+      first(),
+      map(({ archivos, rechazados }) => {
+        if (rechazados.length || !archivos.length) {
+          throw new TextoRechazado(rechazados[0]?.error ?? 'No se ha podido subir el texto.');
+        }
+        restos.push(archivos[0].id);
+        return archivos[0].id;
+      }),
+      switchMap(id => this.api.ejecutar('markdown-a-pdf', {
+        file_ids: [id], acento: this.acento, familia: this.familia, saltos: this.saltos,
+      })),
+      switchMap(({ files: [pdf] }) => {
+        restos.push(pdf.id);
+        return this.api.descargar(pdf);
+      }),
+      finalize(() => {
+        this.descargando = null;
+        // Sin esperar ni avisar: si no se borran, el plazo de la sesión se los llevará igual.
+        restos.forEach(id => this.api.eliminar(id).subscribe({ error: () => undefined }));
+      }),
+    ).subscribe({
+      error: err => avisoError(err instanceof TextoRechazado
+        ? err.message
+        : mensajeDeError(err, 'No se ha podido crear el PDF.')),
+    });
   }
 
   private refrescar(): void {
