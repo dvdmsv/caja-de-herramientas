@@ -18,6 +18,9 @@ export interface AjustesEscritorio {
   acciones: string[];
   extensiones_escritas: string[];
   version_saltada: string | null;
+  /** Sólo lo pone la aplicación: si ya avisó de que la X la deja junto al reloj. */
+  bandeja_avisada: boolean;
+  ventana: { a_la_bandeja: boolean };
   guardado: { modo: ModoGuardado; carpeta: string | null };
   avisos: { activos: boolean; desde_segundos: number };
   actualizaciones: { al_abrir: boolean };
@@ -27,13 +30,14 @@ export interface AjustesEscritorio {
 
 /**
  * Cuándo se borran los archivos de trabajo. Los minutos de cada uno los sabe
- * el backend (`escritorio.PLAZOS`); `null` es el de serie, al cerrar.
+ * el backend (`escritorio.PLAZOS`); `null` es el de serie, al salir. «Al
+ * salir» y no «al cerrar»: con la ventana junto al reloj, cerrarla no es salir.
  */
 export type Plazo = 'horas_2' | 'dia_1';
 
 /** En el orden del desplegable. Los mismos nombres que `PLAZOS` en `ajustes.rs`. */
 export const PLAZOS: { valor: Plazo | null; texto: string }[] = [
-  { valor: null, texto: 'Al cerrar la aplicación' },
+  { valor: null, texto: 'Al salir de la aplicación' },
   { valor: 'horas_2', texto: 'Tras 2 horas sin usarlos' },
   { valor: 'dia_1', texto: 'Tras 1 día sin usarlos' },
 ];
@@ -56,6 +60,7 @@ export interface EstadoAjustes {
 
 /** Lo que la página puede cambiar (ver `ajustes::mezclar`). */
 export type CambiosAjustes = Partial<{
+  ventana: Partial<AjustesEscritorio['ventana']>;
   guardado: { modo: ModoGuardado };
   avisos: Partial<AjustesEscritorio['avisos']>;
   actualizaciones: Partial<AjustesEscritorio['actualizaciones']>;
@@ -111,7 +116,7 @@ export function textoDeMegas(mb: number): string {
   return mb >= 1024 && mb % 1024 === 0 ? `${mb / 1024} GB` : `${mb.toLocaleString('es-ES')} MB`;
 }
 
-export type IdSeccion = 'guardado' | 'avisos' | 'explorador' | 'actualizaciones' | 'espacio' | 'ayuda' | 'avanzado';
+export type IdSeccion = 'ventana' | 'guardado' | 'avisos' | 'explorador' | 'actualizaciones' | 'espacio' | 'ayuda' | 'avanzado';
 
 export interface Seccion {
   id: IdSeccion;
@@ -123,6 +128,7 @@ export interface Seccion {
 
 /** En el orden del menú lateral; «Avanzado», el último y separado. */
 export const SECCIONES: Seccion[] = [
+  { id: 'ventana', nombre: 'Ventana', icono: 'bi-window', descripcion: 'Qué pasa al cerrarla.' },
   { id: 'guardado', nombre: 'Guardado', icono: 'bi-floppy', descripcion: 'Dónde van los archivos que guardas.' },
   { id: 'avisos', nombre: 'Avisos', icono: 'bi-bell', descripcion: 'Qué te dice Windows cuando termina un trabajo largo.' },
   { id: 'explorador', nombre: 'Menú del Explorador', icono: 'bi-menu-button-wide',

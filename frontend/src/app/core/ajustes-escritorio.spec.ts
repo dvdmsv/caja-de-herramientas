@@ -43,8 +43,8 @@ describe('ajustes de la aplicación', () => {
 
   it('la sección sale del fragmento de la URL, y sin él la primera', () => {
     expect(seccionDe('avanzado').id).toBe('avanzado');
-    expect(seccionDe(null).id).toBe('guardado');
-    expect(seccionDe('no-existe').id).toBe('guardado');
+    expect(seccionDe(null).id).toBe('ventana');
+    expect(seccionDe('no-existe').id).toBe('ventana');
     expect(SECCIONES.at(-1)!.id).toBe('avanzado');
   });
 });

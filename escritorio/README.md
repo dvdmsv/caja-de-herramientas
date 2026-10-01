@@ -222,14 +222,25 @@ no cambia nunca:
   Los guarda y los aplica `src-tauri/src/ajustes.rs`, dueño de
   `%LOCALAPPDATA%\merge-pdf\ajustes.json`: recorta cada valor a su rango al
   leerlo y sólo deja a la página tocar lo suyo (`ajustes::mezclar`).
+  - **Ventana**: «Al cerrar, seguir junto al reloj», **desactivado de serie**.
+    Con él, la X de la última ventana a la vista la esconde en el área de
+    notificación en vez de salir (`src-tauri/src/bandeja.rs`): el backend sigue
+    en marcha y los trabajos terminan. La X de una ventana que no es la última
+    la cierra como siempre. El icono sólo existe con el ajuste activo: clic
+    para volver, y con el derecho «Abrir», «Nueva ventana» y «Salir». Abrir la
+    aplicación desde el menú Inicio con todo escondido enseña lo escondido en
+    vez de abrir otra ventana. La primera vez que se esconde, Windows lo avisa
+    (`bandeja_avisada`, que la página no puede tocar). Al desactivarlo se
+    enseña lo escondido y se quita el icono.
   - **Guardado**: preguntar, junto al original o siempre en una carpeta. Sin
     diálogo nunca se sobrescribe (`escribir_sin_pisar`), y la carpeta fija sólo
     la pone el diálogo de Windows, nunca la página.
   - **Avisos**: la notificación al terminar, sí o no y desde cuántos segundos.
   - **Actualizaciones**: buscar al abrir, «Buscar ahora» y deshacer una versión
     saltada.
-  - **Espacio**: cuándo se borran los archivos de trabajo —al cerrar la
-    aplicación (de serie), tras 2 horas o tras 1 día sin usarlos; en la web
+  - **Espacio**: cuándo se borran los archivos de trabajo —al salir de la
+    aplicación (de serie; «salir» y no «cerrar», porque con la ventana junto al
+    reloj la X no sale), tras 2 horas o tras 1 día sin usarlos; en la web
     son siempre 2 horas—, lo que ocupan y «Liberar», que no toca
     la sesión de la ventana que lo pide ni las usadas en los últimos minutos
     (`/api/escritorio/*` en `backend/escritorio.py`, que sólo existe aquí). El
@@ -322,7 +333,7 @@ que siga sin hacer nada fuera de ella**: en el backend, detrás de
 | `frontend/src/app/app.component.html` | además, el botón «Nueva ventana» de la barra, sólo en la aplicación |
 | `frontend/src/app/shared/pagina-herramienta.ts` | `escritorio.progreso()` en `refrescarAvance()` y `avisarAlTerminar()` al acabar |
 | `backend/api/files.py` | `al_cerrar` en `/api/session/uso`: sólo es verdad si `escritorio.aplicar_plazo` pone `PLAZO_AL_CERRAR` |
-| `frontend/src/app/shared/uso-sesion/` | con `al_cerrar`, «se borrarán al cerrar la aplicación» en vez de la hora |
+| `frontend/src/app/shared/uso-sesion/` | con `al_cerrar`, «se borrarán al salir de la aplicación» en vez de la hora |
 | `backend/tests/test_limites.py`, `test_arranque.py` | los `skipif` de Windows y el fallo nativo con `faulthandler` |
 | `scripts/barrido.py` | la variable `TOKEN` |
 
@@ -434,6 +445,8 @@ si falta el runtime de Visual C++):
 - abrir un PDF con «Abrir con…», con la aplicación cerrada y con ella abierta;
 - firmar con AutoFirma: el protocolo `afirma://` tiene que salir de la ventana y
   lanzar AutoFirma;
+- la ventana junto al reloj: que la X la esconda con el backend vivo, que el
+  icono la devuelva, el aviso de la primera vez y «Salir»;
 - una actualización por paquete de verdad, desde GitHub y con la firma de la
   clave real: de la 0.2.6 a la 0.2.7. En la VM se probó todo lo demás (aplicar
   con la aplicación abierta, volver atrás con un archivo bloqueado, no dejar

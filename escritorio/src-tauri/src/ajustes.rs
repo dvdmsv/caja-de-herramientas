@@ -33,12 +33,26 @@ pub struct Ajustes {
 
     /// La versión que se ha pedido saltar en el aviso de actualización.
     pub version_saltada: Option<String>,
+    /// Si ya se avisó de que la X la deja junto al reloj (`bandeja.rs`). Sólo
+    /// lo pone la aplicación, nunca la página.
+    pub bandeja_avisada: bool,
+
+    pub ventana: Ventana,
 
     pub guardado: Guardado,
     pub avisos: Avisos,
     pub actualizaciones: Actualizaciones,
     pub espacio: Espacio,
     pub avanzado: Avanzado,
+}
+
+/// Lo de «Ventana».
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Debug)]
+#[serde(default)]
+pub struct Ventana {
+    /// La X de la última ventana la deja en el área de notificación en vez de
+    /// cerrar la aplicación (`bandeja.rs`). De serie, no.
+    pub a_la_bandeja: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Default, PartialEq, Debug)]
@@ -196,7 +210,7 @@ pub fn guardar(app: &AppHandle, ajustes: &Ajustes) -> Result<(), String> {
 
 /// Mezcla en los ajustes lo que manda la página y guarda.
 ///
-/// **La página sólo puede tocar lo suyo**: avisos, actualizaciones, espacio, avanzado,
+/// **La página sólo puede tocar lo suyo**: ventana, avisos, actualizaciones, espacio, avanzado,
 /// el modo de guardado y borrar la versión saltada. El menú del Explorador va
 /// por `menu::aplicar`, que es quien escribe en el registro, y la carpeta fija
 /// sólo la pone el diálogo de `elegir_carpeta_de_guardado`: si la página
@@ -209,7 +223,7 @@ pub fn mezclar(app: &AppHandle, cambios: serde_json::Value) -> Result<Ajustes, S
     };
     for (clave, nuevo) in cambios {
         match clave.as_str() {
-            "avisos" | "actualizaciones" | "espacio" | "avanzado" => mezclar_objeto(&mut valor[clave.as_str()], nuevo),
+            "ventana" | "avisos" | "actualizaciones" | "espacio" | "avanzado" => mezclar_objeto(&mut valor[clave.as_str()], nuevo),
             "guardado" => {
                 if let Some(modo) = nuevo.get("modo") {
                     valor["guardado"]["modo"] = modo.clone();
@@ -249,6 +263,8 @@ mod tests {
         assert_eq!(ajustes.guardado.modo, ModoGuardado::Preguntar);
         assert_eq!(ajustes.avanzado, Avanzado::default());
         assert_eq!(ajustes.espacio.plazo, None);
+        assert!(!ajustes.ventana.a_la_bandeja);
+        assert!(!ajustes.bandeja_avisada);
     }
 
     #[test]

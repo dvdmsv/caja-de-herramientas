@@ -35,6 +35,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod ajustes;
+mod bandeja;
 mod menu;
 mod parche;
 mod parche_plan;
@@ -172,9 +173,14 @@ impl Abiertos {
 
 /// Otro arranque de la aplicación con ella ya abierta (el menú Inicio, «Abrir
 /// con…», el menú del Explorador): una ventana nueva con lo que traiga. Salvo si
-/// es otro archivo de la misma selección, que se suma a la ventana del primero.
+/// es otro archivo de la misma selección, que se suma a la ventana del primero,
+/// o si no trae nada y hay ventanas escondidas junto al reloj: entonces se
+/// enseñan ésas, que es lo que se buscaba al abrirla.
 fn otro_arranque(app: &AppHandle, argumentos: Vec<String>) {
     let (herramienta, rutas) = leer_argumentos(argumentos);
+    if rutas.is_empty() && herramienta.is_none() && bandeja::mostrar_escondidas(app) {
+        return;
+    }
     let abiertos = app.state::<Abiertos>();
     if !rutas.is_empty() {
         if let Some(etiqueta) = abiertos.ventana_de_la_seleccion(&herramienta) {
@@ -230,6 +236,13 @@ fn main() {
         .manage(Destinos::default())
         .manage(Actualizacion::default())
         .manage(Servidor::default())
+        .manage(bandeja::Bandeja::default())
+        // La X: con «seguir junto al reloj», la última ventana se esconde.
+        .on_window_event(|ventana, evento| {
+            if let WindowEvent::CloseRequested { api, .. } = evento {
+                bandeja::al_pedir_cierre(ventana, api);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             guardar_como,
             mostrar_guardado,
@@ -271,6 +284,7 @@ fn main() {
             // Los de «Avanzado» se leen una vez, al arrancar: son los que valen
             // hasta volver a abrir, y con ellos se sabe si hay cambios pendientes.
             let ajustes = ajustes::leer(app.handle());
+            bandeja::sincronizar(app.handle(), ajustes.ventana.a_la_bandeja);
             let backend = arrancar_backend(app.handle(), &ajustes)?;
             app.manage(backend);
             app.manage(AvanzadoAplicado(ajustes.avanzado.clone()));
@@ -286,7 +300,8 @@ fn main() {
 
     aplicacion.run(|app, evento| match evento {
         // Cerrar una ventana no toca las demás; lo que no llegó a recoger se
-        // olvida. Al cerrar la última, Tauri sale.
+        // olvida. Al cerrar la última, Tauri sale; con «seguir junto al reloj»
+        // la última no se cierra, se esconde (`bandeja.rs`).
         RunEvent::WindowEvent { label, event: WindowEvent::Destroyed, .. } => {
             app.state::<Abiertos>().pendientes.lock().unwrap().remove(&label);
             app.state::<Destinos>().0.lock().unwrap().remove(&label);
@@ -868,6 +883,7 @@ fn leer_ajustes(app: AppHandle) -> EstadoAjustes {
 #[tauri::command]
 fn guardar_ajustes(app: AppHandle, cambios: serde_json::Value) -> Result<EstadoAjustes, String> {
     let ajustes = ajustes::mezclar(&app, cambios)?;
+    bandeja::sincronizar(&app, ajustes.ventana.a_la_bandeja);
     Ok(estado_ajustes(&app, ajustes))
 }
 

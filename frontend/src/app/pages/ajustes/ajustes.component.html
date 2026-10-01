@@ -61,6 +61,9 @@
 
       @if (estado) {
         @switch (actual.id) {
+          @case ('ventana') {
+            <app-ajustes-ventana [estado]="estado" [ocupada]="guardando" (cambiar)="guardar($event)"></app-ajustes-ventana>
+          }
           @case ('guardado') {
             <app-ajustes-guardado [estado]="estado" [ocupada]="guardando"
               (cambiar)="guardar($event)" (nuevoEstado)="alCambiarEstado($event)"></app-ajustes-guardado>

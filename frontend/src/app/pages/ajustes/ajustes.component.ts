@@ -12,6 +12,7 @@ import { AjustesAyudaComponent } from './secciones/ayuda.component';
 import { AjustesEspacioComponent } from './secciones/espacio.component';
 import { AjustesExploradorComponent } from './secciones/explorador.component';
 import { AjustesGuardadoComponent } from './secciones/guardado.component';
+import { AjustesVentanaComponent } from './secciones/ventana.component';
 
 /**
  * Ajustes de la aplicación de Windows, con la disposición de la Configuración
@@ -36,6 +37,7 @@ import { AjustesGuardadoComponent } from './secciones/guardado.component';
     AjustesEspacioComponent,
     AjustesExploradorComponent,
     AjustesGuardadoComponent,
+    AjustesVentanaComponent,
   ],
   templateUrl: './ajustes.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,

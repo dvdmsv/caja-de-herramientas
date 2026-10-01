@@ -32,9 +32,9 @@ describe('UsoSesionComponent', () => {
     expect(texto({ ...base, plazo: 86400, al_cerrar: false })).toContain('el plazo de 1 día');
   });
 
-  it('en la aplicación con «al cerrar», sin hora ni plazo', () => {
+  it('en la aplicación con «al salir», sin hora ni plazo', () => {
     const panel = texto({ ...base, plazo: 7 * 86400, al_cerrar: true });
-    expect(panel).toContain('Se borrarán al cerrar la aplicación');
+    expect(panel).toContain('Se borrarán al salir de la aplicación');
     expect(panel).not.toContain('plazo');
   });
 

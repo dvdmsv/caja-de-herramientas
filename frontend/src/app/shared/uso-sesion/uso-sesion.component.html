@@ -38,11 +38,12 @@
     @if (!ocupacion.caduca) {
       <p class="mb-3 text-body-secondary small">No tienes archivos guardados.</p>
     } @else if (ocupacion.al_cerrar) {
-      <!-- La aplicación con «Al cerrar la aplicación» (Ajustes → Espacio): la
-           hora de `caduca` es sólo la red de 7 días, no lo que pasa. -->
+      <!-- La aplicación con «Al salir de la aplicación» (Ajustes → Espacio): la
+           hora de `caduca` es sólo la red de 7 días, no lo que pasa. «Salir» y no
+           «cerrar»: con la ventana junto al reloj, la X no sale. -->
       <p class="mb-3 text-body-secondary small">
         <i class="bi bi-clock me-1" aria-hidden="true"></i>
-        Se borrarán al cerrar la aplicación. Si los quieres borrar antes, «Vaciar ahora».
+        Se borrarán al salir de la aplicación. Si los quieres borrar antes, «Vaciar ahora».
       </p>
     } @else {
       <p class="mb-3 text-body-secondary small">
