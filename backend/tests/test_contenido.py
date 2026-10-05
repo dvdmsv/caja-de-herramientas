@@ -157,3 +157,43 @@ def test_si_no_se_salva_ninguno_es_un_error_de_la_peticion(entorno):
 
     assert respuesta.status_code == 400
     assert 'JPEG' in respuesta.get_json()['error']
+
+
+def _pdf_de_verdad():
+    import fitz
+
+    documento = fitz.open()
+    documento.new_page().insert_text((72, 72), 'Justificante')
+    return documento.tobytes()
+
+
+def test_un_pdf_envuelto_en_su_pagina_de_carga_entra_recortado(almacen):
+    """Así entrega la sede de la Junta de Castilla y León sus justificantes:
+    HTML de «Cargando…», el PDF entero y el cierre del HTML. Acrobat lo abre, y
+    aquí tiene que entrar ya limpio, que pikepdf y pyHanko no lo reparan."""
+    import fitz
+
+    pdf = _pdf_de_verdad()
+    envuelto = (b'\r\n<html lang="es">\r\n<head></head>\r\n<body>\r\n    Cargando ... '
+                + b' ' * 800 + pdf + b'\n\r\n</body>\r\n</html>\r\n')
+
+    s = almacen()
+    registro = s.save_upload(SESION, subida(envuelto, 'Recibo.pdf'))
+
+    with open(s.path_of(SESION, registro.id), 'rb') as fichero:
+        guardado = fichero.read()
+    assert guardado == pdf.rstrip()
+    assert registro.size == len(guardado)
+    documento = fitz.open(stream=guardado, filetype='pdf')
+    assert not documento.is_repaired
+    assert 'Justificante' in documento[0].get_text()
+
+
+def test_un_pdf_demasiado_adentro_no_cuenta(almacen):
+    """Más allá de los 1024 bytes que admite Acrobat ya no es un PDF envuelto:
+    es otra cosa que menciona un PDF."""
+    from errors import ApiError
+
+    with pytest.raises(ApiError):
+        almacen().save_upload(SESION, subida(b'<html>' + b' ' * 2000 + _pdf_de_verdad(),
+                                             'descarga.pdf'))

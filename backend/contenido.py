@@ -21,6 +21,11 @@ from errors import ApiError
 # Cuánto se lee de la cabecera. De sobra para cualquier firma conocida.
 CABECERA = 4096
 
+# Hasta dónde puede caer la cabecera de un PDF envuelto en otra cosa, que es lo
+# que admite Acrobat. Y cuánto del final se mira buscando su `%%EOF`.
+HOLGURA_PDF = 1024
+COLA_PDF = 64 * 1024
+
 # Firma → nombre para una persona. El orden importa: la primera que encaje gana.
 FIRMAS = [
     (b'%PDF-', 'un PDF'),
@@ -137,6 +142,9 @@ def comprobar(ruta: str, nombre: str, extension: str) -> None:
     if esperadas and cabecera.startswith(tuple(esperadas)):
         _comprobar_dentro_del_zip(ruta, nombre, extension)
         return
+    if extension == '.pdf' and b'%PDF-' in cabecera[:HOLGURA_PDF]:
+        _recortar_pdf(ruta, cabecera.index(b'%PDF-'))
+        return
     if desplazada:
         desplazamiento, firmas, _ = desplazada
         if _casa_desplazada(cabecera, desplazamiento, firmas):
@@ -145,6 +153,41 @@ def comprobar(ruta: str, nombre: str, extension: str) -> None:
     raise ApiError(
         f'«{nombre}» no es {_articulo(extension)} por dentro: parece '
         f'{describir(cabecera)}. Comprueba el archivo o cámbiale la extensión.', 400)
+
+
+def _recortar_pdf(ruta: str, inicio: int) -> None:
+    """Deja sólo el PDF de un PDF envuelto en otra cosa.
+
+    Hay sedes electrónicas —la de la Junta de Castilla y León, por ejemplo— que
+    entregan el justificante dentro de su página de «Cargando…»: unos 900 bytes
+    de HTML, el PDF entero y el cierre del HTML. Acrobat y los navegadores lo
+    abren porque admiten basura antes de la cabecera si cabe en los primeros
+    1024 bytes (`HOLGURA_PDF`), así que a quien lo descargó le parece un PDF
+    normal, y rechazarlo diciendo que «parece texto» no le deja hacer nada.
+
+    No basta con dejarlo pasar: MuPDF lo repara al abrirlo, pero pikepdf y
+    pyHanko no tienen por qué, y las posiciones de la tabla de referencias
+    cuentan desde la cabecera, no desde el principio del archivo. Recortado,
+    abre limpio. Lo que va tras el último `%%EOF` tampoco es del PDF.
+    """
+    tamano = os.path.getsize(ruta)
+    with open(ruta, 'rb') as fichero:
+        fichero.seek(max(inicio, tamano - COLA_PDF))
+        cola = fichero.read()
+    final = cola.rfind(b'%%EOF')
+    fin = tamano - len(cola) + final + len(b'%%EOF') if final >= 0 else tamano
+
+    temporal = ruta + '.recorte'
+    with open(ruta, 'rb') as origen, open(temporal, 'wb') as destino:
+        origen.seek(inicio)
+        quedan = fin - inicio
+        while quedan > 0:
+            trozo = origen.read(min(quedan, 1 << 20))
+            if not trozo:
+                break
+            destino.write(trozo)
+            quedan -= len(trozo)
+    os.replace(temporal, ruta)
 
 
 def _casa_desplazada(cabecera: bytes, desplazamiento: int, firmas: tuple) -> bool:
