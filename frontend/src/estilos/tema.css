@@ -290,6 +290,16 @@ html body .swal2-popup {
   border-radius: var(--bs-border-radius-xl);
 }
 
+/* Los avisos pequeños («Guardado», «Hecho») necesitan regla propia: la de
+   SweetAlert para ellos, `.swal2-popup.swal2-toast { background: #fff }`, pesa
+   más que la de arriba, y en oscuro salían en blanco con el texto claro. El
+   borde es porque, con el fondo de la página, su sombra negra no se ve en
+   oscuro y el aviso se fundía con lo de debajo. */
+html body .swal2-popup.swal2-toast {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+}
+
 html body .swal2-title,
 html body .swal2-html-container {
   color: var(--bs-body-color);
