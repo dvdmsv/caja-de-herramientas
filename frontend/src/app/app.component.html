@@ -1,7 +1,7 @@
 @if ((pantallaCompleta | async) === false) {
   <nav class="navbar navbar-expand-lg border-bottom bg-body sticky-top">
     <div class="container">
-      <a class="navbar-brand marca" routerLink="/">
+      <a class="navbar-brand marca" routerLink="/" [class.marca--app]="escritorio.activo">
         <span class="marca__puntos" aria-hidden="true">
           <span class="marca__punto marca__punto--pdf"></span>
           <span class="marca__punto marca__punto--imagenes"></span>
@@ -12,6 +12,10 @@
       <div class="d-flex align-items-center gap-1 order-lg-last ms-auto ms-lg-2">
         <app-uso-sesion></app-uso-sesion>
         @if (escritorio.activo) {
+          <a class="btn btn-link boton-tema" routerLink="/ajustes" routerLinkActive="activo"
+            ariaCurrentWhenActive="page" aria-label="Ajustes" title="Ajustes">
+            <i class="bi bi-gear" aria-hidden="true"></i>
+          </a>
           <button type="button" class="btn btn-link boton-tema" (click)="escritorio.nuevaVentana()"
             aria-label="Nueva ventana" title="Nueva ventana (Ctrl+N)">
             <i class="bi bi-window-plus" aria-hidden="true"></i>
@@ -59,9 +63,6 @@
       <p class="mb-0 creditos">
         Hecha por <a [href]="perfilAutor" target="_blank" rel="noopener">dvdmsv</a>
         · <a routerLink="/acerca-de">Acerca de</a>
-        @if (escritorio.activo) {
-          · <a routerLink="/ajustes">Ajustes</a>
-        }
       </p>
     </div>
   </footer>

@@ -40,6 +40,11 @@
   color: var(--acento-texto);
 }
 
+/* Ajustes, mientras se está en ellos. */
+.boton-tema.activo {
+  color: var(--acento-texto);
+}
+
 /*
  * Despliegue del menú en pantallas estrechas, sin el JavaScript de Bootstrap.
  *
@@ -75,6 +80,12 @@
  * y la barra se partía en dos, gastando 50 px de pantalla en nada. La marca se
  * parte en dos renglones —«Caja de» sobre «herramientas»— y el indicador de
  * espacio se queda en icono (uso-sesion.component.css).
+ *
+ * En la aplicación de Windows la barra lleva además Ajustes y Nueva ventana,
+ * y con ellos ni partida cabe la marca: a 360 px la barra volvía a ir en dos
+ * líneas. Allí la marca se queda en los tres puntos (el texto sigue para el
+ * lector de pantalla), porque el nombre ya está en el título de la ventana.
+ * Su ventana no baja de 720 px, pero ampliada con Ctrl + sí llega aquí.
  */
 @media (max-width: 575.98px) {
   .marca {
@@ -96,6 +107,14 @@
 
   .navbar-toggler {
     padding-inline: 0.5rem;
+  }
+
+  .marca--app .marca__texto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
 }
 

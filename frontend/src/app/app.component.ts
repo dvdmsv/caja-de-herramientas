@@ -1,6 +1,6 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
-import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
 import { EscritorioService } from './core/escritorio.service';
@@ -10,7 +10,7 @@ import { UsoSesionComponent } from './shared/uso-sesion/uso-sesion.component';
 
 @Component({
   selector: 'app-root',
-  imports: [AsyncPipe, RouterOutlet, RouterLink, MenuPrincipalComponent, UsoSesionComponent],
+  imports: [AsyncPipe, RouterOutlet, RouterLink, RouterLinkActive, MenuPrincipalComponent, UsoSesionComponent],
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './app.component.css',
