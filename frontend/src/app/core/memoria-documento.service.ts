@@ -15,6 +15,8 @@ export interface Recuerdo {
   escala: number;
   modoZoom: string;
   columnas: number;
+  /** Desde que hay más modos que una o dos columnas; sin él, sale de `columnas`. */
+  modoLectura?: string;
   oscuro: boolean;
   borrador?: Borrador;
   actualizado: number;

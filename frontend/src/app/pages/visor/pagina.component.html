@@ -12,6 +12,24 @@
   <div class="capa-texto" #capaTexto></div>
 
   <!--
+  Los enlaces del documento. Con una herramienta de marcado activa dejan pasar
+  el ratón, como los campos: si no, no se podría subrayar un enlace.
+  -->
+  @if (enlacesPintados.length) {
+    <div class="enlaces" [class.enlaces--inertes]="marcando || escribiendo">
+      @for (enlace of enlacesPintados; track $index) {
+        @if (enlace.url) {
+          <a class="enlace" [style]="enlace.estilo" [href]="enlace.url" target="_blank"
+            rel="noopener noreferrer" [title]="enlace.titulo" [attr.aria-label]="enlace.titulo"></a>
+        } @else {
+          <a class="enlace" [style]="enlace.estilo" href="#" [title]="enlace.titulo"
+            [attr.aria-label]="enlace.titulo" (click)="alPulsarEnlace($event, enlace)"></a>
+        }
+      }
+    </div>
+  }
+
+  <!--
   Los campos rellenables que trae el propio formulario. Con una herramienta de
   marcado activa la capa deja pasar el ratón: si no, un campo se tragaría el
   arrastre y no se podría subrayar una línea que lo cruce.

@@ -1,5 +1,9 @@
 import { Injectable } from '@angular/core';
 
+import {
+  DestinoPdf, EnlacePdf, alturaDeDestino, destinoDeAccion, urlAbrible,
+} from '../pages/visor/enlaces';
+
 /**
  * pdf.js usa `Promise.try` al decodificar imágenes, y zone.js —que Angular
  * carga— sustituye el `Promise` nativo por el suyo, que no lo implementa. Sin
@@ -158,19 +162,10 @@ export class DocumentoPdf {
       .filter((a: any) => a.subtype === 'Widget' && a.fieldName && !a.hidden
         && !a.pushButton && !a.readOnly)
       .map((a: any) => {
-        const [ax0, ay0, ax1, ay1] = a.rect;
-        const [x0, y0] = viewport.convertToViewportPoint(ax0, ay0);
-        const [x1, y1] = viewport.convertToViewportPoint(ax1, ay1);
-        const entre = (v: number) => Math.max(0, Math.min(1, v));
         return {
           nombre: String(a.fieldName),
           tipo: tipoDeCampo(a),
-          rect: [
-            entre(Math.min(x0, x1) / viewport.width),
-            entre(Math.min(y0, y1) / viewport.height),
-            entre(Math.max(x0, x1) / viewport.width),
-            entre(Math.max(y0, y1) / viewport.height),
-          ] as [number, number, number, number],
+          rect: enProporciones(a.rect, viewport),
           valor: valorDeCampo(a),
           multilinea: !!a.multiLine,
           maximo: Number(a.maxLen) || 0,
@@ -187,19 +182,46 @@ export class DocumentoPdf {
       .filter((campo: CampoPdf) => campo.tipo !== 'texto' || !campo.opciones.length);
   }
 
+  /**
+   * Los enlaces de una página: a una dirección de fuera o a otro sitio del
+   * documento, con su rectángulo en la misma convención que los campos.
+   */
+  async enlaces(numero: number): Promise<EnlacePdf[]> {
+    const pagina = await this.pagina(numero);
+    const anotaciones = await pagina.getAnnotations({ intent: 'display' });
+    const viewport = pagina.getViewport({ scale: 1 });
+    const enlaces: EnlacePdf[] = [];
+
+    for (const a of anotaciones.filter((a: any) => a.subtype === 'Link')) {
+      const rect = enProporciones(a.rect, viewport);
+      const url = urlAbrible(a.url);
+      if (url) {
+        enlaces.push({ rect, url });
+        continue;
+      }
+      const accion = a.action ? destinoDeAccion(a.action, numero, this.paginas) : null;
+      const destino = a.dest ? await this.destino(a.dest)
+        : accion ? { pagina: accion, y: null } : null;
+      if (destino) {
+        enlaces.push({ rect, destino });
+      }
+    }
+    return enlaces;
+  }
+
   /** Marcadores del documento, si los trae, ya aplanados para el panel. */
-  async indice(): Promise<{ titulo: string; pagina: number; nivel: number }[]> {
+  async indice(): Promise<{ titulo: string; pagina: number; y: number | null; nivel: number }[]> {
     const marcadores = await this.documento.getOutline();
     if (!marcadores?.length) {
       return [];
     }
 
-    const plano: { titulo: string; pagina: number; nivel: number }[] = [];
+    const plano: { titulo: string; pagina: number; y: number | null; nivel: number }[] = [];
     const recorrer = async (nodos: any[], nivel: number) => {
       for (const nodo of nodos) {
-        const pagina = await this.paginaDeDestino(nodo.dest);
-        if (pagina) {
-          plano.push({ titulo: nodo.title?.trim() || 'Sin título', pagina, nivel });
+        const destino = await this.destino(nodo.dest);
+        if (destino) {
+          plano.push({ titulo: nodo.title?.trim() || 'Sin título', ...destino, nivel });
         }
         if (nodo.items?.length) {
           await recorrer(nodo.items, nivel + 1);
@@ -210,15 +232,33 @@ export class DocumentoPdf {
     return plano;
   }
 
-  private async paginaDeDestino(destino: any): Promise<number | null> {
+  /**
+   * La página y la altura a la que lleva un destino, con nombre o explícito.
+   *
+   * La altura sale en espacio PDF y se pasa a la proporción desde arriba sobre
+   * la página del archivo, la que usa el visor para todo.
+   */
+  async destino(destino: any): Promise<DestinoPdf | null> {
     try {
-      const resuelto = typeof destino === 'string'
+      const explicito = typeof destino === 'string'
         ? await this.documento.getDestination(destino)
         : destino;
-      if (!resuelto?.[0]) {
+      if (!Array.isArray(explicito) || explicito[0] === null || explicito[0] === undefined) {
         return null;
       }
-      return (await this.documento.getPageIndex(resuelto[0])) + 1;
+      // Casi siempre es una referencia a la página; algunos generadores ponen
+      // directamente su número, empezando en cero.
+      const indice = typeof explicito[0] === 'number'
+        ? explicito[0]
+        : await this.documento.getPageIndex(explicito[0]);
+      const pagina = indice + 1;
+      const altura = alturaDeDestino(explicito);
+      if (altura === null || pagina < 1 || pagina > this.paginas) {
+        return pagina >= 1 && pagina <= this.paginas ? { pagina, y: null } : null;
+      }
+      const viewport = (await this.pagina(pagina)).getViewport({ scale: 1 });
+      const [, y] = viewport.convertToViewportPoint(0, altura);
+      return { pagina, y: Math.max(0, Math.min(1, y / viewport.height)) };
     } catch {
       return null; // un marcador roto no debe impedir enseñar los demás
     }
@@ -280,6 +320,24 @@ export class PdfService {
     }
     return this.pdfjs;
   }
+}
+
+/**
+ * Un rectángulo de anotación (espacio PDF, origen abajo) en proporciones del
+ * visor. Se convierten las dos esquinas y no el rectángulo entero porque pdf.js
+ * 6 ya no trae `convertToViewportRectangle`.
+ */
+function enProporciones(rect: number[], viewport: any): [number, number, number, number] {
+  const [ax0, ay0, ax1, ay1] = rect;
+  const [x0, y0] = viewport.convertToViewportPoint(ax0, ay0);
+  const [x1, y1] = viewport.convertToViewportPoint(ax1, ay1);
+  const entre = (v: number) => Math.max(0, Math.min(1, v));
+  return [
+    entre(Math.min(x0, x1) / viewport.width),
+    entre(Math.min(y0, y1) / viewport.height),
+    entre(Math.max(x0, x1) / viewport.width),
+    entre(Math.max(y0, y1) / viewport.height),
+  ];
 }
 
 function tipoDeCampo(anotacion: any): CampoPdf['tipo'] {

@@ -12,6 +12,7 @@ import {
   Rect, aPorcentajes, aProporciones, contiene, fusionarRects, girar, puntoAPorcentajes,
   puntoAProporciones,
 } from './coordenadas';
+import { DestinoPdf, EnlacePdf } from './enlaces';
 import { Rect as Trozo, cubre, escalaDelLienzo, parteVisible, trozoDeDetalle } from './detalle';
 import { PaginaColocada } from './disposicion';
 import {
@@ -140,6 +141,11 @@ export interface Seleccion {
   texto: string;
 }
 
+interface EnlacePintado extends EnlacePdf {
+  estilo: Record<string, string>;
+  titulo: string;
+}
+
 @Component({
   selector: 'app-visor-pagina',
   imports: [],
@@ -198,6 +204,8 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   @Output() estiloPedido = new EventEmitter<Partial<EstiloEscritura>>();
   /** Lo que se acaba de escribir en un campo del formulario. */
   @Output() campoRelleno = new EventEmitter<CampoRelleno>();
+  /** Un enlace del documento a otro sitio de él. */
+  @Output() irADestino = new EventEmitter<DestinoPdf>();
   /** Cuántos campos rellenables tiene esta página, para que el visor lo sepa. */
   @Output() camposEncontrados = new EventEmitter<number>();
 
@@ -210,6 +218,8 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   textosPintados: TextoPintado[] = [];
   /** Los campos rellenables de esta página. */
   camposPintados: CampoPintado[] = [];
+  /** Los enlaces que trae esta página, listos para pintar. */
+  enlacesPintados: EnlacePintado[] = [];
   /** Lo que se está escribiendo ahora mismo, si algo. */
   edicion: Edicion | null = null;
 
@@ -225,6 +235,7 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   private readonly cd = inject(ChangeDetectorRef);
   private fragmentos: HTMLElement[] = [];
   private campos: CampoPdf[] = [];
+  private enlaces: EnlacePdf[] = [];
   private origenPuntero: { x: number; y: number } | null = null;
   private clave = '';
   private textoMontado = '';
@@ -272,6 +283,9 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
     if (cambios['valoresDeCampos'] || cambios['colocada']) {
       this.colocarCampos();
     }
+    if (cambios['colocada']) {
+      this.colocarEnlaces();
+    }
     if (cambios['textos'] || cambios['colocada'] || cambios['escala']
         || cambios['estiloEscritura']) {
       this.pintarTextos();
@@ -287,7 +301,7 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
     }
     if (cambios['documento']
         || (cambios['colocada'] && this.cambioDeVerdad(cambios['colocada']))) {
-      await this.cargarCampos();
+      await Promise.all([this.cargarCampos(), this.cargarEnlaces()]);
     }
     if (this.hayQueRedibujar(cambios)) {
       await this.dibujar();
@@ -724,6 +738,35 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
     this.camposEncontrados.emit(this.campos.length);
     this.colocarCampos();
     this.cd.markForCheck();
+  }
+
+  private async cargarEnlaces(): Promise<void> {
+    const numero = this.colocada.numero;
+    try {
+      this.enlaces = await this.documento.enlaces(numero);
+    } catch {
+      this.enlaces = [];   // como los campos: un enlace roto no impide leer
+    }
+    if (this.colocada.numero === numero) {
+      this.colocarEnlaces();
+      this.cd.markForCheck();
+    }
+  }
+
+  private colocarEnlaces(): void {
+    this.enlacesPintados = this.enlaces.map(enlace => ({
+      ...enlace,
+      estilo: aPorcentajes(enlace.rect, this.colocada.rotacion),
+      titulo: enlace.url ?? `Ir a la página ${enlace.destino!.pagina}`,
+    }));
+  }
+
+  /** Un enlace interno: lo lleva el visor, que es quien sabe desplazarse. */
+  alPulsarEnlace(evento: Event, enlace: EnlacePintado): void {
+    evento.preventDefault();
+    if (enlace.destino) {
+      this.irADestino.emit(enlace.destino);
+    }
   }
 
   private colocarCampos(): void {

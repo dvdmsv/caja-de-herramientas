@@ -58,7 +58,7 @@
             @for (entrada of indice; track entrada) {
               <button type="button" class="entrada"
                 [style.padding-left.rem]="0.6 + entrada.nivel * 0.8"
-                (click)="irAPagina.emit(entrada.pagina)">
+                (click)="irADestino.emit(entrada)">
                 <span class="entrada__titulo">{{ entrada.titulo }}</span>
                 <span class="entrada__pagina">{{ entrada.pagina }}</span>
               </button>

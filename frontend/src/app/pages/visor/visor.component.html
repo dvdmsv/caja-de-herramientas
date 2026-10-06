@@ -45,10 +45,23 @@
           (click)="ajustar('pagina')" title="Ajustar la página entera">
           <i class="bi bi-aspect-ratio"></i>
         </button>
-        <button type="button" class="boton" [class.boton--activo]="columnas === 2"
-          (click)="alternarColumnas()" title="Dos páginas">
-          <i class="bi bi-book"></i>
+        <button type="button" class="boton" [class.boton--activo]="eligiendoModo"
+          (click)="eligiendoModo = !eligiendoModo"
+          [title]="'Cómo se leen las páginas: ' + nombresModo[modoLectura].titulo"
+          [attr.aria-expanded]="eligiendoModo">
+          <i class="bi {{ nombresModo[modoLectura].icono }}"></i>
         </button>
+        @if (eligiendoModo) {
+          <span class="colores" role="group" aria-label="Cómo se leen las páginas">
+            @for (modo of modosLectura; track modo) {
+              <button type="button" class="boton" [class.boton--activo]="modoLectura === modo"
+                (click)="elegirModo(modo)" [title]="nombresModo[modo].titulo"
+                [attr.aria-pressed]="modoLectura === modo">
+                <i class="bi {{ nombresModo[modo].icono }}"></i>
+              </button>
+            }
+          </span>
+        }
         <button type="button" class="boton" [class.boton--activo]="oscuro"
           (click)="alternarOscuro()" title="Modo oscuro">
           <i class="bi bi-moon-stars"></i>
@@ -195,7 +208,8 @@
         [resultados]="resultados" [consulta]="consulta" [buscando]="indexando"
         [indexadas]="indexadas" [resultadoActual]="resultadoActual"
         (pestanaChange)="pestana = $event" (consultaChange)="buscar($event)"
-        (irAPagina)="irAPaginaDesdePanel($event)" (irAResultado)="irAResultado($event)"
+        (irAPagina)="irAPaginaDesdePanel($event)" (irADestino)="irADestinoDesdePanel($event)"
+        (irAResultado)="irAResultado($event)"
         (girar)="girarPagina($event)" (eliminar)="eliminarPagina($event)"
         (restaurar)="restaurarPagina($event)" (quitarMarca)="quitarMarca($event)"
         (quitarTexto)="alQuitarTexto($event)">
@@ -239,7 +253,7 @@
 
       <!-- Lienzo de lectura: alto real, pero sólo con lo que se ve montado -->
       @if (documento) {
-        <div class="lienzo" [style.height.px]="disposicion.altoTotal">
+        <div class="lienzo" #lienzo [style.height.px]="disposicion.altoTotal">
           @for (visible of visibles; track porNumero($index, visible)) {
             <app-visor-pagina
               class="pagina-suelta"
@@ -259,7 +273,8 @@
               (textoQuitado)="alQuitarTexto($event)" (textoPulsado)="alPulsarTexto($event)"
               (estiloPedido)="cambiarEstilo($event)"
               (campoRelleno)="alRellenarCampo($event)"
-              (camposEncontrados)="alEncontrarCampos($event)">
+              (camposEncontrados)="alEncontrarCampos($event)"
+              (irADestino)="irADestino($event)">
             </app-visor-pagina>
           }
         </div>

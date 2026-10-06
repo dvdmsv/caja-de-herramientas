@@ -16,10 +16,13 @@ import { avisoError, avisoExito, aviso, confirmar, mensajeDeError } from '../../
 import { IDS_DE_DATO, nombreDeDato } from '../../shared/datos-personales';
 import { copiarAlPortapapeles } from '../../shared/portapapeles';
 import { Coincidencia, IndiceTexto } from './buscador';
+import { DestinoPdf } from './enlaces';
+import { GestoZoom } from './gesto-zoom';
+import { Punto, anclar, factorPermitido } from './zoom';
 import { Cambios, ColorSubrayado, ColorTachado, Marca, Texto } from './cambios';
 import {
-  Disposicion, Medida, PaginaColocada, calcularDisposicion, escalaParaAjustar, filasVisibles,
-  paginaEnFoco,
+  Disposicion, MODOS_LECTURA, Medida, ModoLectura, PaginaColocada, calcularDisposicion,
+  columnasDe, escalaParaAjustar, filasVisibles, paginaEnFoco, paginaVecina,
 } from './disposicion';
 import {
   AccionSeleccion, CambioDeColor, CampoRelleno, EstiloEscritura, Seleccion, TextoEditado,
@@ -71,6 +74,7 @@ const REVISABLES = 500;
 })
 export class VisorComponent implements AfterViewInit, OnDestroy {
   @ViewChild('lectura') lecturaRef?: ElementRef<HTMLElement>;
+  @ViewChild('lienzo') lienzoRef?: ElementRef<HTMLElement>;
 
   // --- documento --------------------------------------------------------
   archivo: File | null = null;
@@ -93,7 +97,16 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
    * completa dejaría el texto ilegible (y en un móvil apaisado, diminuta).
    */
   modoZoom: ModoZoom = cumple(COMPACTA) ? 'ancho' : 'pagina';
-  columnas = 1;
+  modoLectura: ModoLectura = 'continuo';
+  /** Si está desplegada la elección del modo de lectura en la barra. */
+  eligiendoModo = false;
+  readonly modosLectura = MODOS_LECTURA;
+  readonly nombresModo: Record<ModoLectura, { titulo: string; icono: string }> = {
+    continuo: { titulo: 'Todas seguidas', icono: 'bi-view-stacked' },
+    pagina: { titulo: 'Página a página', icono: 'bi-file-earmark' },
+    dos: { titulo: 'Dos páginas', icono: 'bi-layout-split' },
+    libro: { titulo: 'Libro: la portada sola y luego de dos en dos', icono: 'bi-book' },
+  };
   oscuro = false;
   paginaActual = 1;
   visibles: EnPantalla[] = [];
@@ -161,6 +174,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   private pendienteDeTamano = false;
   private observadorTamano?: ResizeObserver;
   private ultimaVentana = '';
+  private gesto?: GestoZoom;
+  /** El punto fijo del gesto en curso, en coordenadas del lienzo de lectura. */
+  private origenGesto: Punto | null = null;
 
   // --- ciclo de vida ----------------------------------------------------
 
@@ -198,6 +214,10 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       if (lectura) {
         this.observadorTamano = new ResizeObserver(() => this.alCambiarTamano());
         this.observadorTamano.observe(lectura);
+        this.gesto = new GestoZoom(lectura,
+          factor => factorPermitido(this.escala, factor, ESCALA_MINIMA, ESCALA_MAXIMA),
+          (factor, origen) => this.ampliarProvisional(factor, origen),
+          (factor, origen) => this.zone.run(() => this.ampliarEn(factor, origen)));
       }
     });
   }
@@ -220,6 +240,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     }
     this.lecturaRef?.nativeElement.removeEventListener('scroll', this.alDesplazar);
     this.observadorTamano?.disconnect();
+    this.gesto?.destruir();
     clearInterval(this.temporizadorKeepalive);
     clearTimeout(this.temporizadorMemoria);
     this.guardarEnMemoria();
@@ -386,7 +407,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
 
   // --- disposición y desplazamiento -------------------------------------
 
-  private recalcular(): void {
+  private recalcular(conservarPagina = true): void {
     const lectura = this.lecturaRef?.nativeElement;
     if (!lectura || !this.medidas.length) {
       return;
@@ -411,10 +432,12 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       separacion: SEPARACION,
       rotaciones: this.cambios.rotaciones,
       eliminadas: this.cambios.eliminadas,
+      portada: this.modoLectura === 'libro',
+      solo: this.modoLectura === 'pagina' ? enCurso : undefined,
     });
     this.actualizarVisibles();
 
-    if (this.paginaActual !== enCurso) {
+    if (conservarPagina && this.paginaActual !== enCurso) {
       this.irAPagina(enCurso, false);
       this.actualizarVisibles();
     }
@@ -444,7 +467,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       return;
     }
     const [desde, hasta] = filasVisibles(this.disposicion, lectura.scrollTop, lectura.clientHeight);
-    this.ultimaVentana = `${desde}-${hasta}:${this.escala}:${this.columnas}`;
+    this.ultimaVentana = `${desde}-${hasta}:${this.escala}:${this.modoLectura}`;
 
     const enPantalla: EnPantalla[] = [];
     for (let i = desde; i <= hasta; i++) {
@@ -461,19 +484,42 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
 
   /** Ir a una página desde el panel: en móvil, además, lo cierra. */
   irAPaginaDesdePanel(numero: number): void {
-    this.irAPagina(numero);
+    this.irADestinoDesdePanel({ pagina: numero, y: null });
+  }
+
+  irADestinoDesdePanel(destino: DestinoPdf): void {
+    this.irADestino(destino);
     if (cumple(COMPACTA)) {
       this.panelAbierto = false;
     }
   }
 
-  irAPagina(numero: number, suave = true): void {
+  /** Un enlace o una entrada del índice: a su página, y a su altura si la da. */
+  irADestino({ pagina, y }: DestinoPdf): void {
+    this.irAPagina(pagina, true, y);
+  }
+
+  irAPagina(numero: number, suave = true, y: number | null = null): void {
+    // Página a página sólo está colocada la que se ve: para ir a otra, se
+    // coloca ésa en su lugar.
+    if (this.modoLectura === 'pagina' && numero !== this.paginaActual
+        && this.medidas.some(medida => medida.numero === numero)) {
+      this.paginaActual = numero;
+      this.recalcular(false);
+      this.cd.detectChanges();
+      this.lecturaRef?.nativeElement.scrollTo({ top: 0 });
+      suave = false;
+    }
     const fila = this.disposicion.filas.find(f => f.paginas.some(p => p.numero === numero));
     const lectura = this.lecturaRef?.nativeElement;
     if (!fila || !lectura) {
       return;
     }
-    const destino = Math.max(0, fila.top - SEPARACION);
+    // La altura viene sobre la página del archivo; si se ha girado a mano, ya
+    // no es la de la pantalla y se va al principio de la página.
+    const colocada = fila.paginas.find(p => p.numero === numero)!;
+    const dentro = y !== null && colocada.rotacion === 0 ? y * colocada.alto : 0;
+    const destino = Math.max(0, fila.top + dentro - SEPARACION);
     // Un desplazamiento suave está bien para ir a la página de al lado; para
     // cruzar doscientas es un viaje de varios segundos con la pantalla medio
     // vacía. A partir de un par de pantallas, se salta y ya está.
@@ -492,16 +538,82 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.recalcular();
   }
 
+  /** Los botones y el teclado amplían sobre el centro de lo que se ve. */
   aplicarZoom(factor: number): void {
-    this.modoZoom = 'libre';
-    this.escala = Math.min(ESCALA_MAXIMA, Math.max(ESCALA_MINIMA, this.escala * factor));
-    this.recalcular();
+    const lectura = this.lecturaRef?.nativeElement;
+    if (!lectura) {
+      return;
+    }
+    const caja = lectura.getBoundingClientRect();
+    this.ampliarEn(factor, { x: caja.left + caja.width / 2, y: caja.top + caja.height / 2 });
   }
 
-  alternarColumnas(): void {
-    this.columnas = this.columnas === 1 ? 2 : 1;
+  /**
+   * Durante el gesto, sólo se escala con CSS alrededor del punto: es inmediato
+   * y no hace dibujar nada. Lo de verdad lo hace `ampliarEn` al soltar.
+   */
+  private ampliarProvisional(factor: number, origen: Punto): void {
+    const lienzo = this.lienzoRef?.nativeElement;
+    if (!lienzo) {
+      return;
+    }
+    if (!this.origenGesto) {
+      const caja = lienzo.getBoundingClientRect();
+      this.origenGesto = { x: origen.x - caja.left, y: origen.y - caja.top };
+      lienzo.style.transformOrigin = `${this.origenGesto.x}px ${this.origenGesto.y}px`;
+    }
+    lienzo.style.transform = `scale(${factor})`;
+  }
+
+  /**
+   * Amplía dejando quieto lo que hay bajo `origen` (en coordenadas de la
+   * ventana): se recoloca, se aplica antes de tocar el desplazamiento —si no, el
+   * navegador lo recortaría al alto viejo— y se desplaza lo que haya movido
+   * `anclar`.
+   */
+  private ampliarEn(factor: number, origen: Punto): void {
+    const lectura = this.lecturaRef?.nativeElement;
+    const lienzo = this.lienzoRef?.nativeElement;
+    if (!lectura || !lienzo || !this.documento) {
+      return;
+    }
+    let punto = this.origenGesto;
+    if (!punto) {
+      const caja = lienzo.getBoundingClientRect();
+      punto = { x: origen.x - caja.left, y: origen.y - caja.top };
+    }
+    this.origenGesto = null;
+    lienzo.style.transform = '';
+
+    const antes = this.disposicion;
+    this.modoZoom = 'libre';
+    this.escala = Math.min(ESCALA_MAXIMA, Math.max(ESCALA_MINIMA, this.escala * factor));
+    this.recalcular(false);
+    this.cd.detectChanges();
+
+    const despues = anclar(antes, this.disposicion, punto);
+    lectura.scrollLeft += despues.x - punto.x;
+    lectura.scrollTop += despues.y - punto.y;
+    this.actualizarVisibles();
+    this.cd.detectChanges();
+    this.recordarMasTarde();
+  }
+
+  get columnas(): number {
+    return columnasDe(this.modoLectura);
+  }
+
+  elegirModo(modo: ModoLectura): void {
+    this.modoLectura = modo;
+    this.eligiendoModo = false;
     this.recalcular();
     this.recordarMasTarde();
+  }
+
+  /** «Siguiente» o «anterior», según el modo: de fila en fila. */
+  pasarPagina(paso: number): void {
+    this.irAPagina(paginaVecina(this.medidas.map(medida => medida.numero), this.cambios.eliminadas,
+                                this.paginaActual, paso, this.modoLectura));
   }
 
   alternarOscuro(): void {
@@ -1034,7 +1146,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.paginaActual = Math.min(recuerdo.pagina || 1, this.medidas.length);
     this.escala = recuerdo.escala || 1;
     this.modoZoom = (recuerdo.modoZoom as ModoZoom) || this.modoZoom;
-    this.columnas = recuerdo.columnas || 1;
+    this.modoLectura = (MODOS_LECTURA as string[]).includes(recuerdo.modoLectura ?? '')
+      ? recuerdo.modoLectura as ModoLectura
+      : recuerdo.columnas === 2 ? 'dos' : 'continuo';
     this.oscuro = !!recuerdo.oscuro;
     if (recuerdo.borrador) {
       this.cambios = Cambios.desdeBorrador(recuerdo.borrador);
@@ -1059,6 +1173,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       escala: this.escala,
       modoZoom: this.modoZoom,
       columnas: this.columnas,
+      modoLectura: this.modoLectura,
       oscuro: this.oscuro,
       borrador: conBorrador && this.cambios.hayAlgo ? this.cambios.aBorrador() : undefined,
     };
@@ -1095,10 +1210,10 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     }
 
     const atajos: Record<string, () => void> = {
-      ArrowRight: () => this.irAPagina(Math.min(this.paginaActual + this.columnas, this.medidas.length)),
-      ArrowLeft: () => this.irAPagina(Math.max(this.paginaActual - this.columnas, 1)),
-      PageDown: () => this.irAPagina(Math.min(this.paginaActual + this.columnas, this.medidas.length)),
-      PageUp: () => this.irAPagina(Math.max(this.paginaActual - this.columnas, 1)),
+      ArrowRight: () => this.pasarPagina(1),
+      ArrowLeft: () => this.pasarPagina(-1),
+      PageDown: () => this.pasarPagina(1),
+      PageUp: () => this.pasarPagina(-1),
       Home: () => this.irAPagina(1),
       End: () => this.irAPagina(this.medidas.length),
       '+': () => this.aplicarZoom(1.25),
@@ -1107,6 +1222,18 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       Escape: () => (this.panelAbierto = false),
     };
 
+    // Ctrl + y Ctrl − amplían el documento y no la interfaz, como en cualquier
+    // lector de PDF; Ctrl 0 vuelve a la página entera.
+    if (evento.ctrlKey && ['+', '=', '-', '0'].includes(evento.key)) {
+      evento.preventDefault();
+      if (evento.key === '0') {
+        this.ajustar('pagina');
+      } else {
+        this.aplicarZoom(evento.key === '-' ? 0.8 : 1.25);
+      }
+      this.cd.markForCheck();
+      return;
+    }
     if (evento.ctrlKey && evento.key.toLowerCase() === 'f') {
       evento.preventDefault();
       this.abrirPestana('buscar');
@@ -1129,6 +1256,22 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       this.siguienteResultado(evento.shiftKey);
       this.cd.markForCheck();
       return;
+    }
+
+    // Página a página, las flechas verticales desplazan dentro de la página y,
+    // al llegar al borde, pasan a la de al lado.
+    if (this.modoLectura === 'pagina' && (evento.key === 'ArrowDown' || evento.key === 'ArrowUp')) {
+      const lectura = this.lecturaRef!.nativeElement;
+      const abajo = evento.key === 'ArrowDown';
+      const enElBorde = abajo
+        ? lectura.scrollTop + lectura.clientHeight >= lectura.scrollHeight - 1
+        : lectura.scrollTop <= 0;
+      if (enElBorde) {
+        evento.preventDefault();
+        this.pasarPagina(abajo ? 1 : -1);
+        this.cd.markForCheck();
+        return;
+      }
     }
 
     const accion = atajos[evento.key];

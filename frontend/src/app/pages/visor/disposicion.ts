@@ -41,6 +41,54 @@ export interface OpcionesDisposicion {
   separacion: number;
   rotaciones?: Map<number, number>;
   eliminadas?: Set<number>;
+  /** En dos columnas, la primera página sola, como la portada de un libro. */
+  portada?: boolean;
+  /** Página a página: sólo se coloca ésta. */
+  solo?: number;
+}
+
+/**
+ * Cómo se leen las páginas: todas seguidas, de dos en dos (con o sin portada
+ * sola) o de una en una, pasándolas como en un libro.
+ */
+export type ModoLectura = 'continuo' | 'dos' | 'libro' | 'pagina';
+
+export const MODOS_LECTURA: ModoLectura[] = ['continuo', 'pagina', 'dos', 'libro'];
+
+export function columnasDe(modo: ModoLectura): number {
+  return modo === 'dos' || modo === 'libro' ? 2 : 1;
+}
+
+/**
+ * Las páginas vivas agrupadas por filas: de `columnas` en `columnas`, y con
+ * portada la primera va sola.
+ */
+export function agrupar<T>(vivas: T[], columnas: number, portada = false): T[][] {
+  const grupos: T[][] = [];
+  let i = 0;
+  if (portada && columnas > 1 && vivas.length) {
+    grupos.push([vivas[0]]);
+    i = 1;
+  }
+  for (; i < vivas.length; i += columnas) {
+    grupos.push(vivas.slice(i, i + columnas));
+  }
+  return grupos;
+}
+
+/**
+ * La página a la que lleva «siguiente» o «anterior» (`paso` de +1 o -1): la
+ * primera de la fila de al lado, contando las quitadas y la portada.
+ */
+export function paginaVecina(numeros: number[], eliminadas: Set<number>, actual: number,
+                             paso: number, modo: ModoLectura): number {
+  const vivas = numeros.filter(numero => !eliminadas.has(numero));
+  const grupos = agrupar(vivas, columnasDe(modo), modo === 'libro');
+  const i = grupos.findIndex(grupo => grupo.includes(actual));
+  if (i < 0) {
+    return vivas.find(numero => numero >= actual) ?? vivas.at(-1) ?? actual;
+  }
+  return grupos[Math.min(grupos.length - 1, Math.max(0, i + paso))][0];
 }
 
 /** Tamaño en pantalla de una página, contando el giro que le haya dado el usuario. */
@@ -57,13 +105,16 @@ export function calcularDisposicion(medidas: Medida[], opciones: OpcionesDisposi
   const rotaciones = opciones.rotaciones ?? new Map<number, number>();
   const eliminadas = opciones.eliminadas ?? new Set<number>();
 
-  const vivas = medidas.filter(medida => !eliminadas.has(medida.numero));
+  let vivas = medidas.filter(medida => !eliminadas.has(medida.numero));
+  if (opciones.solo !== undefined) {
+    const sola = vivas.find(medida => medida.numero === opciones.solo) ?? vivas[0];
+    vivas = sola ? [sola] : [];
+  }
   const filas: Fila[] = [];
   let top = separacion;
   let anchoTotal = 0;
 
-  for (let i = 0; i < vivas.length; i += columnas) {
-    const grupo = vivas.slice(i, i + columnas);
+  for (const grupo of agrupar(vivas, columnas, opciones.portada)) {
     const tamanos = grupo.map(medida => {
       const rotacion = rotaciones.get(medida.numero) ?? 0;
       return { medida, rotacion, ...dimensiones(medida, rotacion, escala) };

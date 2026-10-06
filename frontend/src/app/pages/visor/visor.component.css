@@ -183,6 +183,9 @@
   overflow: auto;
   /* Que el desplazamiento no arrastre la página de detrás en táctil. */
   overscroll-behavior: contain;
+  /* El pellizco es del visor (gesto-zoom.ts), no del navegador: si no, en el
+     móvil ampliaba la interfaz entera, barra incluida, en vez del documento. */
+  touch-action: pan-x pan-y;
 }
 
 .lectura--escribiendo {

@@ -9,12 +9,12 @@ import { DocumentoPdf } from '../../core/pdf.service';
 import { densidadDePantalla } from '../../core/visor-render.service';
 import { Coincidencia } from './buscador';
 import { Marca, Texto } from './cambios';
+import { DestinoPdf } from './enlaces';
 
 export type Pestana = 'paginas' | 'indice' | 'marcas' | 'buscar';
 
-export interface EntradaIndice {
+export interface EntradaIndice extends DestinoPdf {
   titulo: string;
-  pagina: number;
   nivel: number;
 }
 
@@ -49,6 +49,7 @@ export class VisorPanelComponent implements AfterViewInit, OnChanges, OnDestroy 
   @Output() pestanaChange = new EventEmitter<Pestana>();
   @Output() consultaChange = new EventEmitter<string>();
   @Output() irAPagina = new EventEmitter<number>();
+  @Output() irADestino = new EventEmitter<DestinoPdf>();
   @Output() irAResultado = new EventEmitter<number>();
   @Output() girar = new EventEmitter<number>();
   @Output() eliminar = new EventEmitter<number>();

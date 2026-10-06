@@ -1,4 +1,6 @@
-import { Medida, calcularDisposicion, escalaParaAjustar, filasVisibles, paginaEnFoco } from './disposicion';
+import {
+  Medida, calcularDisposicion, escalaParaAjustar, filasVisibles, paginaEnFoco, paginaVecina,
+} from './disposicion';
 
 const medidas = (cuantas: number, ancho = 400, alto = 600): Medida[] =>
   Array.from({ length: cuantas }, (_, i) => ({ numero: i + 1, ancho, alto }));
@@ -79,5 +81,37 @@ describe('disposición del visor', () => {
     expect(escalaParaAjustar(medida, 0, 820, 5000, 'ancho', 10)).toBe(2);
     // A página manda el alto: (620-20)/600 = 1.
     expect(escalaParaAjustar(medida, 0, 820, 620, 'pagina', 10)).toBe(1);
+  });
+});
+
+describe('modos de lectura', () => {
+  const cinco = medidas(5, 100, 140);
+  const base = { escala: 1, anchoDisponible: 800, separacion: 10 };
+
+  it('libro: la portada sola y luego de dos en dos', () => {
+    const { filas } = calcularDisposicion(cinco, { ...base, columnas: 2, portada: true });
+    expect(filas.map(f => f.paginas.map(p => p.numero))).toEqual([[1], [2, 3], [4, 5]]);
+  });
+
+  it('página a página: sólo la pedida', () => {
+    const { filas } = calcularDisposicion(cinco, { ...base, columnas: 1, solo: 3 });
+    expect(filas.map(f => f.paginas.map(p => p.numero))).toEqual([[3]]);
+  });
+
+  it('página a página sobre una quitada: la primera que queda', () => {
+    const { filas } = calcularDisposicion(cinco,
+      { ...base, columnas: 1, solo: 1, eliminadas: new Set([1]) });
+    expect(filas[0].paginas[0].numero).toBe(2);
+  });
+
+  it('siguiente y anterior según el modo', () => {
+    const numeros = [1, 2, 3, 4, 5];
+    const ninguna = new Set<number>();
+    expect(paginaVecina(numeros, ninguna, 1, 1, 'libro')).toBe(2);
+    expect(paginaVecina(numeros, ninguna, 2, 1, 'libro')).toBe(4);
+    expect(paginaVecina(numeros, ninguna, 3, -1, 'libro')).toBe(1);
+    expect(paginaVecina(numeros, ninguna, 1, 1, 'dos')).toBe(3);
+    expect(paginaVecina(numeros, ninguna, 5, 1, 'pagina')).toBe(5);
+    expect(paginaVecina(numeros, new Set([2]), 1, 1, 'pagina')).toBe(3);
   });
 });

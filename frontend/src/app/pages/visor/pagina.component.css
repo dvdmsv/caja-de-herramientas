@@ -30,6 +30,32 @@
   color: var(--bs-secondary-color);
 }
 
+/* --- enlaces del propio documento ---------------------------------------- */
+/* Encima de la capa de texto (2), que si no se queda el clic; debajo de los
+   campos (4), que son lo que se rellena. */
+.enlaces {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.enlace {
+  position: absolute;
+  pointer-events: auto;
+  border-radius: 2px;
+}
+
+.enlace:hover,
+.enlace:focus-visible {
+  background-color: color-mix(in srgb, var(--acento) 18%, transparent);
+  outline: 1px solid var(--acento);
+}
+
+.enlaces--inertes .enlace {
+  pointer-events: none;
+}
+
 /* --- campos rellenables del propio formulario ---------------------------- */
 .campos {
   position: absolute;

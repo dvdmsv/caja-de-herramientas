@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   112 iconos de los 2078 que trae bootstrap-icons.
+   114 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -93,6 +93,7 @@
 .bi-journal-arrow-down::before { content: "\f43a"; }
 .bi-layers::before { content: "\f45b"; }
 .bi-layout-sidebar::before { content: "\f45f"; }
+.bi-layout-split::before { content: "\f460"; }
 .bi-life-preserver::before { content: "\f467"; }
 .bi-link-45deg::before { content: "\f470"; }
 .bi-list-nested::before { content: "\f474"; }
@@ -128,6 +129,7 @@
 .bi-upc-scan::before { content: "\f601"; }
 .bi-upload::before { content: "\f603"; }
 .bi-vector-pen::before { content: "\f604"; }
+.bi-view-stacked::before { content: "\f606"; }
 .bi-wifi::before { content: "\f61c"; }
 .bi-window::before { content: "\f620"; }
 .bi-window-plus::before { content: "\f6d0"; }
