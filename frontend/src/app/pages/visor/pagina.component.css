@@ -14,6 +14,13 @@
   opacity: 1;
 }
 
+.detalle {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .numero {
   position: absolute;
   bottom: -1.35rem;

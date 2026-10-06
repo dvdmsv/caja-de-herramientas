@@ -1,17 +1,18 @@
 
 import {
-  ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener,
-  Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject,
+  AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter,
+  HostListener, Input, NgZone, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject,
 } from '@angular/core';
 
 import { CampoPdf, DocumentoPdf } from '../../core/pdf.service';
-import { VisorRenderService, esCancelacion, escalaSegura } from '../../core/visor-render.service';
+import { VisorRenderService, densidadDePantalla, esCancelacion } from '../../core/visor-render.service';
 import { Coincidencia } from './buscador';
 import { ColorSubrayado, ColorTachado, Marca, Texto } from './cambios';
 import {
   Rect, aPorcentajes, aProporciones, contiene, fusionarRects, girar, puntoAPorcentajes,
   puntoAProporciones,
 } from './coordenadas';
+import { Rect as Trozo, cubre, escalaDelLienzo, parteVisible, trozoDeDetalle } from './detalle';
 import { PaginaColocada } from './disposicion';
 import {
   COLORES_CSS, COLORES_TEXTO, ColorTexto, FUENTES, Fuente, INTERLINEADO, altoDeCaja, anchoDeTexto,
@@ -146,8 +147,9 @@ export interface Seleccion {
   styleUrls: ['./pagina.component.css', './capa-texto.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VisorPaginaComponent implements OnChanges, OnDestroy {
+export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy {
   @ViewChild('lienzo', { static: true }) lienzoRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('detalle', { static: true }) detalleRef!: ElementRef<HTMLElement>;
   @ViewChild('capaTexto', { static: true }) capaTextoRef!: ElementRef<HTMLElement>;
   @ViewChild('caja', { static: true }) cajaRef!: ElementRef<HTMLElement>;
   @ViewChild('campo') campoRef?: ElementRef<HTMLTextAreaElement>;
@@ -159,8 +161,6 @@ export class VisorPaginaComponent implements OnChanges, OnDestroy {
   @Input() marcas: Marca[] = [];
   @Input() coincidencias: Coincidencia[] = [];
   @Input() resaltadaActual = -1;
-  /** La capa de texto sólo se monta si hace falta: es lo que más ensucia el DOM. */
-  @Input() conTexto = true;
   /**
    * Si hay una herramienta de marcado activa. Leyendo, la selección es del
    * usuario —para copiar— y no se toca.
@@ -233,6 +233,19 @@ export class VisorPaginaComponent implements OnChanges, OnDestroy {
                       agarre: { x: number; y: number } } | null = null;
 
   private readonly elemento: ElementRef<HTMLElement> = inject(ElementRef);
+  private readonly zone = inject(NgZone);
+  /** A qué escala se ha dibujado la página entera (menos que `escala` si no cabía). */
+  private escalaPagina = 0;
+  /** El trozo nítido que hay pintado encima, o el que se está pintando. */
+  private trozo: Trozo | null = null;
+  private claveDetalle = '';
+  private lectura: HTMLElement | null = null;
+  private esperaDetalle = 0;
+  /** Desplazarse no pasa por Angular: el repaso nítido se pide al pararse. */
+  private readonly alDesplazar = (): void => {
+    clearTimeout(this.esperaDetalle);
+    this.esperaDetalle = window.setTimeout(() => this.repasarDetalle(), 120);
+  };
 
   /**
    * Un clic en cualquier otro sitio —la barra, otra página, el panel— cierra el
@@ -281,18 +294,30 @@ export class VisorPaginaComponent implements OnChanges, OnDestroy {
     }
   }
 
+  ngAfterViewInit(): void {
+    this.lectura = this.elemento.nativeElement.closest('.lectura');
+    this.zone.runOutsideAngular(() => {
+      this.lectura?.addEventListener('scroll', this.alDesplazar, { passive: true });
+      window.addEventListener('resize', this.alDesplazar, { passive: true });
+    });
+  }
+
   ngOnDestroy(): void {
     // La página se desmonta al salir de pantalla: lo que se estuviera
     // escribiendo se da por escrito antes de perderlo.
     this.cerrarEdicion();
     this.render.cancelar(this.clave);
     this.render.liberar(this.lienzoRef.nativeElement);
+    this.lectura?.removeEventListener('scroll', this.alDesplazar);
+    window.removeEventListener('resize', this.alDesplazar);
+    clearTimeout(this.esperaDetalle);
+    this.quitarDetalle();
   }
 
   // --- dibujo -----------------------------------------------------------
 
   private hayQueRedibujar(cambios: SimpleChanges): boolean {
-    return !!(cambios['documento'] || cambios['escala'] || cambios['conTexto']
+    return !!(cambios['documento'] || cambios['escala']
       || (cambios['colocada'] && this.cambioDeVerdad(cambios['colocada'])));
   }
 
@@ -303,17 +328,24 @@ export class VisorPaginaComponent implements OnChanges, OnDestroy {
   }
 
   private async dibujar(): Promise<void> {
-    const { numero, rotacion } = this.colocada;
-    const escala = escalaSegura(this.colocada.ancho, this.colocada.alto, this.escala);
-    this.clave = `${numero}:${rotacion}:${escala}`;
+    const { numero, rotacion, ancho, alto } = this.colocada;
+    // La clave es la de la escala pedida, que es la que usa `priorizar`; el
+    // lienzo puede ir a menos, pero eso no cambia qué página es.
+    this.clave = `${numero}:${rotacion}:${this.escala}`;
+    this.escalaPagina = escalaDelLienzo(ancho / this.escala, alto / this.escala, this.escala,
+                                        densidadDePantalla());
     this.dibujada = false;
+    this.quitarDetalle();
 
     try {
-      await this.render.dibujar(this.documento, numero, rotacion, escala,
+      await this.render.dibujar(this.documento, numero, rotacion, this.escalaPagina,
                                 this.lienzoRef.nativeElement, this.clave);
       this.dibujada = true;
       this.cd.markForCheck();
-      await this.montarTexto(escala);
+      // La capa de texto va siempre a la escala de verdad, aunque el lienzo no:
+      // es la que tiene que caer encima de lo que se ve.
+      await this.montarTexto(this.escala);
+      this.repasarDetalle();
     } catch (err) {
       // Que se cancele es lo normal al desplazarse deprisa, no un problema.
       if (!esCancelacion(err)) {
@@ -324,12 +356,6 @@ export class VisorPaginaComponent implements OnChanges, OnDestroy {
 
   private async montarTexto(escala: number): Promise<void> {
     const contenedor = this.capaTextoRef.nativeElement;
-    if (!this.conTexto) {
-      contenedor.replaceChildren();
-      this.fragmentos = [];
-      this.textoMontado = '';
-      return;
-    }
     if (this.textoMontado === this.clave) {
       return;
     }
@@ -347,6 +373,70 @@ export class VisorPaginaComponent implements OnChanges, OnDestroy {
     this.textoMontado = this.clave;
     this.colocarCoincidencias();
     this.cd.markForCheck();
+  }
+
+  // --- repaso nítido a zoom alto ----------------------------------------
+
+  /**
+   * Si la página no cabe en un lienzo a su escala, dibuja encima el trozo que
+   * se ve a resolución completa (`detalle.ts`). Sin caché, como el resto: el
+   * trozo muere al cambiar de zoom o al salir la página de pantalla.
+   */
+  private async repasarDetalle(): Promise<void> {
+    if (!this.dibujada || !this.lectura) {
+      return;
+    }
+    const visible = parteVisible(this.elemento.nativeElement.getBoundingClientRect(),
+                                 this.lectura.getBoundingClientRect());
+    if (cubre(this.trozo, visible)) {
+      return;
+    }
+    const trozo = trozoDeDetalle(visible, this.colocada, this.escalaPagina, this.escala);
+    if (!trozo) {
+      return;
+    }
+    const { numero, rotacion } = this.colocada;
+    this.render.cancelar(this.claveDetalle);
+    const clave = `${this.clave}:detalle:${trozo.x},${trozo.y},${trozo.ancho},${trozo.alto}`;
+    this.claveDetalle = clave;
+    this.trozo = trozo;
+    // En un lienzo nuevo, y se cambia al terminar: pintando sobre el que está a
+    // la vista, se vería la página blanda mientras dura.
+    const lienzo = document.createElement('canvas');
+    try {
+      await this.render.dibujar(this.documento, numero, rotacion, this.escala, lienzo, clave, trozo);
+    } catch (err) {
+      this.render.liberar(lienzo);
+      if (this.claveDetalle === clave) {
+        this.trozo = null;
+      }
+      if (!esCancelacion(err)) {
+        console.error(`No se ha podido repasar la página ${numero}:`, err);
+      }
+      return;
+    }
+    if (this.claveDetalle !== clave) {
+      this.render.liberar(lienzo);
+      return;
+    }
+    // A mano: un lienzo creado aquí no lleva el atributo del encapsulado, y
+    // las reglas del CSS del componente no lo alcanzarían.
+    Object.assign(lienzo.style, {
+      position: 'absolute', left: `${trozo.x}px`, top: `${trozo.y}px`,
+      width: `${trozo.ancho}px`, height: `${trozo.alto}px`,
+    });
+    const contenedor = this.detalleRef.nativeElement;
+    contenedor.querySelectorAll('canvas').forEach(viejo => this.render.liberar(viejo));
+    contenedor.replaceChildren(lienzo);
+  }
+
+  private quitarDetalle(): void {
+    this.render.cancelar(this.claveDetalle);
+    this.claveDetalle = '';
+    this.trozo = null;
+    const contenedor = this.detalleRef?.nativeElement;
+    contenedor?.querySelectorAll('canvas').forEach(viejo => this.render.liberar(viejo));
+    contenedor?.replaceChildren();
   }
 
   // --- marcas y coincidencias -------------------------------------------
@@ -440,13 +530,6 @@ export class VisorPaginaComponent implements OnChanges, OnDestroy {
     this.menu = null;
   }
 
-  /**
-   * Abre el menú de la marca que haya bajo el punto pulsado.
-   *
-   * La búsqueda se hace a mano porque las marcas no capturan el ratón: si lo
-   * hicieran, no se podría seleccionar el texto que hay debajo, que es
-   * justamente lo que hace falta para volver a subrayarlo.
-   */
   /** Centrado bajo la zona indicada, dentro de la caja de la página. */
   private colocarBajo(rect: Rect): Record<string, string> {
     const { left, top, width } = aPorcentajes(rect, this.colocada.rotacion);
@@ -564,6 +647,13 @@ export class VisorPaginaComponent implements OnChanges, OnDestroy {
     evento.preventDefault();
   }
 
+  /**
+   * Abre el menú de la marca que haya bajo el punto pulsado.
+   *
+   * La búsqueda se hace a mano porque las marcas no capturan el ratón: si lo
+   * hicieran, no se podría seleccionar el texto que hay debajo, que es
+   * justamente lo que hace falta para volver a subrayarlo.
+   */
   private abrirMenuEn(x: number, y: number): boolean {
     const caja = this.cajaRef.nativeElement.getBoundingClientRect();
     const [px, py] = puntoAProporciones(x, y, caja, this.colocada.rotacion);

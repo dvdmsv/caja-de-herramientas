@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 
 import { DocumentoPdf } from './pdf.service';
+import type { Rect } from '../pages/visor/detalle';
 
 /**
  * Dibujo de páginas para el visor.
@@ -29,9 +30,6 @@ interface Peticion {
   rechazar: (motivo: unknown) => void;
 }
 
-/** Más allá de esto, el lienzo pesa más de lo que aporta a la vista. */
-const MAXIMO_PIXELES = 4096;
-
 @Injectable({ providedIn: 'root' })
 export class VisorRenderService {
   private cola: Peticion[] = [];
@@ -44,9 +42,13 @@ export class VisorRenderService {
    * `clave` identifica el hueco que se está pintando (página y escala): pedir
    * otra cosa para la misma clave cancela lo anterior, que es justo lo que pasa
    * al cambiar el zoom mientras se está dibujando.
+   *
+   * Con `recorte` (en píxeles CSS de la página a esa escala) sólo se dibuja ese
+   * trozo: es el repaso nítido de `detalle.ts` cuando la página entera no cabe
+   * en un lienzo a su resolución.
    */
   dibujar(documento: DocumentoPdf, numero: number, rotacion: number, escala: number,
-          lienzo: HTMLCanvasElement, clave: string): Promise<void> {
+          lienzo: HTMLCanvasElement, clave: string, recorte?: Rect): Promise<void> {
     this.cancelar(clave);
 
     return new Promise<void>((resolver, rechazar) => {
@@ -58,17 +60,23 @@ export class VisorRenderService {
         ejecutar: async () => {
           const pagina = await documento.pagina(numero);
           // El giro del archivo lo aplica pdf.js solo; aquí se le suma el del usuario.
+          const densidad = this.densidad();
           const viewport = pagina.getViewport({
-            scale: escala * this.densidad(),
+            scale: escala * densidad,
             rotation: (pagina.rotate + rotacion) % 360,
           });
 
-          lienzo.width = Math.round(viewport.width);
-          lienzo.height = Math.round(viewport.height);
+          lienzo.width = Math.round(recorte ? recorte.ancho * densidad : viewport.width);
+          lienzo.height = Math.round(recorte ? recorte.alto * densidad : viewport.height);
           const tarea = pagina.render({
             canvas: lienzo,
             canvasContext: lienzo.getContext('2d', { alpha: false })!,
             viewport,
+            // El trozo se consigue desplazando el dibujo: lo que cae fuera del
+            // lienzo pdf.js no lo pinta.
+            transform: recorte
+              ? [1, 0, 0, 1, -Math.round(recorte.x * densidad), -Math.round(recorte.y * densidad)]
+              : undefined,
             // Los campos rellenables se quedan fuera del lienzo: los pinta el
             // visor como controles de verdad. Si no, se verían dos veces.
             annotationMode: documento.modoConFormularios,
@@ -164,7 +172,6 @@ export function esCancelacion(err: unknown): boolean {
   return nombre === 'CancelacionVisor' || nombre === 'RenderingCancelledException';
 }
 
-/** Tope de tamaño para no pedirle al navegador un lienzo que no puede crear. */
 /**
  * Cuántos píxeles de verdad tiene cada píxel de CSS, con tope.
  *
@@ -174,9 +181,4 @@ export function esCancelacion(err: unknown): boolean {
  */
 export function densidadDePantalla(): number {
   return Math.min(window.devicePixelRatio || 1, 2);
-}
-
-export function escalaSegura(ancho: number, alto: number, escala: number): number {
-  const mayor = Math.max(ancho, alto) * escala;
-  return mayor > MAXIMO_PIXELES ? (MAXIMO_PIXELES / Math.max(ancho, alto)) : escala;
 }

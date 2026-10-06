@@ -5,6 +5,9 @@
 
   <canvas #lienzo class="lienzo" [class.lienzo--lista]="dibujada"
   [style.width.px]="colocada.ancho" [style.height.px]="colocada.alto"></canvas>
+  <!-- El trozo que se ve, a resolución completa, cuando la página entera no
+  cabe en un lienzo a su escala (detalle.ts). -->
+  <div class="detalle" #detalle aria-hidden="true"></div>
 
   <div class="capa-texto" #capaTexto></div>
 
