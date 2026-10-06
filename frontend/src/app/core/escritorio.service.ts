@@ -8,7 +8,7 @@ import {
   responderActualizacion, aplicarMenuContextual, avisarFin, buscarActualizacionAhora, describirGuardado, elegirCarpeta,
   elegirCarpetaDeGuardado, elegirDestino, esFaltaDePermiso, guardarAjustes, guardarConDialogo, guardarEnDestino,
   informacionDeSoporte, leerAjustes, leerMenuContextual, mostrarGuardado, nuevaVentana, progresoTarea, puente,
-  recogerAbiertos, reiniciar, textoDelAviso, versionDeLaAplicacion,
+  recogerAbiertos, reiniciar, textoDelAviso, vaAlVisor, versionDeLaAplicacion,
 } from './escritorio';
 import type { AjustesEscritorio, CambiosAjustes, EstadoAjustes } from './ajustes-escritorio';
 import { AvanceTrabajo } from '../shared/progreso';
@@ -381,8 +381,9 @@ export class EscritorioService {
   /**
    * Lo que llega del menú del Explorador va directo a su herramienta, por
    * `TraspasoService` como «Usar en…», así que la herramienta no sabe nada.
-   * Lo de «Abrir con…» va a la portada, que ofrece las que lo aceptan. Si llegan
-   * varias tandas a la vez manda la última, que es la que acaba de pedirse.
+   * Lo de «Abrir con…» va a la portada, que ofrece las que lo aceptan, salvo un
+   * PDF suelto, que va al visor (`vaAlVisor`). Si llegan varias tandas a la vez
+   * manda la última, que es la que acaba de pedirse.
    */
   private async recoger(): Promise<void> {
     let llegadas;
@@ -396,7 +397,9 @@ export class EscritorioService {
     if (!llegada?.archivos.length) {
       return;
     }
-    const herramienta = llegada.herramienta ? buscarPorSlug(llegada.herramienta) : undefined;
+    const ajustes = this.ajustes ?? (await this.estadoAjustes().catch(() => null))?.ajustes;
+    const slug = vaAlVisor(llegada, !!ajustes?.ventana?.pdf_en_la_portada) ? 'visor' : llegada.herramienta;
+    const herramienta = slug ? buscarPorSlug(slug) : undefined;
     if (herramienta) {
       this.traspaso.dejar(llegada.archivos);
       // Por la portada primero: si ya se está en esa herramienta, navegar a la

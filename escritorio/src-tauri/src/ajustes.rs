@@ -53,6 +53,11 @@ pub struct Ventana {
     /// La X de la última ventana la deja en el área de notificación en vez de
     /// cerrar la aplicación (`bandeja.rs`). De serie, no.
     pub a_la_bandeja: bool,
+    /// Un PDF suelto abierto con «Abrir con…» va a la portada, a elegir
+    /// herramienta, en vez de al visor. De serie, no: al visor. Va en negativo
+    /// para que el valor de serie sea el `false` de `Default`. Lo usa sólo la
+    /// página (`EscritorioService.recoger`).
+    pub pdf_en_la_portada: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Default, PartialEq, Debug)]
@@ -264,6 +269,7 @@ mod tests {
         assert_eq!(ajustes.avanzado, Avanzado::default());
         assert_eq!(ajustes.espacio.plazo, None);
         assert!(!ajustes.ventana.a_la_bandeja);
+        assert!(!ajustes.ventana.pdf_en_la_portada);
         assert!(!ajustes.bandeja_avisada);
     }
 

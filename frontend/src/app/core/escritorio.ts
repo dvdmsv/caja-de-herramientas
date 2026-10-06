@@ -88,6 +88,17 @@ export interface Llegada {
 }
 
 /**
+ * Si lo que ha llegado por «Abrir con…» (sin herramienta) va directo al visor:
+ * un solo PDF, salvo que se haya pedido en Ajustes → Ventana que vaya a la
+ * portada. Varios archivos, u otro formato, van siempre a la portada, que
+ * ofrece las herramientas que los aceptan.
+ */
+export function vaAlVisor(llegada: Llegada, pdfEnLaPortada: boolean): boolean {
+  return !llegada.herramienta && !pdfEnLaPortada && llegada.archivos.length === 1
+    && /\.pdf$/i.test(llegada.archivos[0].name);
+}
+
+/**
  * Lo que ha llegado con «Abrir con…» o el menú del Explorador y aún no se ha
  * recogido. Varios archivos seleccionados juntos llegan en una sola llegada: los
  * agrupa main.rs.

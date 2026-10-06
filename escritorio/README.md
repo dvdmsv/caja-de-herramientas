@@ -232,6 +232,7 @@ no cambia nunca:
     vez de abrir otra ventana. La primera vez que se esconde, Windows lo avisa
     (`bandeja_avisada`, que la página no puede tocar). Al desactivarlo se
     enseña lo escondido y se quita el icono.
+    Y «Abrir los PDF en el visor», **activado de serie**: ver «Abrir con…».
   - **Guardado**: preguntar, junto al original o siempre en una carpeta. Sin
     diálogo nunca se sobrescribe (`escribir_sin_pisar`), y la carpeta fija sólo
     la pone el diálogo de Windows, nunca la página.
@@ -263,6 +264,12 @@ no cambia nunca:
   archivo que llegó por «Abrir con…» o el menú del Explorador.
 - **«Abrir con…»** del Explorador para los formatos del catálogo, sin hacerse
   programa predeterminado (lo registra el instalador, `windows/ganchos.nsh`).
+  **Un PDF suelto va directo al visor** (`vaAlVisor` en `core/escritorio.ts`);
+  varios archivos, u otros formatos, van a la portada, que ofrece las
+  herramientas que los aceptan. Con «Abrir los PDF en el visor» apagado
+  (`ventana.pdf_en_la_portada`), también el PDF va a la portada. Quien quiera
+  el doble clic elige la aplicación como predeterminada en Windows: el
+  instalador no lo fuerza.
 - **Menú del Explorador** (clic derecho → «Caja de herramientas» → una acción),
   **desactivado de serie**: se activa y se eligen las acciones en **Ajustes**
   (`pages/ajustes/`). Qué acciones hay y sobre qué extensiones sale cada una lo

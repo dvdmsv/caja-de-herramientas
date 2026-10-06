@@ -2,7 +2,7 @@ import {
   PuenteTauri, esFaltaDePermiso, guardarConDialogo, nombreDeRuta, puente, recogerAbiertos,
   versionDeLaAplicacion, leerMenuContextual, aplicarMenuContextual, textoDelAviso, progresoTarea,
   describirGuardado, nuevaVentana, elegirCarpeta, elegirDestino, guardarEnDestino, acortarCarpeta,
-  leerAjustes, guardarAjustes, elegirCarpetaDeGuardado, buscarActualizacionAhora,
+  leerAjustes, guardarAjustes, elegirCarpetaDeGuardado, buscarActualizacionAhora, vaAlVisor,
 } from './escritorio';
 
 /** Un Tauri de mentira que apunta lo que le piden. */
@@ -173,5 +173,27 @@ describe('escritorio', () => {
   it('distingue un rechazo por permisos de un fallo de verdad', () => {
     expect(esFaltaDePermiso('guardar_como not allowed. Command not found')).toBe(true);
     expect(esFaltaDePermiso(new Error('No se ha podido guardar en C:\\x: acceso denegado'))).toBe(false);
+  });
+});
+
+describe('vaAlVisor', () => {
+  const pdf = new File(['%PDF-1.7'], 'Contrato.PDF');
+  const foto = new File(['x'], 'foto.jpg');
+
+  it('un PDF suelto de «Abrir con…» va al visor', () => {
+    expect(vaAlVisor({ herramienta: null, archivos: [pdf] }, false)).toBe(true);
+  });
+
+  it('no, si en Ajustes se ha pedido la portada', () => {
+    expect(vaAlVisor({ herramienta: null, archivos: [pdf] }, true)).toBe(false);
+  });
+
+  it('varios archivos u otro formato van a la portada', () => {
+    expect(vaAlVisor({ herramienta: null, archivos: [pdf, pdf] }, false)).toBe(false);
+    expect(vaAlVisor({ herramienta: null, archivos: [foto] }, false)).toBe(false);
+  });
+
+  it('lo que llega del menú del Explorador va a su herramienta', () => {
+    expect(vaAlVisor({ herramienta: 'comprimir-pdf', archivos: [pdf] }, false)).toBe(false);
   });
 });

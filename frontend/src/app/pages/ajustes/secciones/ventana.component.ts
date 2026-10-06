@@ -6,6 +6,9 @@ import { SeccionAjustes } from './seccion';
 /**
  * Qué hace la X de la ventana (`escritorio/src-tauri/src/bandeja.rs`). Se
  * aplica al momento: `guardar_ajustes` pone o quita el icono junto al reloj.
+ *
+ * Y a dónde va un PDF abierto con «Abrir con…»: al visor, o a la portada a
+ * elegir herramienta (`EscritorioService.recoger`).
  */
 @Component({
   selector: 'app-ajustes-ventana',
@@ -18,6 +21,14 @@ import { SeccionAjustes } from './seccion';
           <input class="form-check-input" type="checkbox" role="switch" aria-label="Al cerrar, seguir junto al reloj"
             [checked]="ajustes.ventana.a_la_bandeja" [disabled]="ocupada"
             (change)="cambiar.emit({ ventana: { a_la_bandeja: $any($event.target).checked } })">
+        </div>
+      </app-fila-ajuste>
+      <app-fila-ajuste titulo="Abrir los PDF en el visor"
+        detalle="Un PDF abierto con «Abrir con…» se ve directamente. Apagado, va a la portada a elegir qué hacer con él. Varios archivos van siempre a la portada.">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" aria-label="Abrir los PDF en el visor"
+            [checked]="!ajustes.ventana.pdf_en_la_portada" [disabled]="ocupada"
+            (change)="cambiar.emit({ ventana: { pdf_en_la_portada: !$any($event.target).checked } })">
         </div>
       </app-fila-ajuste>
     </div>

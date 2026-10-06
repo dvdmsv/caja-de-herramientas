@@ -20,7 +20,8 @@ export interface AjustesEscritorio {
   version_saltada: string | null;
   /** Sólo lo pone la aplicación: si ya avisó de que la X la deja junto al reloj. */
   bandeja_avisada: boolean;
-  ventana: { a_la_bandeja: boolean };
+  /** `pdf_en_la_portada`: un PDF abierto con «Abrir con…» no va al visor. */
+  ventana: { a_la_bandeja: boolean; pdf_en_la_portada: boolean };
   guardado: { modo: ModoGuardado; carpeta: string | null };
   avisos: { activos: boolean; desde_segundos: number };
   actualizaciones: { al_abrir: boolean };
@@ -128,7 +129,7 @@ export interface Seccion {
 
 /** En el orden del menú lateral; «Avanzado», el último y separado. */
 export const SECCIONES: Seccion[] = [
-  { id: 'ventana', nombre: 'Ventana', icono: 'bi-window', descripcion: 'Qué pasa al cerrarla.' },
+  { id: 'ventana', nombre: 'Ventana', icono: 'bi-window', descripcion: 'Qué pasa al cerrarla y al abrir un PDF.' },
   { id: 'guardado', nombre: 'Guardado', icono: 'bi-floppy', descripcion: 'Dónde van los archivos que guardas.' },
   { id: 'avisos', nombre: 'Avisos', icono: 'bi-bell', descripcion: 'Qué te dice Windows cuando termina un trabajo largo.' },
   { id: 'explorador', nombre: 'Menú del Explorador', icono: 'bi-menu-button-wide',
