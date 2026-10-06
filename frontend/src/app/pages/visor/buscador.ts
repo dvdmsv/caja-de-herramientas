@@ -21,6 +21,18 @@ export interface Coincidencia {
   contexto: string;
   /** Fragmentos de pdf.js que toca, para poder pintarla sobre la página. */
   fragmentos: number[];
+  /**
+   * Qué letras de cada fragmento son de la coincidencia. Sin esto se resaltaba
+   * el fragmento entero, que en pdf.js suele ser la línea completa.
+   */
+  trozos: { indice: number; desde: number; hasta: number }[];
+}
+
+export interface OpcionesBusqueda {
+  /** Que no encuentre «plazo» dentro de «plazos». */
+  palabraEntera?: boolean;
+  /** Que «Euro» no encuentre «euro». Las tildes siguen dando igual. */
+  mayusculas?: boolean;
 }
 
 const CONTEXTO = 40;
@@ -34,15 +46,23 @@ const CONTEXTO = 40;
  * sigan cuadrando con el texto original.
  */
 export function normalizar(texto: string): string {
+  return sinTildes(texto).toLowerCase();
+}
+
+/** Lo mismo sin pasar a minúsculas, para buscar distinguiéndolas. */
+export function sinTildes(texto: string): string {
   return [...texto]
     .map(letra => letra.normalize('NFD').replace(/[̀-ͯ]/g, '') || letra)
     .map(letra => (letra.length === 1 ? letra : letra[0]))
-    .join('')
-    .toLowerCase();
+    .join('');
 }
 
+const LETRA = /[\p{L}\p{N}_]/u;
+
 export class IndiceTexto {
-  private readonly paginas = new Map<number, { texto: string; normal: string; fragmentos: Fragmento[] }>();
+  private readonly paginas = new Map<number, {
+    texto: string; normal: string; tildado: string; fragmentos: Fragmento[];
+  }>();
 
   get indexadas(): number {
     return this.paginas.size;
@@ -68,31 +88,43 @@ export class IndiceTexto {
       }
     });
 
-    this.paginas.set(pagina, { texto, normal: normalizar(texto), fragmentos });
+    this.paginas.set(pagina, { texto, normal: normalizar(texto), tildado: sinTildes(texto), fragmentos });
   }
 
-  buscar(consulta: string): Coincidencia[] {
-    const aguja = normalizar(consulta.trim());
+  buscar(consulta: string, opciones: OpcionesBusqueda = {}): Coincidencia[] {
+    const aguja = opciones.mayusculas ? sinTildes(consulta.trim()) : normalizar(consulta.trim());
     if (aguja.length < 2) {
       return [];
     }
 
     const encontradas: Coincidencia[] = [];
     for (const pagina of [...this.paginas.keys()].sort((a, b) => a - b)) {
-      const { texto, normal, fragmentos } = this.paginas.get(pagina)!;
+      const { texto, normal, tildado, fragmentos } = this.paginas.get(pagina)!;
+      const pajar = opciones.mayusculas ? tildado : normal;
       let desde = 0;
       for (;;) {
-        const inicio = normal.indexOf(aguja, desde);
+        const inicio = pajar.indexOf(aguja, desde);
         if (inicio < 0) {
           break;
         }
         const fin = inicio + aguja.length;
+        desde = inicio + 1;
+        if (opciones.palabraEntera
+            && (LETRA.test(pajar[inicio - 1] ?? '') || LETRA.test(pajar[fin] ?? ''))) {
+          continue;
+        }
+        const tocados = fragmentos.filter(f => f.inicio < fin && f.fin > inicio);
         encontradas.push({
           pagina,
           inicio,
           fin,
           contexto: recortar(texto, inicio, fin),
-          fragmentos: fragmentos.filter(f => f.inicio < fin && f.fin > inicio).map(f => f.indice),
+          fragmentos: tocados.map(f => f.indice),
+          trozos: tocados.map(f => ({
+            indice: f.indice,
+            desde: Math.max(inicio, f.inicio) - f.inicio,
+            hasta: Math.min(fin, f.fin) - f.inicio,
+          })),
         });
         desde = fin;
       }

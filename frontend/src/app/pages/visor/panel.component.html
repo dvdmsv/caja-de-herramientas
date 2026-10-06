@@ -14,6 +14,10 @@
           <span class="cuenta">{{ cuantasAnotaciones }}</span>
         }
       </button>
+      <button type="button" [class.activa]="pestana === 'documento'" (click)="pestanaChange.emit('documento')"
+        title="Propiedades del documento">
+        <i class="bi bi-info-circle"></i>
+      </button>
     </nav>
 
     <!-- Páginas -->
@@ -70,8 +74,19 @@
         @if (pestana === 'buscar') {
           <div class="contenido contenido--buscar">
             <div class="p-2">
-              <input type="search" class="form-control form-control-sm" placeholder="Buscar en el documento"
-                [ngModel]="consulta" (ngModelChange)="consultaChange.emit($event)" autocomplete="off">
+              <div class="busqueda">
+                <input type="search" class="form-control form-control-sm" placeholder="Buscar en el documento"
+                  [ngModel]="consulta" (ngModelChange)="consultaChange.emit($event)" autocomplete="off"
+                  aria-label="Buscar en el documento">
+                <button type="button" class="opcion" [class.activa]="opcionesBusqueda.mayusculas"
+                  [attr.aria-pressed]="!!opcionesBusqueda.mayusculas"
+                  (click)="opcionesBusquedaChange.emit({ mayusculas: !opcionesBusqueda.mayusculas })"
+                  title="Distinguir mayúsculas">Aa</button>
+                <button type="button" class="opcion" [class.activa]="opcionesBusqueda.palabraEntera"
+                  [attr.aria-pressed]="!!opcionesBusqueda.palabraEntera"
+                  (click)="opcionesBusquedaChange.emit({ palabraEntera: !opcionesBusqueda.palabraEntera })"
+                  title="Sólo palabras enteras"><u>ab</u></button>
+              </div>
               @if (buscando) {
                 <p class="aviso">
                   <span class="spinner-border spinner-border-sm me-1"></span>
@@ -125,5 +140,18 @@
                     (click)="quitarTexto.emit(texto.id)"><i class="bi bi-x-lg"></i></button>
                   </div>
                 }
+              </div>
+            }
+
+            <!-- Documento: propiedades -->
+            @if (pestana === 'documento') {
+              <div class="contenido">
+                <h2 class="seccion">Propiedades</h2>
+                <dl class="propiedades">
+                  @for (propiedad of propiedades; track propiedad.nombre) {
+                    <dt>{{ propiedad.nombre }}</dt>
+                    <dd>{{ propiedad.valor }}</dd>
+                  }
+                </dl>
               </div>
             }

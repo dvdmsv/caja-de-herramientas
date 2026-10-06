@@ -54,6 +54,64 @@
   padding: 0;
 }
 
+/* El cuadro de búsqueda con sus dos opciones al lado. */
+.busqueda {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.opcion {
+  flex-shrink: 0;
+  min-width: 2rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+  background: none;
+  color: var(--bs-secondary-color);
+  font-size: 0.8rem;
+}
+
+.opcion.activa {
+  color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+
+/* TACTIL (core/pantalla.ts): las dos opciones de búsqueda y las pestañas son
+   botones hechos a mano y se quedaban en 42 px de alto; el cuadro de búsqueda
+   se estrecha para dejar sitio a las opciones. */
+@media (pointer: coarse) {
+  .opcion,
+  .pestanas button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+/* --- documento ----------------------------------------------------------- */
+.seccion {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bs-secondary-color);
+}
+
+.propiedades {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+}
+
+.propiedades dt {
+  font-weight: 500;
+  color: var(--bs-secondary-color);
+}
+
+/* Un título o un productor largo sin espacios no puede ensanchar el panel. */
+.propiedades dd {
+  margin-bottom: 0.4rem;
+  overflow-wrap: anywhere;
+}
+
 /* --- miniaturas --------------------------------------------------------- */
 .miniatura {
   margin-bottom: 0.75rem;

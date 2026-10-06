@@ -20,10 +20,19 @@
 
       @if (documento) {
         <span class="contador">
-          <input type="number" class="contador__campo" min="1" [max]="medidas.length"
-            aria-label="Página actual"
-            [ngModel]="paginaActual" (ngModelChange)="irAPagina(+$event)">
-          <span class="text-body-secondary">/ {{ medidas.length }}</span>
+          @if (etiquetas) {
+            <!-- Con etiquetas («iv», «A-3») el cuadro enseña y acepta la etiqueta,
+                 y al lado va el número de verdad. -->
+            <input type="text" class="contador__campo contador__campo--etiqueta" #campoEtiqueta
+              aria-label="Página actual" [value]="etiquetas[paginaActual - 1]"
+              (change)="irAEtiqueta(campoEtiqueta)" (keydown.enter)="campoEtiqueta.blur()">
+            <span class="text-body-secondary">({{ paginaActual }}/{{ medidas.length }})</span>
+          } @else {
+            <input type="number" class="contador__campo" min="1" [max]="medidas.length"
+              aria-label="Página actual"
+              [ngModel]="paginaActual" (ngModelChange)="irAPagina(+$event)">
+            <span class="text-body-secondary">/ {{ medidas.length }}</span>
+          }
         </span>
       }
     </div>
@@ -65,6 +74,19 @@
         <button type="button" class="boton" [class.boton--activo]="oscuro"
           (click)="alternarOscuro()" title="Modo oscuro">
           <i class="bi bi-moon-stars"></i>
+        </button>
+        <button type="button" class="boton" (click)="presentar()"
+          title="Presentación a pantalla completa (F5)" aria-label="Presentación">
+          <i class="bi bi-easel"></i>
+        </button>
+        <button type="button" class="boton" (click)="imprimir()" [disabled]="!!imprimiendo"
+          title="Imprimir (Ctrl+P)" aria-label="Imprimir">
+          <i class="bi bi-printer"></i>
+        </button>
+        <!-- Los atajos sólo sirven con teclado: en táctil no se ofrecen. -->
+        <button type="button" class="boton sin-tactil" (click)="ayuda()"
+          title="Atajos de teclado (?)" aria-label="Atajos de teclado">
+          <i class="bi bi-keyboard"></i>
         </button>
         <span class="separador"></span>
         <!-- Herramientas de marcado -->
@@ -171,7 +193,7 @@
               rel="noopener" (click)="cerrarPreguntaDespues()">En otra ventana</a>
             </span>
           }
-          <input type="file" accept=".pdf" hidden #selector (change)="alElegirArchivo($event)">
+          <input type="file" accept=".pdf,application/pdf" hidden #selector (change)="alElegirArchivo($event)">
         </span>
       </div>
 
@@ -207,6 +229,7 @@
         [eliminadas]="cambios.eliminadas" [rotaciones]="cambios.rotaciones"
         [resultados]="resultados" [consulta]="consulta" [buscando]="indexando"
         [indexadas]="indexadas" [resultadoActual]="resultadoActual"
+        [opcionesBusqueda]="opcionesBusqueda" [propiedades]="propiedades" (opcionesBusquedaChange)="cambiarOpcionesBusqueda($event)"
         (pestanaChange)="pestana = $event" (consultaChange)="buscar($event)"
         (irAPagina)="irAPaginaDesdePanel($event)" (irADestino)="irADestinoDesdePanel($event)"
         (irAResultado)="irAResultado($event)"
@@ -219,7 +242,10 @@
     <!-- Es la zona principal y se desplaza, así que se puede enfocar: con el
          teclado se lee a golpe de flechas y Av Pág sin tener que tocar el ratón. -->
     <div class="lectura" #lectura role="main" tabindex="0" aria-label="Documento"
-      [class.lectura--marcando]="marcando" [class.lectura--escribiendo]="herramienta === 'texto'">
+      [class.lectura--marcando]="marcando" [class.lectura--escribiendo]="herramienta === 'texto'"
+      [class.lectura--soltando]="arrastrando && !!documento"
+      (dragover)="alArrastrarSobreDocumento($event)" (dragleave)="arrastrando = false"
+      (drop)="alSoltarSobreDocumento($event)">
       @if (documento) {
         <h1 class="visually-hidden">{{ archivo?.name }}</h1>
       }
@@ -237,7 +263,7 @@
           </p>
           <label class="btn btn-primary">
             Elegir un PDF
-            <input type="file" accept=".pdf" hidden (change)="alElegirArchivo($event)">
+            <input type="file" accept=".pdf,application/pdf" hidden (change)="alElegirArchivo($event)">
           </label>
           <p class="pista">
             Todo ocurre en tu navegador: el documento sólo sube al servidor si guardas cambios.
@@ -266,6 +292,7 @@
               [marcas]="marcasDe(visible.colocada.numero)"
               [textos]="textosDe(visible.colocada.numero)"
               [coincidencias]="coincidenciasDe(visible.colocada.numero)"
+              [coincidenciaActual]="actualDe(visible.colocada.numero)"
               (seleccionado)="alSeleccionar($event)" (marcaPulsada)="quitarMarca($event)"
               (colorCambiado)="cambiarColorMarca($event)" (accionSeleccion)="alPedirAccion($event)"
               (textoCreado)="alCrearTexto($event, visible.colocada.numero)"
@@ -281,4 +308,33 @@
       }
     </div>
   </div>
+
+  <!-- Preparando la impresión: dibujar cien páginas lleva su rato. -->
+  @if (imprimiendo) {
+    <div class="imprimiendo" role="status" aria-live="polite">
+      <div class="imprimiendo__caja">
+        <p class="mb-2">
+          @if (imprimiendo.preparando) {
+            Preparando el documento con tus cambios…
+          } @else {
+            Preparando la impresión: {{ imprimiendo.hechas }} de {{ imprimiendo.total }} páginas
+          }
+        </p>
+        <div class="progress mb-3" role="progressbar" aria-label="Páginas preparadas"
+          [attr.aria-valuenow]="imprimiendo.hechas" aria-valuemin="0" [attr.aria-valuemax]="imprimiendo.total">
+          <div class="progress-bar" [style.width.%]="imprimiendo.hechas / imprimiendo.total * 100"></div>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelarLaImpresion()">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (presentando && documento) {
+    <app-visor-presentacion [documento]="documento" [paginas]="paginasVivas"
+      [rotaciones]="cambios.rotaciones" [inicial]="paginaActual"
+      (cerrar)="alSalirDePresentacion($event)">
+    </app-visor-presentacion>
+  }
 </div>

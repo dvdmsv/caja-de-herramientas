@@ -55,3 +55,27 @@ describe('buscador del visor', () => {
     expect(indice.indexadas).toBe(1);
   });
 });
+
+describe('opciones del buscador', () => {
+  const indice = new IndiceTexto();
+  indice.anadir(1, [{ str: 'Los plazos del Plazo y el plazo.' }]);
+
+  it('palabra entera: no encuentra dentro de otra', () => {
+    expect(indice.buscar('plazo').length).toBe(3);
+    expect(indice.buscar('plazo', { palabraEntera: true }).length).toBe(2);
+  });
+
+  it('distinguiendo mayúsculas', () => {
+    expect(indice.buscar('Plazo', { mayusculas: true }).length).toBe(1);
+  });
+
+  it('dice qué letras de cada fragmento son de la coincidencia', () => {
+    const otro = new IndiceTexto();
+    otro.anadir(1, [{ str: 'el plazo' }, { str: 'de entrega' }]);
+    const [c] = otro.buscar('plazo de');
+    expect(c.trozos).toEqual([
+      { indice: 0, desde: 3, hasta: 8 },
+      { indice: 1, desde: 0, hasta: 2 },
+    ]);
+  });
+});

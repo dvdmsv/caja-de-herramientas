@@ -7,11 +7,12 @@ import { FormsModule } from '@angular/forms';
 
 import { DocumentoPdf } from '../../core/pdf.service';
 import { densidadDePantalla } from '../../core/visor-render.service';
-import { Coincidencia } from './buscador';
+import { Coincidencia, OpcionesBusqueda } from './buscador';
+import { Propiedad } from './documento-info';
 import { Marca, Texto } from './cambios';
 import { DestinoPdf } from './enlaces';
 
-export type Pestana = 'paginas' | 'indice' | 'marcas' | 'buscar';
+export type Pestana = 'paginas' | 'indice' | 'marcas' | 'buscar' | 'documento';
 
 export interface EntradaIndice extends DestinoPdf {
   titulo: string;
@@ -45,9 +46,13 @@ export class VisorPanelComponent implements AfterViewInit, OnChanges, OnDestroy 
   @Input() buscando = false;
   @Input() indexadas = 0;
   @Input() resultadoActual = -1;
+  @Input() opcionesBusqueda: OpcionesBusqueda = {};
+  /** Lo que se cuenta en «Documento». */
+  @Input() propiedades: Propiedad[] = [];
 
   @Output() pestanaChange = new EventEmitter<Pestana>();
   @Output() consultaChange = new EventEmitter<string>();
+  @Output() opcionesBusquedaChange = new EventEmitter<OpcionesBusqueda>();
   @Output() irAPagina = new EventEmitter<number>();
   @Output() irADestino = new EventEmitter<DestinoPdf>();
   @Output() irAResultado = new EventEmitter<number>();

@@ -166,7 +166,8 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   @Input({ required: true }) escala!: number;
   @Input() marcas: Marca[] = [];
   @Input() coincidencias: Coincidencia[] = [];
-  @Input() resaltadaActual = -1;
+  /** El resultado de la búsqueda en el que se está: va de otro color y se trae a la vista. */
+  @Input() coincidenciaActual: Coincidencia | null = null;
   /**
    * Si hay una herramienta de marcado activa. Leyendo, la selección es del
    * usuario —para copiar— y no se toca.
@@ -211,7 +212,7 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
 
   dibujada = false;
   pintadas: MarcaPintada[] = [];
-  resaltados: Record<string, string>[] = [];
+  resaltados: { estilo: Record<string, string>; actual: boolean }[] = [];
   /** Menú abierto sobre la página, si lo hay. */
   menu: MenuFlotante | null = null;
   /** Los textos de esta página, listos para pintar. */
@@ -238,6 +239,7 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   private enlaces: EnlacePdf[] = [];
   private origenPuntero: { x: number; y: number } | null = null;
   private clave = '';
+  private actualMostrada: Coincidencia | null = null;
   private textoMontado = '';
   /** El texto que se está arrastrando, con su posición mientras dura el gesto. */
   private arrastre: { id: string; x: number; y: number; movido: boolean;
@@ -296,7 +298,7 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
     if (cambios['escribiendo'] && !this.escribiendo) {
       this.cerrarEdicion();
     }
-    if (cambios['coincidencias'] || cambios['resaltadaActual']) {
+    if (cambios['coincidencias'] || cambios['coincidenciaActual']) {
       this.colocarCoincidencias();
     }
     if (cambios['documento']
@@ -705,16 +707,41 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
       return;
     }
     const caja = this.cajaRef.nativeElement.getBoundingClientRect();
+    const rotacion = this.colocada.rotacion;
     this.resaltados = this.coincidencias
       .filter(c => c.pagina === this.colocada.numero)
-      .flatMap(c => c.fragmentos
-        .map(indice => this.fragmentos[indice])
-        .filter(Boolean)
-        .map(fragmento => {
-          const rect = fragmento.getBoundingClientRect();
-          const proporcion = aProporciones(rect, caja, this.colocada.rotacion);
-          return { ...aPorcentajes(proporcion, this.colocada.rotacion), clave: `${c.pagina}:${c.inicio}` };
-        }));
+      .flatMap(c => c.trozos.flatMap(trozo => {
+        const fragmento = this.fragmentos[trozo.indice];
+        return fragmento ? rectsDeLetras(fragmento, trozo.desde, trozo.hasta) : [];
+      }).map(rect => ({
+        estilo: aPorcentajes(aProporciones(rect, caja, rotacion), rotacion),
+        actual: c === this.coincidenciaActual,
+      })));
+    this.traerActualALaVista();
+  }
+
+  /**
+   * Al cambiar de resultado, se lleva a la vista si no lo está: ir sólo a su
+   * página dejaba la palabra fuera de pantalla en cuanto había zoom.
+   */
+  private traerActualALaVista(): void {
+    const actual = this.coincidenciaActual;
+    if (!actual || actual === this.actualMostrada
+        || !this.resaltados.some(resaltado => resaltado.actual)) {
+      return;
+    }
+    this.actualMostrada = actual;
+    // Después de pintarlo, que es cuando existe el elemento.
+    setTimeout(() => {
+      const elemento = this.elemento.nativeElement.querySelector('.resaltado--actual');
+      const ventana = this.lectura?.getBoundingClientRect();
+      const sitio = elemento?.getBoundingClientRect();
+      if (elemento && ventana && sitio
+          && (sitio.top < ventana.top || sitio.bottom > ventana.bottom
+              || sitio.left < ventana.left || sitio.right > ventana.right)) {
+        elemento.scrollIntoView({ block: 'center', inline: 'center' });
+      }
+    });
   }
 
   // --- campos rellenables del propio PDF ---------------------------------
@@ -1145,4 +1172,22 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
 
     return rects.length ? { rects, texto: seleccion.toString().trim() } : null;
   }
+}
+
+/**
+ * Dónde están en pantalla las letras `desde`–`hasta` de un fragmento de la capa
+ * de texto. Con un `Range` sobre su texto, que respeta la escala horizontal que
+ * pdf.js le pone a cada fragmento; si el fragmento no es sólo texto, entero.
+ */
+function rectsDeLetras(fragmento: HTMLElement, desde: number, hasta: number): DOMRect[] {
+  const nodo = fragmento.firstChild;
+  if (!nodo || nodo.nodeType !== Node.TEXT_NODE) {
+    return [fragmento.getBoundingClientRect()];
+  }
+  const largo = nodo.textContent?.length ?? 0;
+  const rango = document.createRange();
+  rango.setStart(nodo, Math.min(desde, largo));
+  rango.setEnd(nodo, Math.min(hasta, largo));
+  const rects = [...rango.getClientRects()].filter(rect => rect.width > 0);
+  return rects.length ? rects : [fragmento.getBoundingClientRect()];
 }

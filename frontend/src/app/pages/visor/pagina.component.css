@@ -215,6 +215,12 @@
   border-radius: 2px;
 }
 
+/* El resultado en el que se está, como en los lectores de PDF: de otro color. */
+.resaltado--actual {
+  background-color: rgba(0, 170, 90, 0.5);
+  outline: 2px solid rgba(0, 120, 60, 0.8);
+}
+
 /* --- menú flotante (marca, selección o letra) ---------------------------- */
 /*
  * En su propia capa y por encima de los textos (4) y de las marcas (3): dentro

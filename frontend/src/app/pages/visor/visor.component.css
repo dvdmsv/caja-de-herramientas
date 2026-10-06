@@ -106,6 +106,10 @@
   text-align: right;
 }
 
+.contador__campo--etiqueta {
+  width: 4rem;
+}
+
 .zoom {
   font-size: 0.8rem;
   color: var(--bs-secondary-color);
@@ -188,6 +192,11 @@
   touch-action: pan-x pan-y;
 }
 
+.lectura--soltando {
+  outline: 3px dashed var(--acento);
+  outline-offset: -6px;
+}
+
 .lectura--escribiendo {
   cursor: text;
 }
@@ -219,6 +228,28 @@
    queda fuera y el modo oscuro no oscurece nada. */
 .visor--oscuro ::ng-deep .lienzo canvas {
   filter: invert(1) hue-rotate(180deg);
+}
+
+/* --- preparando la impresión ---------------------------------------------- */
+/* Centrada y con el ancho que quepa: en un móvil ocupa la pantalla menos los
+   márgenes, sin regla propia. */
+.imprimiendo {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.imprimiendo__caja {
+  width: min(22rem, 100%);
+  padding: 1.25rem;
+  border-radius: var(--bs-border-radius-lg);
+  background-color: var(--bs-body-bg);
+  box-shadow: var(--bs-box-shadow);
+  text-align: center;
 }
 
 /* --- pantalla de bienvenida ---------------------------------------------- */

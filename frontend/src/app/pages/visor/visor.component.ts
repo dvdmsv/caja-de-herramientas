@@ -4,6 +4,7 @@ import {
   NgZone, OnDestroy, ViewChild, inject,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { RouterLink } from '@angular/router';
 
 import { COMPACTA, cumple } from '../../core/pantalla';
@@ -15,9 +16,13 @@ import { VisorRenderService } from '../../core/visor-render.service';
 import { avisoError, avisoExito, aviso, confirmar, mensajeDeError } from '../../shared/notify';
 import { IDS_DE_DATO, nombreDeDato } from '../../shared/datos-personales';
 import { copiarAlPortapapeles } from '../../shared/portapapeles';
-import { Coincidencia, IndiceTexto } from './buscador';
+import { Coincidencia, IndiceTexto, OpcionesBusqueda } from './buscador';
 import { DestinoPdf } from './enlaces';
+import { Propiedad, etiquetasUtiles, paginaDeEtiqueta, propiedades } from './documento-info';
 import { GestoZoom } from './gesto-zoom';
+import { mostrarAtajos } from './atajos';
+import { VisorPresentacionComponent } from './presentacion.component';
+import { imprimirImagenes, paginasParaImprimir } from './impresion';
 import { Punto, anclar, factorPermitido } from './zoom';
 import { Cambios, ColorSubrayado, ColorTachado, Marca, Texto } from './cambios';
 import {
@@ -55,6 +60,7 @@ const ESPERA_MEMORIA = 800;
 
 /** Compartido para que las páginas sin marcas no reciban un array nuevo cada vez. */
 const SIN_MARCAS: Marca[] = [];
+const SIN_COINCIDENCIAS: Coincidencia[] = [];
 
 /**
  * A partir de cuántas coincidencias se avisa de que repasarlas no es realista.
@@ -67,7 +73,8 @@ const REVISABLES = 500;
 
 @Component({
   selector: 'app-visor',
-  imports: [FormsModule, RouterLink, VisorPaginaComponent, VisorPanelComponent],
+  imports: [FormsModule, RouterLink, VisorPaginaComponent, VisorPanelComponent,
+            VisorPresentacionComponent],
   templateUrl: './visor.component.html',
   styleUrl: './visor.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -83,6 +90,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   preguntandoDonde = false;
   medidas: Medida[] = [];
   indice: EntradaIndice[] = [];
+  /** Las etiquetas de página del documento («iv», «A-3»), si aportan algo. */
+  etiquetas: string[] | null = null;
+  propiedades: Propiedad[] = [];
   cargando = false;
   arrastrando = false;
 
@@ -108,6 +118,8 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     libro: { titulo: 'Libro: la portada sola y luego de dos en dos', icono: 'bi-book' },
   };
   oscuro = false;
+  /** Si se está en el modo presentación. */
+  presentando = false;
   paginaActual = 1;
   visibles: EnPantalla[] = [];
   disposicion: Disposicion = { filas: [], altoTotal: 0, anchoTotal: 0 };
@@ -132,6 +144,8 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   /** Si se está buscando datos personales; el botón se apaga mientras tanto. */
   buscandoDatos = false;
 
+  private readonly resultadosPorPagina = new Map<number, Coincidencia[]>();
+  private resultadosIndexados: Coincidencia[] | null = null;
   /** Marcas por página, para no filtrar la lista entera en cada repintado. */
   private readonly marcasPorPagina = new Map<number, Marca[]>();
   /** Sobre qué lista se armó el índice; si cambia la identidad, se rehace. */
@@ -143,6 +157,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   readonly tamanoMaximo = TAMANO_MAXIMO;
   guardando = false;
   resultado: ArchivoServidor | null = null;
+  /** Mientras se preparan las páginas para imprimir: cuántas van. */
+  imprimiendo: { hechas: number; total: number; preparando: boolean } | null = null;
+  private cancelarImpresion?: AbortController;
 
   // --- panel y búsqueda -------------------------------------------------
   /**
@@ -154,6 +171,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   consulta = '';
   resultados: Coincidencia[] = [];
   resultadoActual = -1;
+  opcionesBusqueda: OpcionesBusqueda = { palabraEntera: false, mayusculas: false };
   indexadas = 0;
   indexando = false;
 
@@ -334,8 +352,45 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     selector.click();
   }
 
+  /**
+   * Soltar un PDF encima del que está abierto lo abre aquí, con la misma
+   * pregunta que «Abrir otro» si hay cambios sin guardar.
+   */
+  alArrastrarSobreDocumento(evento: DragEvent): void {
+    if (this.documento && evento.dataTransfer?.types.includes('Files')) {
+      evento.preventDefault();
+      this.arrastrando = true;
+    }
+  }
+
+  async alSoltarSobreDocumento(evento: DragEvent): Promise<void> {
+    if (!this.documento) {
+      return;
+    }
+    evento.preventDefault();
+    this.arrastrando = false;
+    const archivo = evento.dataTransfer?.files?.[0];
+    if (!archivo) {
+      return;
+    }
+    if (this.hayCambios && !await confirmar(
+      'Tienes cambios sin guardar',
+      'Se quedan apuntados en este navegador y vuelven al abrir de nuevo este archivo, '
+      + 'pero todavía no están dentro del PDF. ¿Abres el que has soltado?',
+      'Abrir')) {
+      return;
+    }
+    this.abrir(archivo);
+  }
+
+  ayuda(): void {
+    mostrarAtajos();
+  }
+
   async abrir(archivo: File): Promise<void> {
-    if (!archivo.name.toLowerCase().endsWith('.pdf')) {
+    // Por la extensión o por el tipo: lo que llega de otro programa al
+    // arrastrar a veces no trae «.pdf» en el nombre.
+    if (!archivo.name.toLowerCase().endsWith('.pdf') && archivo.type !== 'application/pdf') {
       avisoError('El visor sólo abre archivos PDF.');
       return;
     }
@@ -349,6 +404,15 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       this.documento = await this.pdf.abrir(archivo);
       this.medidas = await this.documento.medidas();
       this.indice = await this.documento.indice();
+      this.etiquetas = etiquetasUtiles(await this.documento.etiquetas());
+      // No hace esperar: sólo se ve en una pestaña del panel.
+      const abierto = this.documento;
+      abierto.datos(archivo.size).then(datos => {
+        if (abierto === this.documento) {
+          this.propiedades = propiedades(datos);
+          this.cd.markForCheck();
+        }
+      }, err => console.warn('No se han podido leer las propiedades del documento:', err));
       this.huella = await this.memoria.huella(archivo);
       // La página recordada se guarda aparte: al recolocar, el visor recalcula
       // cuál se está mirando a partir del desplazamiento, que todavía es cero.
@@ -390,6 +454,8 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.archivo = null;
     this.medidas = [];
     this.indice = [];
+    this.etiquetas = null;
+    this.propiedades = [];
     this.visibles = [];
     this.disposicion = { filas: [], altoTotal: 0, anchoTotal: 0 };
     this.cambios = new Cambios();
@@ -480,6 +546,18 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     // Lo que se está mirando se dibuja antes que lo que sólo está de reserva.
     this.render.priorizar(new Set(enPantalla.map(
       ({ colocada }) => `${colocada.numero}:${colocada.rotacion}:${this.escala}`)));
+  }
+
+  /**
+   * Lo escrito en el cuadro de página cuando el documento tiene etiquetas: la
+   * etiqueta («iv») o el número. Si no es ninguna, el cuadro vuelve a la actual.
+   */
+  irAEtiqueta(campo: HTMLInputElement): void {
+    const pagina = paginaDeEtiqueta(campo.value, this.etiquetas, this.medidas.length);
+    if (pagina) {
+      this.irAPagina(pagina);
+    }
+    campo.value = this.etiquetas?.[this.paginaActual - 1] ?? String(this.paginaActual);
   }
 
   /** Ir a una página desde el panel: en móvil, además, lo cierra. */
@@ -614,6 +692,24 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   pasarPagina(paso: number): void {
     this.irAPagina(paginaVecina(this.medidas.map(medida => medida.numero), this.cambios.eliminadas,
                                 this.paginaActual, paso, this.modoLectura));
+  }
+
+  presentar(): void {
+    this.presentando = true;
+  }
+
+  /** Las páginas que se presentan: las que no se han quitado. */
+  get paginasVivas(): number[] {
+    return this.medidas.map(medida => medida.numero)
+      .filter(numero => !this.cambios.eliminadas.has(numero));
+  }
+
+  /** Al salir se sigue por la página en la que se estaba presentando. */
+  alSalirDePresentacion(pagina: number): void {
+    this.presentando = false;
+    this.cd.detectChanges();
+    this.irAPagina(pagina, false);
+    this.lecturaRef?.nativeElement.focus();
   }
 
   alternarOscuro(): void {
@@ -1030,6 +1126,58 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Imprimir lo que se ve. Con cambios sin guardar, el servidor prepara antes
+   * el PDF editado —sin guardarlo en ningún sitio— y se imprime ése: es la
+   * única forma de que lo impreso sea exactamente lo que se guardaría.
+   */
+  async imprimir(): Promise<void> {
+    if (!this.documento || !this.archivo || this.imprimiendo) {
+      return;
+    }
+    const cancelar = new AbortController();
+    this.cancelarImpresion = cancelar;
+    this.imprimiendo = { hechas: 0, total: this.documento.paginas, preparando: this.hayCambios };
+    this.cd.markForCheck();
+
+    let editado: { documento: DocumentoPdf; archivo: ArchivoServidor } | null = null;
+    try {
+      let documento = this.documento;
+      if (this.hayCambios) {
+        const { files: [archivo] } = await this.enviarCambios();
+        const blob = await firstValueFrom(this.api.contenido(archivo));
+        editado = { documento: await this.pdf.abrir(new File([blob], archivo.name)), archivo };
+        documento = editado.documento;
+        this.imprimiendo = { hechas: 0, total: documento.paginas, preparando: false };
+        this.cd.markForCheck();
+      }
+      const urls = await paginasParaImprimir(documento, hechas => {
+        this.imprimiendo = { ...this.imprimiendo!, hechas };
+        this.cd.markForCheck();
+      }, cancelar.signal);
+      this.imprimiendo = null;
+      this.cd.markForCheck();
+      await imprimirImagenes(urls, this.archivo.name.replace(/\.pdf$/i, ''));
+    } catch (err) {
+      if ((err as { name?: string })?.name !== 'AbortError') {
+        avisoError(mensajeDeError(err, 'No se ha podido preparar la impresión.'));
+      }
+    } finally {
+      this.imprimiendo = null;
+      this.cancelarImpresion = undefined;
+      if (editado) {
+        editado.documento.cerrar();
+        // Era sólo para imprimir: que no ocupe la cuota de la sesión.
+        this.api.eliminar(editado.archivo.id).subscribe({ error: () => undefined });
+      }
+      this.cd.markForCheck();
+    }
+  }
+
+  cancelarLaImpresion(): void {
+    this.cancelarImpresion?.abort();
+  }
+
   descargar(): void {
     if (this.resultado) {
       this.api.descargar(this.resultado).subscribe({
@@ -1096,7 +1244,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       }
       this.indexadas = numero++;
       if (this.consulta.length > 1) {
-        this.resultados = this.buscador.buscar(this.consulta);
+        this.resultados = this.buscador.buscar(this.consulta, this.opcionesBusqueda);
       }
       this.cd.markForCheck();
       programar(siguiente);
@@ -1113,7 +1261,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
    */
   buscar(consulta: string): void {
     this.consulta = consulta;
-    this.resultados = consulta.trim().length > 1 ? this.buscador.buscar(consulta) : [];
+    this.resultados = consulta.trim().length > 1
+      ? this.buscador.buscar(consulta, this.opcionesBusqueda)
+      : [];
     this.resultadoActual = -1;
     this.cd.markForCheck();
   }
@@ -1131,8 +1281,32 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.irAResultado(this.resultadoActual + (atras ? -1 : 1));
   }
 
+  cambiarOpcionesBusqueda(cambio: OpcionesBusqueda): void {
+    this.opcionesBusqueda = { ...this.opcionesBusqueda, ...cambio };
+    this.buscar(this.consulta);
+  }
+
+  /** Como `marcasDe`: por un índice que se rehace cuando cambia la lista. */
   coincidenciasDe(numero: number): Coincidencia[] {
-    return this.resultados.filter(resultado => resultado.pagina === numero);
+    if (this.resultadosIndexados !== this.resultados) {
+      this.resultadosPorPagina.clear();
+      for (const resultado of this.resultados) {
+        const suyos = this.resultadosPorPagina.get(resultado.pagina);
+        if (suyos) {
+          suyos.push(resultado);
+        } else {
+          this.resultadosPorPagina.set(resultado.pagina, [resultado]);
+        }
+      }
+      this.resultadosIndexados = this.resultados;
+    }
+    return this.resultadosPorPagina.get(numero) ?? SIN_COINCIDENCIAS;
+  }
+
+  /** El resultado en el que se está, si cae en esta página. */
+  actualDe(numero: number): Coincidencia | null {
+    const actual = this.resultados[this.resultadoActual];
+    return actual?.pagina === numero ? actual : null;
   }
 
   // --- memoria entre visitas --------------------------------------------
@@ -1190,7 +1364,19 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     // el atajo sí tiene que llegar al visor.
     const escribiendoTexto = destino?.matches?.(
       'textarea, input:not([type=checkbox]):not([type=radio])');
-    if (!this.documento) {
+    // La presentación atiende sus propias teclas.
+    if (!this.documento || this.presentando) {
+      return;
+    }
+    if (evento.key === '?') {
+      evento.preventDefault();
+      mostrarAtajos();
+      return;
+    }
+    if (evento.key === 'F5') {
+      evento.preventDefault();
+      this.presentar();
+      this.cd.markForCheck();
       return;
     }
     if (evento.ctrlKey && evento.key.toLowerCase() === 'z' && !escribiendoTexto) {
@@ -1232,6 +1418,11 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
         this.aplicarZoom(evento.key === '-' ? 0.8 : 1.25);
       }
       this.cd.markForCheck();
+      return;
+    }
+    if (evento.ctrlKey && evento.key.toLowerCase() === 'p') {
+      evento.preventDefault();
+      this.imprimir();
       return;
     }
     if (evento.ctrlKey && evento.key.toLowerCase() === 'f') {

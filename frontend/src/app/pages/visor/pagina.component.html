@@ -120,8 +120,9 @@
   </div>
 
   <div class="marcas">
-    @for (estilo of resaltados; track estilo) {
-      <span class="resaltado" [style]="estilo"></span>
+    @for (resaltado of resaltados; track $index) {
+      <span class="resaltado" [class.resaltado--actual]="resaltado.actual"
+        [style]="resaltado.estilo"></span>
     }
 
     @for (pintada of pintadas; track porClave($index, pintada)) {

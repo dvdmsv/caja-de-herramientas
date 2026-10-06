@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   114 iconos de los 2078 que trae bootstrap-icons.
+   117 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -56,6 +56,7 @@
 .bi-dash-lg::before { content: "\f63b"; }
 .bi-download::before { content: "\f30a"; }
 .bi-droplet-half::before { content: "\f30c"; }
+.bi-easel::before { content: "\f310"; }
 .bi-envelope::before { content: "\f32f"; }
 .bi-eraser::before { content: "\f331"; }
 .bi-exclamation-triangle::before { content: "\f33b"; }
@@ -91,6 +92,7 @@
 .bi-info-circle::before { content: "\f431"; }
 .bi-info-circle-fill::before { content: "\f430"; }
 .bi-journal-arrow-down::before { content: "\f43a"; }
+.bi-keyboard::before { content: "\f451"; }
 .bi-layers::before { content: "\f45b"; }
 .bi-layout-sidebar::before { content: "\f45f"; }
 .bi-layout-split::before { content: "\f460"; }
@@ -111,6 +113,7 @@
 .bi-person-vcard::before { content: "\f8c9"; }
 .bi-play-fill::before { content: "\f4f4"; }
 .bi-plus-lg::before { content: "\f64d"; }
+.bi-printer::before { content: "\f501"; }
 .bi-qr-code::before { content: "\f6ae"; }
 .bi-question-circle::before { content: "\f505"; }
 .bi-scissors::before { content: "\f528"; }

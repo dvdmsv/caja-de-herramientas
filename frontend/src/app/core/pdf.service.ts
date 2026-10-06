@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 
+import { DatosDelDocumento } from '../pages/visor/documento-info';
 import {
   DestinoPdf, EnlacePdf, alturaDeDestino, destinoDeAccion, urlAbrible,
 } from '../pages/visor/enlaces';
@@ -209,6 +210,37 @@ export class DocumentoPdf {
     return enlaces;
   }
 
+  /** Lo que se enseña en «Documento»: `getMetadata` y poco más. */
+  async datos(peso: number): Promise<DatosDelDocumento> {
+    const [{ info }, marcado, primera] = await Promise.all([
+      this.documento.getMetadata(),
+      this.documento.getMarkInfo().catch(() => null),
+      this.pagina(1),
+    ]);
+    const { width, height } = primera.getViewport({ scale: 1 });
+    const fecha = (valor: unknown) =>
+      typeof valor === 'string' ? this.pdfjs.PDFDateString.toDateObject(valor) : null;
+    return {
+      info: info ?? {},
+      creado: fecha(info?.CreationDate),
+      modificado: fecha(info?.ModDate),
+      etiquetado: !!marcado?.Marked,
+      paginas: this.paginas,
+      ancho: width,
+      alto: height,
+      peso,
+    };
+  }
+
+  /** Las etiquetas de las páginas («i», «ii», «A-1»…), si el documento las trae. */
+  async etiquetas(): Promise<string[] | null> {
+    try {
+      return await this.documento.getPageLabels();
+    } catch {
+      return null;
+    }
+  }
+
   /** Marcadores del documento, si los trae, ya aplanados para el panel. */
   async indice(): Promise<{ titulo: string; pagina: number; y: number | null; nivel: number }[]> {
     const marcadores = await this.documento.getOutline();
@@ -262,6 +294,35 @@ export class DocumentoPdf {
     } catch {
       return null; // un marcador roto no debe impedir enseñar los demás
     }
+  }
+
+  /**
+   * Una página dibujada para imprimir, a `ppp` puntos por pulgada.
+   *
+   * Con el propósito `print` y guardando lo escrito en los campos: así sale lo
+   * que pdf.js imprimiría, con los formularios rellenos y sin lo que el
+   * documento marca como «sólo para la pantalla».
+   */
+  async lienzoDeImpresion(numero: number, ppp: number): Promise<HTMLCanvasElement> {
+    const pagina = await this.pagina(numero);
+    const natural = pagina.getViewport({ scale: 1 });
+    // El mismo tope que en pantalla (detalle.ts): una página de plano a 150 ppp
+    // no cabe en un lienzo.
+    const escala = Math.min(ppp / 72,
+                            Math.sqrt(4096 * 4096 / (natural.width * natural.height)));
+    const viewport = pagina.getViewport({ scale: escala });
+    const lienzo = document.createElement('canvas');
+    lienzo.width = Math.round(viewport.width);
+    lienzo.height = Math.round(viewport.height);
+    const contexto = lienzo.getContext('2d', { alpha: false })!;
+    contexto.fillStyle = '#fff';
+    contexto.fillRect(0, 0, lienzo.width, lienzo.height);
+    const dibujo = pagina.render({
+      canvas: lienzo, canvasContext: contexto, viewport, intent: 'print',
+      annotationMode: this.pdfjs.AnnotationMode.ENABLE_STORAGE,
+    });
+    await conLimite(dibujo.promise, numero);
+    return lienzo;
   }
 
   async imagen(numero: number, ancho = ANCHO_VISTA): Promise<string> {
