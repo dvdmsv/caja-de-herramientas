@@ -78,7 +78,7 @@ pub fn crear(app: &AppHandle, etiqueta: &str, destino: Option<Url>) -> tauri::Re
             if es_propia(&url, &para_ventanas) {
                 crear_aparte(&para_ventanas, Some(url));
             } else {
-                let _ = tauri_plugin_opener::open_url(url.as_str(), None::<&str>);
+                abrir_fuera(&para_ventanas, url);
             }
             NewWindowResponse::Deny
         })
@@ -143,9 +143,38 @@ fn es_de_arranque(url: &Url) -> bool {
 fn navegacion_permitida(url: &Url, app: &AppHandle) -> bool {
     let propia = es_propia(url, app);
     if !propia {
-        let _ = tauri_plugin_opener::open_url(url.as_str(), None::<&str>);
+        abrir_fuera(app, url.clone());
     }
     propia
+}
+
+/// Lleva un enlace al navegador (o al correo) del sistema.
+///
+/// Fuera del manejador de WebView2: se encola en el bucle principal, que es
+/// donde Windows quiere el `ShellExecute` y donde no lo pisa la reentrada de
+/// WebView2. Y sólo `http`, `https` y `mailto`: un PDF puede llevar enlaces a
+/// cualquier esquema (`file:`, el de otro programa), y eso no se lanza a ciegas.
+///
+/// Si falla se dice: antes el error se descartaba y el clic no hacía nada.
+fn abrir_fuera(app: &AppHandle, url: Url) {
+    if !matches!(url.scheme(), "http" | "https" | "mailto") {
+        eprintln!("Enlace no abierto, esquema no admitido: {url}");
+        return;
+    }
+    let para_avisar = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Err(error) = tauri_plugin_opener::open_url(url.as_str(), None::<&str>) {
+            use tauri_plugin_notification::NotificationExt;
+
+            eprintln!("No se ha podido abrir {url}: {error}");
+            let _ = para_avisar
+                .notification()
+                .builder()
+                .title("No se ha podido abrir el enlace")
+                .body(format!("Cópialo en el navegador: {url}"))
+                .show();
+        }
+    });
 }
 
 fn es_propia(url: &Url, app: &AppHandle) -> bool {

@@ -227,7 +227,11 @@ fn main() {
         .plugin(tauri_plugin_single_instance::init(|app, argumentos, _carpeta| {
             otro_arranque(app, argumentos);
         }))
-        .plugin(tauri_plugin_opener::init())
+        // Sin su script de enlaces: intercepta los `target="_blank"` y pide
+        // `plugin:opener|open_url` desde la página, que la capacidad no permite,
+        // así que el clic se cancelaba sin abrir nada. Los enlaces los lleva
+        // `ventanas.rs`, que sabe cuáles son de la aplicación.
+        .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())

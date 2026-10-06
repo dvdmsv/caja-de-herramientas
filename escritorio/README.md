@@ -374,6 +374,15 @@ para que aparezcan en «Abrir con…».
   eso todas las ventanas salen de `ventanas::crear`, también las de un
   `target="_blank"` a la propia aplicación: dejar que WebView2 cree la suya
   daría una ventana sin eso ni las reglas de navegación.
+- **Los enlaces externos los abre `ventanas.rs`, no el plugin opener.** El
+  plugin trae de serie un script que intercepta los `target="_blank"` y pide
+  `plugin:opener|open_url` desde la página; sin ese permiso en la capacidad el
+  clic se cancelaba y no abría nada («Ver el código en GitHub», hasta la
+  0.2.10). Se registra con `open_js_links_on_click(false)`, y así los enlaces
+  llegan a `on_new_window`/`on_navigation`, que distinguen los de la propia
+  aplicación (otra ventana) de los de fuera (el navegador, sólo `http`,
+  `https` y `mailto`). Si abrirlo falla, lo dice una notificación. La
+  autoprueba comprueba que nadie cancela un enlace externo.
 - **Crear una ventana desde un manejador síncrono puede colgar la aplicación en
   Windows** (lo avisa Tauri: los comandos síncronos y el callback de
   `single-instance` corren en el hilo principal). Fuera de `setup`, siempre con

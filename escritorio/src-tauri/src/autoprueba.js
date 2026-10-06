@@ -19,8 +19,25 @@
   const probar = async fn => {
     try { return { ok: await fn() }; } catch (e) { return { error: String((e && e.message) || e) }; }
   };
+  // Un enlace externo no lo puede cancelar ningún script inyectado: el del
+  // plugin opener lo hacía para pedir un comando sin permiso, y los enlaces de
+  // «Acerca de» no abrían nada. Se mira después de todos los demás oyentes y se
+  // cancela aquí mismo, para no lanzar un navegador en la CI.
+  const enlaceCancelado = () => new Promise(resolver => {
+    const enlace = Object.assign(document.createElement('a'),
+      { href: 'https://example.invalid/', target: '_blank' });
+    window.addEventListener('click', e => {
+      resolver(e.defaultPrevented);
+      e.preventDefault();
+    }, { once: true });
+    setTimeout(() => resolver('el clic no llegó'), 2000);
+    document.body.append(enlace);
+    enlace.click();
+    enlace.remove();
+  });
   const resultado = {
     url: location.href,
+    enlaceCancelado: await enlaceCancelado(),
     version: await probar(() => t.invoke('plugin:app|version')),
     pendientes: await probar(() => t.invoke('archivos_pendientes')),
     // Una ruta que no ha llegado por «Abrir con…»: tiene que contestar nuestro
