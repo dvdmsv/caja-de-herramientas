@@ -5,11 +5,12 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { AdjuntoPdf, CapaPdf, DocumentoPdf } from '../../core/pdf.service';
+import { AdjuntoPdf, CapaPdf, DocumentoPdf, ExistentePdf } from '../../core/pdf.service';
 import { densidadDePantalla } from '../../core/visor-render.service';
 import { Coincidencia, OpcionesBusqueda } from './buscador';
 import { Propiedad } from './documento-info';
-import { Marca, Texto } from './cambios';
+import { Anotacion, Existente, Marca, Texto } from './cambios';
+import { nombreDeAnotacion } from './documento-info';
 import { DestinoPdf } from './enlaces';
 
 export type Pestana = 'paginas' | 'indice' | 'marcas' | 'buscar' | 'documento';
@@ -52,6 +53,22 @@ export class VisorPanelComponent implements AfterViewInit, OnChanges, OnDestroy 
   @Input() capas: CapaPdf[] = [];
   @Input() adjuntos: AdjuntoPdf[] = [];
   @Output() verCapa = new EventEmitter<{ id: string; visible: boolean }>();
+  /** Notas, dibujos, formas, sellos y firmas puestos en el visor. */
+  @Input() anotaciones: Anotacion[] = [];
+  /** Las que traía el documento; `null` mientras no se han leído. */
+  @Input() existentes: ExistentePdf[] | null = null;
+  @Input() borradas: ReadonlyMap<string, Existente> = new Map();
+  @Output() quitarAnotacion = new EventEmitter<string>();
+  @Output() borrarExistente = new EventEmitter<ExistentePdf>();
+  @Output() recuperarExistente = new EventEmitter<string>();
+  /** Se piden al abrir la pestaña: leerlas es recorrer el documento entero. */
+  @Output() pedirExistentes = new EventEmitter<void>();
+
+  readonly nombreDeAnotacion = nombreDeAnotacion;
+  readonly iconos: Record<Anotacion['tipo'], string> = {
+    nota: 'bi-sticky', trazo: 'bi-pencil', forma: 'bi-bounding-box-circles', sello: 'bi-patch-check',
+    imagen: 'bi-pen',
+  };
   @Output() descargarAdjunto = new EventEmitter<AdjuntoPdf>();
 
   @Output() pestanaChange = new EventEmitter<Pestana>();
@@ -78,6 +95,10 @@ export class VisorPanelComponent implements AfterViewInit, OnChanges, OnDestroy 
   private pedidas = new Set<number>();
 
   ngOnChanges(cambios: SimpleChanges): void {
+    if ((cambios['pestana'] || cambios['existentes']) && this.pestana === 'marcas' && !this.existentes) {
+      // Después de este ciclo: emitir dentro de ngOnChanges cambiaría al padre a medio pintar.
+      queueMicrotask(() => this.pedirExistentes.emit());
+    }
     if (cambios['totalPaginas'] || cambios['documento']) {
       this.numeros = Array.from({ length: this.totalPaginas }, (_, i) => i + 1);
       this.miniaturas.clear();
@@ -110,14 +131,30 @@ export class VisorPanelComponent implements AfterViewInit, OnChanges, OnDestroy 
     return this.rotaciones.get(numero) ?? 0;
   }
 
-  textoDe(marca: Marca | Texto): string {
+  textoDe(marca: { texto: string }): string {
     const texto = marca.texto.replace(/\s+/g, ' ').trim();
     return texto.length > 90 ? `${texto.slice(0, 90)}…` : texto || '(sin texto)';
   }
 
   /** Lo que hay anotado en total, que es lo que anuncia la pestaña. */
   get cuantasAnotaciones(): number {
-    return this.marcas.length + this.textos.length;
+    return this.marcas.length + this.textos.length + this.anotaciones.length;
+  }
+
+  /** Cómo se resume una anotación en la lista. */
+  resumen(anotacion: Anotacion): string {
+    switch (anotacion.tipo) {
+      case 'nota':
+        return anotacion.texto.trim() || 'Nota vacía';
+      case 'sello':
+        return `Sello «${anotacion.texto}»`;
+      case 'imagen':
+        return 'Firma';
+      case 'forma':
+        return { rectangulo: 'Rectángulo', elipse: 'Elipse', linea: 'Línea', flecha: 'Flecha' }[anotacion.figura];
+      default:
+        return 'Dibujo a mano';
+    }
   }
 
   /**

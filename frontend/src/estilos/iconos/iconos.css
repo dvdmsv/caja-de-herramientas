@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   117 iconos de los 2078 que trae bootstrap-icons.
+   126 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -29,6 +29,7 @@
 .bi-arrow-left::before { content: "\f12f"; }
 .bi-arrow-left-right::before { content: "\f12b"; }
 .bi-arrow-repeat::before { content: "\f130"; }
+.bi-arrow-up-right::before { content: "\f144"; }
 .bi-arrows::before { content: "\f6a2"; }
 .bi-arrows-move::before { content: "\f14e"; }
 .bi-aspect-ratio::before { content: "\f150"; }
@@ -37,16 +38,20 @@
 .bi-body-text::before { content: "\f683"; }
 .bi-book::before { content: "\f194"; }
 .bi-bookmark::before { content: "\f1a2"; }
+.bi-bounding-box-circles::before { content: "\f1b5"; }
 .bi-box-arrow-in-right::before { content: "\f1be"; }
 .bi-box-arrow-up-right::before { content: "\f1c5"; }
+.bi-calendar-date::before { content: "\f1e4"; }
 .bi-calendar-event::before { content: "\f1e8"; }
 .bi-card-image::before { content: "\f226"; }
+.bi-chat-left-text-fill::before { content: "\f251"; }
 .bi-check-circle-fill::before { content: "\f26a"; }
 .bi-check-lg::before { content: "\f633"; }
 .bi-check2-square::before { content: "\f271"; }
 .bi-chevron-down::before { content: "\f282"; }
 .bi-chevron-right::before { content: "\f285"; }
 .bi-chevron-up::before { content: "\f286"; }
+.bi-circle::before { content: "\f28a"; }
 .bi-circle-half::before { content: "\f288"; }
 .bi-clipboard::before { content: "\f290"; }
 .bi-clock::before { content: "\f293"; }
@@ -108,6 +113,7 @@
 .bi-patch-check::before { content: "\f4b6"; }
 .bi-patch-check-fill::before { content: "\f4b5"; }
 .bi-pc-display::before { content: "\f6a6"; }
+.bi-pen::before { content: "\f4c8"; }
 .bi-pencil::before { content: "\f4cb"; }
 .bi-person-badge::before { content: "\f4d3"; }
 .bi-person-vcard::before { content: "\f8c9"; }
@@ -121,7 +127,10 @@
 .bi-shield-check::before { content: "\f52f"; }
 .bi-shield-exclamation::before { content: "\f530"; }
 .bi-shield-x::before { content: "\f53e"; }
+.bi-slash-lg::before { content: "\f657"; }
 .bi-sliders::before { content: "\f56b"; }
+.bi-square::before { content: "\f584"; }
+.bi-sticky::before { content: "\f58d"; }
 .bi-sun::before { content: "\f5a2"; }
 .bi-symmetry-vertical::before { content: "\f5a9"; }
 .bi-table::before { content: "\f5aa"; }

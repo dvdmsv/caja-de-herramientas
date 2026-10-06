@@ -24,9 +24,10 @@
             <!-- Con etiquetas («iv», «A-3») el cuadro enseña y acepta la etiqueta,
                  y al lado va el número de verdad. -->
             <input type="text" class="contador__campo contador__campo--etiqueta" #campoEtiqueta
-              aria-label="Página actual" [value]="etiquetas[paginaActual - 1]"
+              [attr.aria-label]="'Página actual (' + paginaActual + ' de ' + medidas.length + ')'"
+              [value]="etiquetas[paginaActual - 1]"
               (change)="irAEtiqueta(campoEtiqueta)" (keydown.enter)="campoEtiqueta.blur()">
-            <span class="text-body-secondary">({{ paginaActual }}/{{ medidas.length }})</span>
+            <span class="text-body-secondary contador__real">({{ paginaActual }}/{{ medidas.length }})</span>
           } @else {
             <input type="number" class="contador__campo" min="1" [max]="medidas.length"
               aria-label="Página actual"
@@ -161,6 +162,68 @@
             </span>
           </span>
         }
+        <!-- Anotar: notas, a mano alzada, formas, sellos y la firma. -->
+        <button type="button" class="boton" [class.boton--activo]="herramienta === 'nota'"
+          (click)="elegirHerramienta('nota')" title="Nota: pulsa donde quieras dejarla">
+          <i class="bi bi-sticky"></i>
+        </button>
+        <button type="button" class="boton" [class.boton--activo]="herramienta === 'dibujar'"
+          (click)="elegirHerramienta('dibujar')" title="Dibujar a mano alzada">
+          <i class="bi bi-pencil"></i>
+        </button>
+        <button type="button" class="boton" [class.boton--activo]="herramienta === 'forma'"
+          (click)="elegirHerramienta('forma')" title="Rectángulos, elipses, líneas y flechas">
+          <i class="bi bi-bounding-box-circles"></i>
+        </button>
+        @if (herramienta === 'forma') {
+          <span class="colores" role="group" aria-label="Figura">
+            @for (f of figuras; track f.figura) {
+              <button type="button" class="boton" [class.boton--activo]="estiloDibujo.figura === f.figura"
+                [attr.aria-pressed]="estiloDibujo.figura === f.figura" [title]="f.titulo"
+                (click)="cambiarEstiloDibujo({ figura: f.figura })">
+                <i class="bi {{ f.icono }}"></i>
+              </button>
+            }
+          </span>
+        }
+        <button type="button" class="boton" [class.boton--activo]="herramienta === 'sello'"
+          (click)="elegirHerramienta('sello')" title="Sello: pulsa donde quieras ponerlo">
+          <i class="bi bi-patch-check"></i>
+        </button>
+        @if (herramienta === 'sello') {
+          <span class="escritura">
+            <input class="escritura__fuente escritura__sello" list="sellos-visor" maxlength="40"
+              [ngModel]="estiloDibujo.sello" (ngModelChange)="cambiarEstiloDibujo({ sello: $event })"
+              aria-label="Texto del sello" title="Texto del sello">
+            <datalist id="sellos-visor">
+              @for (sello of sellos; track sello) { <option [value]="sello"></option> }
+            </datalist>
+            <button type="button" class="boton boton--letra" [class.boton--activo]="estiloDibujo.selloConFecha"
+              [attr.aria-pressed]="estiloDibujo.selloConFecha"
+              (click)="cambiarEstiloDibujo({ selloConFecha: !estiloDibujo.selloConFecha })" title="Con la fecha de hoy">
+              <i class="bi bi-calendar-date"></i>
+            </button>
+          </span>
+        }
+        <button type="button" class="boton" [class.boton--activo]="herramienta === 'firma'"
+          (click)="elegirHerramienta('firma')" title="Poner tu firma (dibujada o en una imagen)">
+          <i class="bi bi-pen"></i>
+        </button>
+        @if (herramientaDibujo && herramientaDibujo !== 'firma') {
+          <span class="colores" role="group" aria-label="Tinta">
+            @for (tinta of coloresTexto; track tinta) {
+              <button type="button" class="color color--tinta-{{ tinta }}"
+                [class.color--elegido]="estiloDibujo.color === tinta" [attr.aria-pressed]="estiloDibujo.color === tinta"
+                [title]="'En ' + tinta" (click)="cambiarEstiloDibujo({ color: tinta })"></button>
+            }
+          </span>
+          @if (herramienta === 'dibujar' || herramienta === 'forma') {
+            <select class="escritura__fuente" [ngModel]="estiloDibujo.grosor" title="Grosor del trazo"
+              aria-label="Grosor del trazo" (ngModelChange)="cambiarEstiloDibujo({ grosor: +$event })">
+              @for (g of grosores; track g) { <option [value]="g">{{ g }} pt</option> }
+            </select>
+          }
+        }
         @if (hayCampos) {
           <button type="button" class="boton"
             [class.boton--activo]="conFormulario" (click)="alternarFormulario()"
@@ -202,6 +265,10 @@
           (click)="deshacer()" title="Deshacer (Ctrl+Z)" aria-label="Deshacer">
           <i class="bi bi-arrow-counterclockwise"></i>
         </button>
+        <button type="button" class="boton" [disabled]="!cambios.sePuedeRehacer"
+          (click)="rehacer()" title="Rehacer (Ctrl+Y)" aria-label="Rehacer">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
         @if (resultado) {
           <button type="button" class="btn btn-sm btn-outline-success"
             (click)="descargar()" aria-label="Descargar">
@@ -212,8 +279,10 @@
           (click)="guardar()">
           @if (guardando) {
             <span class="spinner-border spinner-border-sm me-1"></span>
+          } @else {
+            <i class="bi bi-floppy guardar__icono" aria-hidden="true"></i>
           }
-          Guardar
+          <span class="guardar__texto">Guardar</span>
         </button>
       </div>
     }
@@ -231,6 +300,10 @@
         [indexadas]="indexadas" [resultadoActual]="resultadoActual"
         [opcionesBusqueda]="opcionesBusqueda" [propiedades]="propiedades"
         [capas]="capas" [adjuntos]="adjuntos" (verCapa)="verCapa($event)"
+        [anotaciones]="cambios.anotaciones" [existentes]="existentesDelDocumento"
+        [borradas]="cambios.borradas" (quitarAnotacion)="alQuitarAnotacion($event)"
+        (borrarExistente)="borrarExistente($event)" (recuperarExistente)="recuperarExistente($event)"
+        (pedirExistentes)="cargarExistentesDelDocumento()"
         (descargarAdjunto)="descargarAdjunto($event)" (opcionesBusquedaChange)="cambiarOpcionesBusqueda($event)"
         (pestanaChange)="pestana = $event" (consultaChange)="buscar($event)"
         (irAPagina)="irAPaginaDesdePanel($event)" (irADestino)="irADestinoDesdePanel($event)"
@@ -304,7 +377,14 @@
               (campoRelleno)="alRellenarCampo($event)"
               (camposEncontrados)="alEncontrarCampos($event)"
               (irADestino)="irADestino($event)" (adjuntoPulsado)="descargarAdjunto($event)"
-              [versionCapas]="versionCapas">
+              [versionCapas]="versionCapas"
+              [anotaciones]="anotacionesDe(visible.colocada.numero)" [herramientaDibujo]="herramientaDibujo"
+              [estiloDibujo]="estiloDibujo" [firma]="firma" [anotacionElegida]="anotacionElegida"
+              [borradas]="cambios.borradas"
+              (anotacionCreada)="alCrearAnotacion($event, visible.colocada.numero)"
+              (anotacionCambiada)="alCambiarAnotacion($event)" (anotacionQuitada)="alQuitarAnotacion($event)"
+              (anotacionElegidaChange)="elegirAnotacion($event)" (existenteBorrada)="borrarExistente($event)"
+              (existenteRecuperada)="recuperarExistente($event)">
             </app-visor-pagina>
           }
         </div>
@@ -339,5 +419,9 @@
       [rotaciones]="cambios.rotaciones" [inicial]="paginaActual"
       (cerrar)="alSalirDePresentacion($event)">
     </app-visor-presentacion>
+  }
+
+  @if (pidiendoFirma) {
+    <app-visor-firma (lista)="alTenerFirma($event)" (cancelar)="pidiendoFirma = false"></app-visor-firma>
   }
 </div>

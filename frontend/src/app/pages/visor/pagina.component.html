@@ -11,6 +11,16 @@
 
   <div class="capa-texto" #capaTexto></div>
 
+  <!-- Notas, dibujos, formas, sellos y firmas (capa-dibujo.component.ts). -->
+  <app-visor-dibujos [colocada]="colocada" [escala]="escala" [anotaciones]="anotaciones"
+    [existentes]="existentes" [borradas]="borradas" [herramienta]="herramientaDibujo"
+    [estilo]="estiloDibujo!" [firma]="firma" [seleccionada]="anotacionElegida"
+    (creada)="anotacionCreada.emit($event)" (cambiada)="anotacionCambiada.emit($event)"
+    (quitada)="anotacionQuitada.emit($event)" (seleccionar)="anotacionElegidaChange.emit($event)"
+    (borrarExistente)="existenteBorrada.emit($event)"
+    (recuperarExistente)="existenteRecuperada.emit($event)">
+  </app-visor-dibujos>
+
   <!--
   Los enlaces del documento. Con una herramienta de marcado activa dejan pasar
   el ratón, como los campos: si no, no se podría subrayar un enlace.

@@ -18,7 +18,7 @@ import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
 
 import config
-from api import current_session, params
+from api import current_session, params, visor_anotaciones
 from api.tipografia import (COLORES_TEXTO, CONTROLES, FAMILIAS, FUENTES, INTERLINEADO,
                             TAMANO_MAXIMO, TAMANO_MINIMO)
 from api import limites
@@ -91,10 +91,16 @@ def guardar():
         textos = _leer_textos(datos.get('textos'), total)
         campos = _leer_campos(datos.get('campos'))
         paginas = _leer_paginas(datos.get('paginas'), total)
+        anotaciones = visor_anotaciones.leer(datos, total)
 
         if not (subrayados or tachados or textos or campos
+                or visor_anotaciones.hay_algo(anotaciones)
                 or _hay_cambios_de_paginas(paginas, total)):
             raise ApiError('No hay ningún cambio que guardar.', 400)
+
+        # Lo primero, quitar las anotaciones que ya traía y el usuario ha
+        # quitado: después habría otras nuevas con las que confundirlas.
+        visor_anotaciones.quitar_existentes(documento, anotaciones['borradas'])
 
         # Primero las marcas, sobre la numeración original: si se borraran antes
         # las páginas, los números ya no señalarían a lo mismo.
@@ -104,6 +110,10 @@ def guardar():
         # todo lo que haya en su rectángulo, y se llevaría por delante lo que se
         # acabara de escribir encima del mismo hueco.
         _escribir(documento, textos)
+
+        # Notas, dibujos, formas, sellos y firmas, también después de los
+        # tachados por lo mismo: un tachado se llevaría lo que haya debajo.
+        visor_anotaciones.escribir(documento, anotaciones)
 
         # Y los campos del formulario, todavía con todas las páginas puestas.
         _rellenar(documento, campos)

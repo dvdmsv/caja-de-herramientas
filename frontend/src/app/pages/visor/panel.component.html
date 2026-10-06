@@ -114,8 +114,19 @@
           <div class="contenido">
             @if (cuantasAnotaciones === 0) {
               <p class="aviso p-3">
-                Aquí aparecerá lo que vayas subrayando, tachando o escribiendo.
+                Aquí aparecerá lo que vayas subrayando, tachando, escribiendo o dibujando.
               </p>
+            }
+            @for (anotacion of anotaciones; track anotacion.id) {
+              <div class="marca-lista">
+                <button type="button" class="marca-lista__ir" (click)="irAPagina.emit(anotacion.pagina)">
+                  <span class="punto punto--escrito"><i class="bi {{ iconos[anotacion.tipo] }}"></i></span>
+                  <span class="marca-lista__texto">{{ resumen(anotacion) }}</span>
+                  <span class="marca-lista__pagina">p. {{ anotacion.pagina }}</span>
+                </button>
+                <button type="button" class="marca-lista__quitar" title="Quitar"
+                  (click)="quitarAnotacion.emit(anotacion.id)"><i class="bi bi-x-lg"></i></button>
+              </div>
             }
             @for (marca of marcas; track marca) {
               <div class="marca-lista">
@@ -139,6 +150,32 @@
                   <button type="button" class="marca-lista__quitar" title="Quitar"
                     (click)="quitarTexto.emit(texto.id)"><i class="bi bi-x-lg"></i></button>
                   </div>
+                }
+
+                <!-- Lo que ya traía el PDF: se puede quitar al guardar. -->
+                @if (existentes === null) {
+                  <p class="aviso px-2"><span class="spinner-border spinner-border-sm me-1"></span>Buscando las que trae el documento…</p>
+                } @else if (existentes.length) {
+                  <h2 class="seccion mt-3">En el documento</h2>
+                  @for (existente of existentes; track existente.id) {
+                    <div class="marca-lista" [class.marca-lista--borrada]="borradas.has(existente.id)">
+                      <button type="button" class="marca-lista__ir" (click)="irAPagina.emit(existente.pagina)">
+                        <span class="marca-lista__texto">
+                          <strong>{{ nombreDeAnotacion(existente.tipo) }}</strong>
+                          @if (existente.autor) { · {{ existente.autor }} }
+                          @if (existente.texto) { <br>{{ textoDe(existente) }} }
+                        </span>
+                        <span class="marca-lista__pagina">p. {{ existente.pagina }}</span>
+                      </button>
+                      @if (borradas.has(existente.id)) {
+                        <button type="button" class="marca-lista__quitar" title="No quitarla"
+                          (click)="recuperarExistente.emit(existente.id)"><i class="bi bi-arrow-counterclockwise"></i></button>
+                      } @else {
+                        <button type="button" class="marca-lista__quitar" title="Quitarla del PDF al guardar"
+                          (click)="borrarExistente.emit(existente)"><i class="bi bi-trash"></i></button>
+                      }
+                    </div>
+                  }
                 }
               </div>
             }

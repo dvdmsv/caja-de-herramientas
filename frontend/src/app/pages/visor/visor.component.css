@@ -139,6 +139,10 @@
   width: 3.4rem;
 }
 
+.escritura__sello {
+  width: 7.5rem;
+}
+
 .boton--letra {
   min-width: 1.9rem;
   font-size: 0.85rem;
@@ -338,7 +342,8 @@
   /* Van a la primera fila solos: es el primer hueco libre de la rejilla. */
   .barra__ir,
   .barra__archivo {
-    padding: 0.35rem 0.5rem;
+    /* De lado, lo justo: a 320 px cada píxel de la primera fila cuenta. */
+    padding: 0.35rem 0.25rem;
     background-color: var(--bs-body-bg);
     border-bottom: 1px solid var(--bs-border-color);
   }
@@ -359,6 +364,29 @@
   .cuerpo {
     grid-row: 2;
   }
+
+  /* Con «Rehacer» y una etiqueta de página («A-12») la primera fila pasaba de
+     360 px y el visor entero se salía por la derecha. «Guardar» se queda en
+     icono (el texto sigue para el lector de pantalla) y el número de verdad de
+     al lado de la etiqueta se va: lo dicen el `aria-label` y las miniaturas. */
+  .guardar__texto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .contador__real {
+    display: none;
+  }
+}
+
+/* Fuera del móvil en vertical, «Guardar» va con su palabra. */
+@media (min-width: 576px) {
+  .guardar__icono {
+    display: none;
+  }
 }
 
 /* En pantallas táctiles, cada botón de la barra con el área que pide el dedo
@@ -371,7 +399,25 @@
     justify-content: center;
   }
 
-  .contador__campo {
+  .contador__campo,
+  .escritura__fuente,
+  .escritura__tamano {
     min-height: 2.75rem;
+  }
+
+  /* Las muestras de color: el punto se queda pequeño, pero el botón ocupa los
+     44 px (el fondo sólo pinta el centro) y la elegida lleva el aro pegado al
+     punto en vez de en el borde del botón. */
+  .color {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0.8rem;
+    border: 0;
+    background-clip: content-box;
+  }
+
+  .color--elegido {
+    outline: 2px solid var(--bs-body-color);
+    outline-offset: -0.7rem;
   }
 }

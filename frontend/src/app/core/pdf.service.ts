@@ -61,6 +61,27 @@ export interface AdjuntoPdf {
   descripcion: string;
 }
 
+/**
+ * Una anotación que ya traía el PDF (una nota, un subrayado, un dibujo…), para
+ * listarla y poder quitarla. El id es el de pdf.js, «12R», que es su número de
+ * objeto: el que busca el servidor para borrarla.
+ */
+export interface ExistentePdf {
+  id: string;
+  pagina: number;
+  /** El subtipo del PDF: `Text`, `Highlight`, `Ink`… */
+  tipo: string;
+  autor: string;
+  texto: string;
+  rect: [number, number, number, number];
+}
+
+/**
+ * Las que no se listan: los enlaces y los campos son del documento, no
+ * comentarios de nadie, y una `Popup` es sólo la ventanita de otra.
+ */
+const NO_SON_COMENTARIOS = new Set(['Link', 'Widget', 'Popup']);
+
 /** Ancho al que se rasteriza una página para verla a tamaño completo. */
 export const ANCHO_VISTA = 1100;
 
@@ -270,6 +291,23 @@ export class DocumentoPdf {
   /** Lo que el dibujo necesita para respetar las capas que se hayan tocado. */
   get contenidoOpcional(): Promise<any> | undefined {
     return this.configCapas ?? undefined;
+  }
+
+  /** Las anotaciones que trae una página y se pueden quitar. */
+  async existentes(numero: number): Promise<ExistentePdf[]> {
+    const pagina = await this.pagina(numero);
+    const anotaciones = await pagina.getAnnotations({ intent: 'display' });
+    const viewport = pagina.getViewport({ scale: 1 });
+    return anotaciones
+      .filter((a: any) => a.id && !NO_SON_COMENTARIOS.has(a.subtype))
+      .map((a: any) => ({
+        id: String(a.id),
+        pagina: numero,
+        tipo: String(a.subtype),
+        autor: String(a.titleObj?.str ?? '').trim(),
+        texto: String(a.contentsObj?.str ?? '').trim(),
+        rect: enProporciones(a.rect, viewport),
+      }));
   }
 
   /** Los archivos que lleva dentro el documento (no los de una página concreta). */

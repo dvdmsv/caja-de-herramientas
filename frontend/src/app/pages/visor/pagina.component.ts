@@ -13,6 +13,11 @@ import {
   puntoAProporciones,
 } from './coordenadas';
 import { DestinoPdf, EnlacePdf } from './enlaces';
+import {
+  Creada, EstiloDibujo, FirmaPendiente, HerramientaDibujo, VisorDibujosComponent,
+} from './capa-dibujo.component';
+import { Anotacion, CambioDeAnotacion, Existente } from './cambios';
+import { ExistentePdf } from '../../core/pdf.service';
 import { Rect as Trozo, cubre, escalaDelLienzo, parteVisible, trozoDeDetalle } from './detalle';
 import { PaginaColocada } from './disposicion';
 import {
@@ -148,7 +153,7 @@ interface EnlacePintado extends EnlacePdf {
 
 @Component({
   selector: 'app-visor-pagina',
-  imports: [],
+  imports: [VisorDibujosComponent],
   templateUrl: './pagina.component.html',
   styleUrls: ['./pagina.component.css', './capa-texto.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -170,6 +175,21 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   @Input() coincidenciaActual: Coincidencia | null = null;
   /** Cambia al encender o apagar una capa: hay que volver a dibujar. */
   @Input() versionCapas = 0;
+  /** Notas, dibujos, formas, sellos y firmas de esta página. */
+  @Input() anotaciones: Anotacion[] = [];
+  @Input() herramientaDibujo: HerramientaDibujo | null = null;
+  @Input() estiloDibujo?: EstiloDibujo;
+  @Input() firma: FirmaPendiente | null = null;
+  @Input() anotacionElegida: string | null = null;
+  /** Las anotaciones que traía el PDF y se quitarán al guardar. */
+  @Input() borradas: ReadonlyMap<string, Existente> = new Map();
+
+  @Output() anotacionCreada = new EventEmitter<Creada>();
+  @Output() anotacionCambiada = new EventEmitter<{ id: string; cambio: CambioDeAnotacion }>();
+  @Output() anotacionQuitada = new EventEmitter<string>();
+  @Output() anotacionElegidaChange = new EventEmitter<string | null>();
+  @Output() existenteBorrada = new EventEmitter<ExistentePdf>();
+  @Output() existenteRecuperada = new EventEmitter<string>();
   /**
    * Si hay una herramienta de marcado activa. Leyendo, la selección es del
    * usuario —para copiar— y no se toca.
@@ -225,6 +245,8 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   camposPintados: CampoPintado[] = [];
   /** Los enlaces que trae esta página, listos para pintar. */
   enlacesPintados: EnlacePintado[] = [];
+  /** Las anotaciones que ya traía esta página (notas, dibujos…). */
+  existentes: ExistentePdf[] = [];
   /** Lo que se está escribiendo ahora mismo, si algo. */
   edicion: Edicion | null = null;
 
@@ -307,7 +329,7 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
     }
     if (cambios['documento']
         || (cambios['colocada'] && this.cambioDeVerdad(cambios['colocada']))) {
-      await Promise.all([this.cargarCampos(), this.cargarEnlaces()]);
+      await Promise.all([this.cargarCampos(), this.cargarEnlaces(), this.cargarExistentes()]);
     }
     if (this.hayQueRedibujar(cambios)) {
       await this.dibujar();
@@ -780,6 +802,20 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
     }
     if (this.colocada.numero === numero) {
       this.colocarEnlaces();
+      this.cd.markForCheck();
+    }
+  }
+
+  private async cargarExistentes(): Promise<void> {
+    const numero = this.colocada.numero;
+    let existentes: ExistentePdf[];
+    try {
+      existentes = await this.documento.existentes(numero);
+    } catch {
+      existentes = [];
+    }
+    if (this.colocada.numero === numero) {
+      this.existentes = existentes;
       this.cd.markForCheck();
     }
   }

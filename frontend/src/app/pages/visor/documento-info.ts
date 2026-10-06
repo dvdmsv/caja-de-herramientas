@@ -82,6 +82,18 @@ export function propiedades(datos: DatosDelDocumento): Propiedad[] {
   return filas.filter(fila => fila.valor);
 }
 
+const NOMBRES_DE_ANOTACION: Record<string, string> = {
+  Text: 'Nota', FreeText: 'Texto', Highlight: 'Subrayado', Underline: 'Subrayado',
+  Squiggly: 'Subrayado ondulado', StrikeOut: 'Tachado', Ink: 'Dibujo', Square: 'Rectángulo',
+  Circle: 'Elipse', Line: 'Línea', Polygon: 'Polígono', PolyLine: 'Línea quebrada',
+  Stamp: 'Sello', FileAttachment: 'Adjunto', Caret: 'Inserción', Redact: 'Tachado pendiente',
+};
+
+/** Cómo se llama en español una anotación del PDF por su subtipo. */
+export function nombreDeAnotacion(subtipo: string): string {
+  return NOMBRES_DE_ANOTACION[subtipo] ?? subtipo;
+}
+
 /**
  * La página que corresponde a lo que se escribe en el cuadro de página: su
  * etiqueta («iv», «A-3») o, si no es ninguna, su número. `null` si no existe.

@@ -59,7 +59,7 @@ Cómo está hecha, cómo compilarla y cómo publicar una versión, en
 
 | Herramienta | Qué hace | Opciones |
 |---|---|---|
-| Visor de PDF | Lee, busca, subraya, rellena formularios y edita sin salir del navegador | pantalla completa, en `/visor` |
+| Visor de PDF | Lee, busca, imprime y presenta; subraya, anota, dibuja, sella, firma, rellena formularios y edita sin salir del navegador | pantalla completa, en `/visor` |
 | Unir PDF | Combina varios PDF en uno | orden por arrastre |
 | PDF a imagen | Una imagen por página | formato de salida, 96/150/300 ppp y calidad |
 | Dividir PDF | Saca páginas sueltas o rangos | `1-3, 7, 10-`, un archivo o uno por página |
@@ -306,6 +306,43 @@ Arial y Helvetica. Medido sobre el archivo guardado, lo escrito cae a menos de
 0,3 pt de donde se pulsó, y sigue siendo así con la página girada en el visor o
 con un PDF que ya venga con `/Rotate`.
 
+**Para leer**:
+- Los **enlaces** del PDF se pulsan: los internos llevan a su página y a su
+  altura (como el índice), y los de fuera se abren en el navegador, sólo si son
+  web o correo.
+- **Zoom con pellizco y con Ctrl+rueda** que deja quieto lo que hay bajo los
+  dedos o el cursor. Ctrl +, Ctrl − y Ctrl 0 amplían el documento y no la
+  interfaz.
+- Cuatro **modos**: todas seguidas, página a página, dos páginas y libro con la
+  portada sola.
+- **Presentación** a pantalla completa (F5), que se pasa con el teclado, con un
+  clic o deslizando el dedo.
+- **Imprimir** (Ctrl+P), también con cambios sin guardar: el servidor prepara el
+  PDF editado, sin guardarlo, y se imprime ése.
+- La búsqueda resalta sólo las letras que coinciden, lleva el resultado actual
+  en otro color y a la vista, y puede distinguir mayúsculas o buscar palabras
+  enteras.
+- Las **etiquetas de página** («iv», «A-3») se ven y se aceptan en el cuadro de
+  página.
+- La pestaña «Documento» trae las propiedades, los **adjuntos** (se descargan) y
+  las **capas**, que se encienden y se apagan sólo en la vista.
+- Un **PDF con contraseña** se abre pidiéndola. Al guardar viaja en la petición
+  y no se escribe en ningún sitio, y el resultado sale con la misma protección.
+- La ayuda de atajos sale con `?`.
+
+**Para anotar**, además de subrayar, tachar y escribir:
+- **Notas** adhesivas.
+- **Dibujo a mano** (con el dedo o el lápiz en el móvil).
+- **Rectángulos, elipses, líneas y flechas**.
+- **Sellos** de texto con la fecha.
+- La **firma**, dibujada o en una imagen. Es su imagen, no una firma digital:
+  para eso está «Firmar con certificado».
+
+Todo se mueve, cambia de tinta o se quita. Se guarda como anotaciones normales
+del PDF, que cualquier lector enseña, salvo la firma, que va en la página. Las
+anotaciones que ya traía el documento se listan y se pueden quitar. Y lo que
+se deshace, **se rehace** (Ctrl+Y).
+
 Lo que lo hace ir fino con documentos densos, medido sobre un PDF de 200 páginas
 con imágenes:
 
@@ -318,6 +355,9 @@ con imágenes:
   entre aguantar tres horas o no.
 - **Una página cada vez y por prioridad**, cancelando lo que sale de pantalla
   (`core/visor-render.service.ts`): el worker de pdf.js es de un solo hilo.
+- **Nítido a cualquier zoom**: pasado el tope de píxeles de un lienzo, la página
+  se dibuja hasta él y encima va sólo el trozo que se ve, a resolución completa
+  (`pages/visor/detalle.ts`).
 - Primera página a la vista en **0,4 s**; buscar en las 200 páginas, 0,2 s.
 
 Dos cosas que este uso destapó y que están resueltas:

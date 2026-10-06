@@ -24,11 +24,18 @@ import { Coincidencia, IndiceTexto, OpcionesBusqueda } from './buscador';
 import { DestinoPdf } from './enlaces';
 import { Propiedad, etiquetasUtiles, paginaDeEtiqueta, propiedades } from './documento-info';
 import { GestoZoom } from './gesto-zoom';
+import {
+  Creada, EstiloDibujo, FirmaPendiente, HerramientaDibujo,
+} from './capa-dibujo.component';
+import { VisorFirmaComponent } from './firma-visor.component';
+import { ExistentePdf } from '../../core/pdf.service';
 import { mostrarAtajos } from './atajos';
 import { VisorPresentacionComponent } from './presentacion.component';
 import { imprimirImagenes, paginasParaImprimir } from './impresion';
 import { Punto, anclar, factorPermitido } from './zoom';
-import { Cambios, ColorSubrayado, ColorTachado, Marca, Texto } from './cambios';
+import {
+  Anotacion, CambioDeAnotacion, Cambios, ColorSubrayado, ColorTachado, Figura, Marca, Texto,
+} from './cambios';
 import {
   Disposicion, MODOS_LECTURA, Medida, ModoLectura, PaginaColocada, calcularDisposicion,
   columnasDe, escalaParaAjustar, filasVisibles, paginaEnFoco, paginaVecina,
@@ -43,7 +50,12 @@ import {
   tamanoValido,
 } from './tipografia';
 
-type Herramienta = 'leer' | 'subrayar' | 'tachar' | 'texto';
+type Herramienta = 'leer' | 'subrayar' | 'tachar' | 'texto' | HerramientaDibujo;
+
+const DE_DIBUJO = new Set<string>(['nota', 'dibujar', 'forma', 'sello', 'firma']);
+
+/** Los sellos que se ofrecen; se puede escribir cualquier otro. */
+const SELLOS = ['APROBADO', 'RECIBIDO', 'REVISADO', 'BORRADOR', 'PAGADO', 'COPIA', 'URGENTE'];
 type ModoZoom = 'ancho' | 'pagina' | 'libre';
 
 /** Una página lista para colocarse en el lienzo de lectura. */
@@ -65,6 +77,7 @@ const ESPERA_MEMORIA = 800;
 /** Compartido para que las páginas sin marcas no reciban un array nuevo cada vez. */
 const SIN_MARCAS: Marca[] = [];
 const SIN_COINCIDENCIAS: Coincidencia[] = [];
+const SIN_ANOTACIONES: Anotacion[] = [];
 
 /**
  * A partir de cuántas coincidencias se avisa de que repasarlas no es realista.
@@ -78,7 +91,7 @@ const REVISABLES = 500;
 @Component({
   selector: 'app-visor',
   imports: [FormsModule, RouterLink, VisorPaginaComponent, VisorPanelComponent,
-            VisorPresentacionComponent],
+            VisorPresentacionComponent, VisorFirmaComponent],
   templateUrl: './visor.component.html',
   styleUrl: './visor.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -153,9 +166,30 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   conFormulario = true;
   /** Si se está buscando datos personales; el botón se apaga mientras tanto. */
   buscandoDatos = false;
+  /** Con qué sale la próxima nota, dibujo, forma o sello. Se recuerda entre documentos. */
+  estiloDibujo: EstiloDibujo = {
+    color: 'rojo', grosor: 2, figura: 'rectangulo', sello: 'APROBADO', selloConFecha: true,
+  };
+  readonly sellos = SELLOS;
+  readonly figuras: { figura: Figura; titulo: string; icono: string }[] = [
+    { figura: 'rectangulo', titulo: 'Rectángulo', icono: 'bi-square' },
+    { figura: 'elipse', titulo: 'Elipse', icono: 'bi-circle' },
+    { figura: 'linea', titulo: 'Línea', icono: 'bi-slash-lg' },
+    { figura: 'flecha', titulo: 'Flecha', icono: 'bi-arrow-up-right' },
+  ];
+  readonly grosores = [1, 2, 4, 8];
+  /** La firma ya preparada, esperando a que se pulse dónde ponerla. */
+  firma: FirmaPendiente | null = null;
+  pidiendoFirma = false;
+  /** La nota, el dibujo, la forma, el sello o la firma elegidos. */
+  anotacionElegida: string | null = null;
+  /** Las anotaciones que traía el documento, para el panel; se leen al abrir la pestaña. */
+  existentesDelDocumento: ExistentePdf[] | null = null;
 
   private readonly resultadosPorPagina = new Map<number, Coincidencia[]>();
   private resultadosIndexados: Coincidencia[] | null = null;
+  private readonly anotacionesPorPagina = new Map<number, Anotacion[]>();
+  private anotacionesIndexadas: Anotacion[] | null = null;
   /** Marcas por página, para no filtrar la lista entera en cada repintado. */
   private readonly marcasPorPagina = new Map<number, Marca[]>();
   /** Sobre qué lista se armó el índice; si cambia la identidad, se rehace. */
@@ -215,6 +249,10 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     }
     if (preferencias['modoZoom'] === 'ancho' || preferencias['modoZoom'] === 'pagina') {
       this.modoZoom = preferencias['modoZoom'];
+    }
+    const estilo = preferencias['estiloDibujo'];
+    if (estilo && typeof estilo === 'object') {
+      this.estiloDibujo = { ...this.estiloDibujo, ...(estilo as Partial<EstiloDibujo>) };
     }
   }
 
@@ -473,6 +511,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.capas = [];
     this.adjuntos = [];
     this.capasRecordadas = undefined;
+    this.anotacionElegida = null;
+    this.existentesDelDocumento = null;
+    this.firma = null;
     this.visibles = [];
     this.disposicion = { filas: [], altoTotal: 0, anchoTotal: 0 };
     this.cambios = new Cambios();
@@ -944,9 +985,135 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   }
 
   elegirHerramienta(herramienta: Herramienta): void {
+    // La firma necesita antes la firma: se pide y, al tenerla, se activa.
+    if (herramienta === 'firma' && !this.firma) {
+      this.pidiendoFirma = true;
+      return;
+    }
     this.herramienta = herramienta;
     if (herramienta !== 'texto') {
       this.textoActivo = null;
+    }
+    if (herramienta !== 'firma') {
+      this.firma = null;
+    }
+  }
+
+  /** Si la herramienta activa dibuja en la capa de anotaciones, cuál. */
+  get herramientaDibujo(): HerramientaDibujo | null {
+    return DE_DIBUJO.has(this.herramienta) ? this.herramienta as HerramientaDibujo : null;
+  }
+
+  cambiarEstiloDibujo(cambio: Partial<EstiloDibujo>): void {
+    this.estiloDibujo = { ...this.estiloDibujo, ...cambio };
+    this.memoria.guardarPreferencia('estiloDibujo', this.estiloDibujo);
+    // Con una elegida, el color se le aplica también a ella.
+    if (cambio.color && this.anotacionElegida) {
+      this.alCambiarAnotacion({ id: this.anotacionElegida, cambio: { color: cambio.color } });
+    }
+  }
+
+  alTenerFirma(firma: FirmaPendiente): void {
+    this.pidiendoFirma = false;
+    this.firma = firma;
+    this.herramienta = 'firma';
+    this.cd.markForCheck();
+    aviso('Pulsa en la página donde quieras poner la firma. Luego puedes moverla y cambiar su tamaño.');
+  }
+
+  // --- notas, dibujos, formas, sellos y firmas ------------------------------
+
+  alCrearAnotacion(creada: Creada, pagina: number): void {
+    const anotacion = this.cambios.anotar({ ...creada, pagina } as Parameters<Cambios['anotar']>[0]);
+    // Una nota se abre para escribirla; un sello o una firma se dejan elegidos
+    // para moverlos, y se vuelve a leer: se ponen de uno en uno.
+    if (anotacion.tipo !== 'trazo' && anotacion.tipo !== 'forma') {
+      this.anotacionElegida = anotacion.id;
+    }
+    if (anotacion.tipo === 'sello' || anotacion.tipo === 'imagen') {
+      this.herramienta = 'leer';
+      this.firma = null;
+    }
+    this.refrescarAnotaciones();
+  }
+
+  alCambiarAnotacion({ id, cambio }: { id: string; cambio: CambioDeAnotacion }): void {
+    if (this.cambios.cambiarAnotacion(id, cambio)) {
+      this.refrescarAnotaciones();
+    }
+  }
+
+  alQuitarAnotacion(id: string): void {
+    this.cambios.quitarAnotacion(id);
+    if (this.anotacionElegida === id) {
+      this.anotacionElegida = null;
+    }
+    this.refrescarAnotaciones();
+  }
+
+  elegirAnotacion(id: string | null): void {
+    if (this.anotacionElegida !== id) {
+      this.anotacionElegida = id;
+      this.cd.markForCheck();
+    }
+  }
+
+  borrarExistente(existente: ExistentePdf): void {
+    this.cambios.borrarExistente({ id: existente.id, pagina: existente.pagina });
+    this.refrescarAnotaciones();
+  }
+
+  recuperarExistente(id: string): void {
+    this.cambios.recuperarExistente(id);
+    this.refrescarAnotaciones();
+  }
+
+  /** Como `marcasDe`: por un índice que se rehace cuando cambia la lista. */
+  anotacionesDe(numero: number): Anotacion[] {
+    if (this.anotacionesIndexadas !== this.cambios.anotaciones) {
+      this.anotacionesPorPagina.clear();
+      for (const anotacion of this.cambios.anotaciones) {
+        const suyas = this.anotacionesPorPagina.get(anotacion.pagina);
+        if (suyas) {
+          suyas.push(anotacion);
+        } else {
+          this.anotacionesPorPagina.set(anotacion.pagina, [anotacion]);
+        }
+      }
+      this.anotacionesIndexadas = this.cambios.anotaciones;
+    }
+    return this.anotacionesPorPagina.get(numero) ?? SIN_ANOTACIONES;
+  }
+
+  /** Copias nuevas para las páginas, que van en OnPush. */
+  private refrescarAnotaciones(): void {
+    this.cambios.anotaciones = [...this.cambios.anotaciones];
+    this.cambios.borradas = new Map(this.cambios.borradas);
+    this.resultado = null;
+    this.recordarMasTarde();
+    this.cd.markForCheck();
+  }
+
+  /**
+   * Las anotaciones que traía el documento, para la lista del panel. Página a
+   * página y en segundo plano: en un documento largo son cientos de lecturas.
+   */
+  async cargarExistentesDelDocumento(): Promise<void> {
+    const documento = this.documento;
+    if (!documento || this.existentesDelDocumento) {
+      return;
+    }
+    this.existentesDelDocumento = [];
+    for (let numero = 1; numero <= documento.paginas && documento === this.documento; numero++) {
+      try {
+        const deEsta = await documento.existentes(numero);
+        if (deEsta.length && documento === this.documento) {
+          this.existentesDelDocumento = [...this.existentesDelDocumento!, ...deEsta];
+          this.cd.markForCheck();
+        }
+      } catch {
+        /* una página ilegible no corta el resto */
+      }
     }
   }
 
@@ -1090,12 +1257,24 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
 
   deshacer(): void {
     this.cambios.deshacer();
+    this.trasDeshacerORehacer();
+  }
+
+  rehacer(): void {
+    this.cambios.rehacer();
+    this.trasDeshacerORehacer();
+  }
+
+  /** Lo que cambie puede ser cualquier cosa: todo se da por nuevo. */
+  private trasDeshacerORehacer(): void {
     this.cambios.textos = [...this.cambios.textos];
     this.cambios.campos = new Map(this.cambios.campos);
-    this.resultado = null;
+    this.cambios.marcas = [...this.cambios.marcas];
+    if (this.anotacionElegida && !this.cambios.anotaciones.some(a => a.id === this.anotacionElegida)) {
+      this.anotacionElegida = null;
+    }
+    this.refrescarAnotaciones();
     this.recalcular();
-    this.recordarMasTarde();
-    this.cd.markForCheck();
   }
 
   private refrescarMarcas(): void {
@@ -1458,7 +1637,14 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       this.cd.markForCheck();
       return;
     }
-    if (evento.ctrlKey && evento.key.toLowerCase() === 'z' && !escribiendoTexto) {
+    // Ctrl+Y y Ctrl+Mayús+Z rehacen, como en cualquier editor.
+    const tecla = evento.key.toLowerCase();
+    if (evento.ctrlKey && !escribiendoTexto && (tecla === 'y' || (tecla === 'z' && evento.shiftKey))) {
+      evento.preventDefault();
+      this.rehacer();
+      return;
+    }
+    if (evento.ctrlKey && tecla === 'z' && !escribiendoTexto) {
       evento.preventDefault();
       this.deshacer();
       return;
@@ -1484,7 +1670,16 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       '+': () => this.aplicarZoom(1.25),
       '-': () => this.aplicarZoom(0.8),
       g: () => this.abrirPestana('paginas'),
-      Escape: () => (this.panelAbierto = false),
+      // Esc va soltando de dentro afuera: lo elegido, la herramienta, el panel.
+      Escape: () => {
+        if (this.anotacionElegida) {
+          this.anotacionElegida = null;
+        } else if (this.herramienta !== 'leer') {
+          this.elegirHerramienta('leer');
+        } else {
+          this.panelAbierto = false;
+        }
+      },
     };
 
     // Ctrl + y Ctrl − amplían el documento y no la interfaz, como en cualquier
@@ -1514,6 +1709,11 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     if (evento.ctrlKey && evento.key.toLowerCase() === 'z') {
       evento.preventDefault();
       this.deshacer();
+      return;
+    }
+    if ((evento.key === 'Delete' || evento.key === 'Backspace') && this.anotacionElegida) {
+      evento.preventDefault();
+      this.alQuitarAnotacion(this.anotacionElegida);
       return;
     }
     if ((evento.key === 'Delete' || evento.key === 'Backspace') && this.textoActivo) {

@@ -1,4 +1,5 @@
 import { Cambios, Marca, Texto } from './cambios';
+import { Rect } from './coordenadas';
 
 const marca = (pagina: number, tipo: Marca['tipo'] = 'subrayado') => ({
   tipo,
@@ -356,5 +357,119 @@ describe('cambios del visor', () => {
       const viejo = Cambios.desdeBorrador({ marcas: [], rotaciones: [], eliminadas: [] });
       expect(viejo.campos.size).toBe(0);
     });
+  });
+});
+
+describe('rehacer', () => {
+  const marca = { tipo: 'subrayado' as const, pagina: 1, color: 'amarillo' as const,
+                  rects: [[0.1, 0.1, 0.2, 0.2] as Rect], texto: 'a' };
+
+  it('deshacer y rehacer vuelven a dejarlo igual', () => {
+    const cambios = new Cambios();
+    cambios.marcar(marca);
+    cambios.girar(2);
+    cambios.deshacer();
+    cambios.deshacer();
+    expect(cambios.hayAlgo).toBe(false);
+    expect(cambios.sePuedeRehacer).toBe(true);
+
+    cambios.rehacer();
+    expect(cambios.marcas.length).toBe(1);
+    expect(cambios.rotacionDe(2)).toBe(0);
+    cambios.rehacer();
+    expect(cambios.rotacionDe(2)).toBe(90);
+    expect(cambios.sePuedeRehacer).toBe(false);
+  });
+
+  it('hacer algo nuevo después de deshacer descarta lo que se podía rehacer', () => {
+    const cambios = new Cambios();
+    cambios.marcar(marca);
+    cambios.deshacer();
+    cambios.eliminar(3);
+    expect(cambios.sePuedeRehacer).toBe(false);
+  });
+
+  it('cambiar el color no toca el objeto que guarda el paso anterior', () => {
+    const cambios = new Cambios();
+    const puesta = cambios.marcar(marca);
+    cambios.cambiarColor(puesta.id, 'verde');
+    cambios.deshacer();
+    expect(cambios.marcas[0].color).toBe('amarillo');
+    cambios.rehacer();
+    expect(cambios.marcas[0].color).toBe('verde');
+  });
+
+  it('editar y mover un texto, deshecho y rehecho', () => {
+    const cambios = new Cambios();
+    const t = cambios.escribir({ pagina: 1, x: 0.1, y: 0.1, rotacion: 0, texto: 'hola',
+                                 fuente: 'sans', tamano: 12, color: 'negro', negrita: false, cursiva: false });
+    cambios.editarTexto(t.id, { texto: 'adiós' });
+    cambios.moverTexto(t.id, 0.5, 0.5);
+    cambios.deshacer();
+    expect(cambios.textos[0]).toMatchObject({ texto: 'adiós', x: 0.1 });
+    cambios.deshacer();
+    expect(cambios.textos[0].texto).toBe('hola');
+    cambios.rehacer();
+    cambios.rehacer();
+    expect(cambios.textos[0]).toMatchObject({ texto: 'adiós', x: 0.5, y: 0.5 });
+  });
+
+  it('marcar varias de golpe se deshace y se rehace de una vez', () => {
+    const cambios = new Cambios();
+    cambios.marcarVarias([marca, marca, marca]);
+    cambios.deshacer();
+    expect(cambios.marcas.length).toBe(0);
+    cambios.rehacer();
+    expect(cambios.marcas.length).toBe(3);
+  });
+});
+
+describe('anotaciones', () => {
+  it('se crean, se cambian y se quitan, cada cosa un paso', () => {
+    const cambios = new Cambios();
+    const nota = cambios.anotar({ tipo: 'nota', pagina: 1, color: 'rojo', x: 0.5, y: 0.5, texto: '' });
+    expect(nota.id).toMatch(/^a\d+$/);
+    expect(cambios.cambiarAnotacion(nota.id, { texto: 'Revisar' })).toBe(true);
+    expect(cambios.cambiarAnotacion(nota.id, { texto: 'Revisar' })).toBe(false);
+    cambios.quitarAnotacion(nota.id);
+    expect(cambios.anotaciones.length).toBe(0);
+    cambios.deshacer();
+    expect(cambios.anotaciones[0]).toMatchObject({ texto: 'Revisar' });
+    cambios.deshacer();
+    expect(cambios.anotaciones[0]).toMatchObject({ texto: '' });
+  });
+
+  it('se mandan por tipo, sin las de páginas quitadas ni las notas vacías', () => {
+    const cambios = new Cambios();
+    cambios.anotar({ tipo: 'nota', pagina: 1, color: 'rojo', x: 0.5, y: 0.5, texto: '  ' });
+    cambios.anotar({ tipo: 'forma', pagina: 1, color: 'azul', figura: 'flecha',
+                     desde: [0.1, 0.1], hasta: [0.3, 0.3], grosor: 2 });
+    cambios.anotar({ tipo: 'trazo', pagina: 2, color: 'negro', trazos: [[[0, 0], [1, 1]]], grosor: 1 });
+    cambios.eliminar(2);
+    const peticion = cambios.aPeticion(2);
+    expect(peticion['notas']).toEqual([]);
+    expect(peticion['formas']).toEqual([{ pagina: 1, color: 'azul', figura: 'flecha',
+                                          desde: [0.1, 0.1], hasta: [0.3, 0.3], grosor: 2 }]);
+    expect(peticion['trazos']).toEqual([]);
+  });
+
+  it('las del PDF que se quitan, con su página, y se pueden recuperar', () => {
+    const cambios = new Cambios();
+    cambios.borrarExistente({ id: '12R', pagina: 2 });
+    expect(cambios.hayAlgo).toBe(true);
+    expect(cambios.aPeticion(3)['anotaciones_borradas']).toEqual([{ id: '12R', pagina: 2 }]);
+    cambios.recuperarExistente('12R');
+    expect(cambios.hayAlgo).toBe(false);
+  });
+
+  it('vuelven del borrador, y los identificadores siguen por delante', () => {
+    const cambios = new Cambios();
+    cambios.anotar({ tipo: 'sello', pagina: 1, color: 'rojo', rect: [0.1, 0.1, 0.4, 0.2], texto: 'APROBADO' });
+    cambios.borrarExistente({ id: '7R', pagina: 1 });
+    const vuelta = Cambios.desdeBorrador(JSON.parse(JSON.stringify(cambios.aBorrador())));
+    expect(vuelta.anotaciones.length).toBe(1);
+    expect(vuelta.borradas.has('7R')).toBe(true);
+    const otra = vuelta.anotar({ tipo: 'nota', pagina: 1, color: 'rojo', x: 0, y: 0, texto: 'x' });
+    expect(otra.id).not.toBe(vuelta.anotaciones[0].id);
   });
 });

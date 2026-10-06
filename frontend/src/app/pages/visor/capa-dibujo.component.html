@@ -1,0 +1,156 @@
+<!--
+Todo en el espacio de la página sin girar (anchoSinGirar × altoSinGirar) y el
+conjunto girado con `giro`: así los sellos y las firmas se ven derechos respecto
+a su página y giran con ella, como saldrán en el PDF.
+-->
+<svg class="lienzo" [attr.width]="ancho" [attr.height]="alto" [attr.viewBox]="'0 0 ' + ancho + ' ' + alto"
+  (pointerdown)="alPulsar($event)" aria-hidden="true">
+  <g [attr.transform]="giro">
+    @for (a of anotaciones; track a.id) {
+      @switch (a.tipo) {
+        @case ('trazo') {
+          <g class="pieza" [class.pieza--elegida]="a.id === seleccionada" [attr.data-anotacion]="a.id"
+            (pointerdown)="alPulsarAnotacion($event, a)">
+            @for (d of caminos(a); track $index) {
+              <path [attr.d]="d" fill="none" [attr.stroke]="css[a.color]"
+                [attr.stroke-width]="grosorPx(a.grosor)" stroke-linecap="round" stroke-linejoin="round" />
+              <!-- Más ancho e invisible: un trazo de un píxel no hay quien lo pulse. -->
+              <path class="agarre" [attr.d]="d" fill="none" stroke-width="14" />
+            }
+          </g>
+        }
+        @case ('forma') {
+          @let f = forma(a);
+          <g class="pieza" [class.pieza--elegida]="a.id === seleccionada" [attr.data-anotacion]="a.id"
+            (pointerdown)="alPulsarAnotacion($event, a)"
+            [attr.stroke]="css[a.color]" [attr.stroke-width]="grosorPx(a.grosor)" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            @switch (a.figura) {
+              @case ('rectangulo') { <rect [attr.x]="f.x" [attr.y]="f.y" [attr.width]="f.w" [attr.height]="f.h" /> }
+              @case ('elipse') { <ellipse [attr.cx]="f.cx" [attr.cy]="f.cy" [attr.rx]="f.rx" [attr.ry]="f.ry" /> }
+              @default {
+                <line [attr.x1]="f.x0" [attr.y1]="f.y0" [attr.x2]="f.x1" [attr.y2]="f.y1" />
+                @if (f.punta) { <path [attr.d]="f.punta" /> }
+              }
+            }
+            <rect class="agarre" [attr.x]="f.x - 6" [attr.y]="f.y - 6" [attr.width]="f.w + 12"
+              [attr.height]="f.h + 12" stroke="none" />
+          </g>
+        }
+        @case ('sello') {
+          @let r = derecho(a);
+          <g class="pieza pieza--movible" [class.pieza--elegida]="a.id === seleccionada" [attr.data-anotacion]="a.id"
+            (pointerdown)="alPulsarAnotacion($event, a)" [attr.transform]="r.giro">
+            <rect [attr.x]="r.x0" [attr.y]="r.y0" [attr.width]="r.ancho" [attr.height]="r.alto" rx="3"
+              fill="transparent" [attr.stroke]="css[a.color]" stroke-width="2" />
+            <text [attr.x]="r.cx" [attr.y]="r.cy" text-anchor="middle" dominant-baseline="central"
+              [attr.fill]="css[a.color]" [attr.font-size]="r.alto * letraDelSello" class="sello">{{ a.texto }}</text>
+          </g>
+        }
+        @case ('imagen') {
+          @let r = derecho(a);
+          <g class="pieza pieza--movible" [class.pieza--elegida]="a.id === seleccionada" [attr.data-anotacion]="a.id"
+            (pointerdown)="alPulsarAnotacion($event, a)" [attr.transform]="r.giro">
+            <image [attr.href]="a.datos" [attr.x]="r.x0" [attr.y]="r.y0" [attr.width]="r.ancho" [attr.height]="r.alto"
+              preserveAspectRatio="none" />
+            <rect class="agarre" [attr.x]="r.x0" [attr.y]="r.y0" [attr.width]="r.ancho" [attr.height]="r.alto"
+              stroke="none" />
+          </g>
+        }
+      }
+    }
+
+    <!-- Los tiradores de la elegida, si se puede redimensionar. -->
+    @if (elegida; as e) {
+      @if (e.tipo === 'sello' || e.tipo === 'imagen') {
+        @let r = px(rectDe(e));
+        <rect class="marco" [attr.x]="r.x" [attr.y]="r.y" [attr.width]="r.w" [attr.height]="r.h" />
+        @for (t of tiradores; track t) {
+          <circle class="tirador" [attr.data-anotacion]="e.id" r="7"
+            [attr.cx]="t.includes('w') ? r.x : r.x + r.w" [attr.cy]="t.includes('n') ? r.y : r.y + r.h"
+            (pointerdown)="alPulsarAnotacion($event, e, t)" />
+        }
+      }
+    }
+
+    <!-- Lo que se está dibujando ahora mismo. -->
+    @if (enCurso; as c) {
+      <g class="en-curso" [attr.stroke]="css[estilo.color]" [attr.stroke-width]="grosorPx(estilo.grosor)"
+        fill="none" stroke-linecap="round" stroke-linejoin="round">
+        @if (c.camino) { <path [attr.d]="c.camino" /> }
+        @if (c.forma; as f) {
+          @switch (estilo.figura) {
+            @case ('rectangulo') { <rect [attr.x]="f.x" [attr.y]="f.y" [attr.width]="f.w" [attr.height]="f.h" /> }
+            @case ('elipse') { <ellipse [attr.cx]="f.cx" [attr.cy]="f.cy" [attr.rx]="f.rx" [attr.ry]="f.ry" /> }
+            @default {
+              <line [attr.x1]="f.x0" [attr.y1]="f.y0" [attr.x2]="f.x1" [attr.y2]="f.y1" />
+              @if (f.punta) { <path [attr.d]="f.punta" /> }
+            }
+          }
+        }
+      </g>
+    }
+  </g>
+</svg>
+
+<!-- Las notas, como botones: se leen con el lector de pantalla y se pulsan. -->
+@for (a of anotaciones; track a.id) {
+  @if (a.tipo === 'nota') {
+    <button type="button" class="nota" [style]="sitioDeNota(a)" [style.color]="css[a.color]"
+      [class.nota--elegida]="a.id === seleccionada" [attr.data-anotacion]="a.id"
+      [attr.aria-label]="'Nota: ' + (a.texto || 'vacía')" [title]="a.texto || 'Nota vacía'"
+      (pointerdown)="alPulsarAnotacion($event, a)">
+      <i class="bi bi-chat-left-text-fill" aria-hidden="true"></i>
+    </button>
+  }
+}
+
+<!-- Las notas que ya traía el PDF: se pulsan para leerlas. -->
+@for (e of existentes; track e.id) {
+  @if (borradas.has(e.id)) {
+    <span class="borrada" [style]="estiloDeExistente(e)" [title]="nombreDeAnotacion(e.tipo) + ': se quitará al guardar'"></span>
+  } @else if (e.tipo === 'Text') {
+    <button type="button" class="existente" [style]="estiloDeExistente(e)" data-anotacion
+      [attr.aria-label]="'Nota del documento: ' + (e.texto || 'vacía')" (click)="leerExistente($event, e)"></button>
+  }
+}
+
+@if (leyendo; as e) {
+  <div class="lectura-nota" role="dialog" aria-label="Nota del documento"
+    [style.left]="estiloDeExistente(e)['left']" [style.top]="'calc(' + estiloDeExistente(e)['top'] + ' + 1.6rem)'">
+    @if (e.autor) { <strong class="d-block">{{ e.autor }}</strong> }
+    <p class="mb-2">{{ e.texto || '(vacía)' }}</p>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="borrarExistente.emit(e); leyendo = null">
+      Quitarla del PDF
+    </button>
+  </div>
+}
+
+<!-- El menú de la anotación elegida. -->
+@if (elegida; as e) {
+  @if (sitioDelMenu; as sitio) {
+    <div class="menu-dibujo" [style.left]="sitio.left" [style.top]="sitio.top" role="toolbar"
+      aria-label="Anotación elegida">
+      @if (e.tipo === 'nota') {
+        <textarea class="form-control form-control-sm menu-dibujo__nota" rows="3" placeholder="Escribe la nota"
+          [value]="e.texto" (change)="escribirNota($any($event.target).value)"
+          aria-label="Texto de la nota" autofocus></textarea>
+      }
+      <span class="menu-dibujo__fila">
+        @if (e.tipo !== 'imagen') {
+          @for (tinta of tintas; track tinta) {
+            <button type="button" class="tinta" [style.background-color]="css[tinta]"
+              [class.tinta--elegida]="e.color === tinta" [attr.aria-label]="'En ' + tinta" [title]="'En ' + tinta"
+              (click)="cambiarColor(tinta)"></button>
+          }
+        }
+        <button type="button" class="menu-dibujo__boton" (click)="quitar()" title="Quitar" aria-label="Quitar">
+          <i class="bi bi-trash" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="menu-dibujo__boton" (click)="cerrarMenu()" title="Cerrar" aria-label="Cerrar">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </span>
+    </div>
+  }
+}

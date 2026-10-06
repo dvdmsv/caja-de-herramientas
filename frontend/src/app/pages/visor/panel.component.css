@@ -325,6 +325,11 @@
   font-size: 0.7rem;
 }
 
+.marca-lista--borrada .marca-lista__texto {
+  text-decoration: line-through;
+  color: var(--bs-secondary-color);
+}
+
 .marca-lista__quitar:hover {
   color: var(--bs-danger);
 }

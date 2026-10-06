@@ -1,0 +1,195 @@
+/*
+ * La capa ocupa la página entera. Sin herramienta deja pasar el ratón —para
+ * seleccionar texto o subrayar— salvo encima de lo que ya hay dibujado, que se
+ * puede pulsar. Con herramienta, se queda con todo.
+ */
+:host {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+:host(.activa) {
+  z-index: 7;
+  pointer-events: auto;
+  cursor: crosshair;
+  /* Si no, en táctil dibujar desplazaría la página. */
+  touch-action: none;
+}
+
+.lienzo {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.pieza {
+  pointer-events: visiblePainted;
+  cursor: pointer;
+}
+
+.pieza--movible {
+  cursor: move;
+}
+
+/* La zona ancha alrededor de un trazo fino, para poder pulsarlo. */
+.agarre {
+  stroke: transparent;
+  fill: transparent;
+  pointer-events: all;
+}
+
+.pieza--elegida {
+  filter: drop-shadow(0 0 2px var(--acento));
+}
+
+.marco {
+  fill: none;
+  stroke: var(--acento);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+.tirador {
+  fill: var(--bs-body-bg);
+  stroke: var(--acento);
+  stroke-width: 2;
+  pointer-events: all;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+/* Sin negrita: el sello del PDF es una `FreeText` en Helvetica, que PyMuPDF
+   no deja poner en negrita, y aquí tiene que verse como saldrá. */
+.sello {
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  pointer-events: none;
+  user-select: none;
+}
+
+.en-curso {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* --- notas ------------------------------------------------------------------ */
+.nota {
+  position: absolute;
+  translate: -50% -50%;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  pointer-events: auto;
+  cursor: move;
+  touch-action: none;
+}
+
+.nota--elegida {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+}
+
+/* Las notas que traía el PDF: el icono lo pinta pdf.js, esto sólo lo hace pulsable. */
+.existente {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: help;
+}
+
+/* Lo que se quitará al guardar, tapado con rayas: sigue en el dibujo de pdf.js. */
+.borrada {
+  position: absolute;
+  background: repeating-linear-gradient(45deg, rgba(var(--bs-danger-rgb), 0.35) 0 4px,
+                                        transparent 4px 8px);
+  outline: 1px solid rgba(var(--bs-danger-rgb), 0.7);
+  pointer-events: none;
+}
+
+/* --- menús -------------------------------------------------------------------- */
+.menu-dibujo,
+.lectura-nota {
+  position: absolute;
+  z-index: 1;
+  translate: -50% 0;
+  padding: 0.4rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  box-shadow: var(--bs-box-shadow-sm);
+  pointer-events: auto;
+  cursor: auto;
+  touch-action: auto;
+}
+
+.lectura-nota {
+  width: min(16rem, 80vw);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.menu-dibujo__nota {
+  width: min(15rem, 75vw);
+  margin-bottom: 0.3rem;
+}
+
+.menu-dibujo__fila {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tinta {
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 2px solid var(--bs-body-bg);
+  border-radius: 50%;
+  outline: 1px solid var(--bs-border-color);
+}
+
+.tinta--elegida {
+  outline: 2px solid var(--acento);
+}
+
+.menu-dibujo__boton {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: none;
+  color: var(--bs-body-color);
+}
+
+/*
+ * TACTIL (core/pantalla.ts): con el dedo, los tiradores de 14 px y los botones
+ * de 32 px no se aciertan. Los tiradores crecen (el radio es un atributo del
+ * SVG, así que se escalan) y los botones van a 44 px.
+ */
+@media (pointer: coarse) {
+  .tirador {
+    transform-box: fill-box;
+    transform-origin: center;
+    scale: 1.6;
+  }
+
+  .nota {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .tinta,
+  .menu-dibujo__boton {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
