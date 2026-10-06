@@ -11,9 +11,13 @@ import { COMPACTA, cumple } from '../../core/pantalla';
 import { TraspasoService } from '../../core/traspaso.service';
 import { ApiService, ArchivoServidor, ZonasAnonimizado } from '../../core/api.service';
 import { MemoriaDocumentoService } from '../../core/memoria-documento.service';
-import { DocumentoPdf, PdfService } from '../../core/pdf.service';
+import {
+  AdjuntoPdf, AperturaCancelada, CapaPdf, DocumentoPdf, PdfService,
+} from '../../core/pdf.service';
 import { VisorRenderService } from '../../core/visor-render.service';
-import { avisoError, avisoExito, aviso, confirmar, mensajeDeError } from '../../shared/notify';
+import {
+  avisoError, avisoExito, aviso, confirmar, mensajeDeError, pedirContrasena,
+} from '../../shared/notify';
 import { IDS_DE_DATO, nombreDeDato } from '../../shared/datos-personales';
 import { copiarAlPortapapeles } from '../../shared/portapapeles';
 import { Coincidencia, IndiceTexto, OpcionesBusqueda } from './buscador';
@@ -93,6 +97,12 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   /** Las etiquetas de página del documento («iv», «A-3»), si aportan algo. */
   etiquetas: string[] | null = null;
   propiedades: Propiedad[] = [];
+  capas: CapaPdf[] = [];
+  adjuntos: AdjuntoPdf[] = [];
+  /** Sube al encender o apagar una capa, para que las páginas se redibujen. */
+  versionCapas = 0;
+  /** Las capas tal y como se dejaron la última vez, hasta que se sepa cuáles hay. */
+  private capasRecordadas?: Record<string, boolean>;
   cargando = false;
   arrastrando = false;
 
@@ -401,7 +411,8 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.cd.markForCheck();
 
     try {
-      this.documento = await this.pdf.abrir(archivo);
+      this.documento = await this.pdf.abrir(archivo,
+        incorrecta => pedirContrasena(archivo.name, incorrecta));
       this.medidas = await this.documento.medidas();
       this.indice = await this.documento.indice();
       this.etiquetas = etiquetasUtiles(await this.documento.etiquetas());
@@ -413,6 +424,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
           this.cd.markForCheck();
         }
       }, err => console.warn('No se han podido leer las propiedades del documento:', err));
+      this.cargarCapasYAdjuntos(abierto);
       this.huella = await this.memoria.huella(archivo);
       // La página recordada se guarda aparte: al recolocar, el visor recalcula
       // cuál se está mirando a partir del desplazamiento, que todavía es cero.
@@ -428,8 +440,10 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       this.indexarEnSegundoPlano();
     } catch (err) {
       this.cargando = false;
-      console.error('No se ha podido abrir el PDF:', err);
-      avisoError(this.porQueNoAbre(err));
+      if (!(err instanceof AperturaCancelada)) {
+        console.error('No se ha podido abrir el PDF:', err);
+        avisoError(this.porQueNoAbre(err));
+      }
       this.cerrar();
       this.cd.markForCheck();
     }
@@ -438,7 +452,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   private porQueNoAbre(err: unknown): string {
     const fallo = err as { name?: string; message?: string };
     if (fallo?.name === 'PasswordException') {
-      return 'El PDF está protegido con contraseña. Quítasela con "Proteger PDF" y vuelve.';
+      return 'El PDF está protegido con contraseña y no se ha podido abrir.';
     }
     if (fallo?.name === 'InvalidPDFException') {
       return 'El archivo no es un PDF válido o está dañado.';
@@ -456,6 +470,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.indice = [];
     this.etiquetas = null;
     this.propiedades = [];
+    this.capas = [];
+    this.adjuntos = [];
+    this.capasRecordadas = undefined;
     this.visibles = [];
     this.disposicion = { filas: [], altoTotal: 0, anchoTotal: 0 };
     this.cambios = new Cambios();
@@ -545,7 +562,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
 
     // Lo que se está mirando se dibuja antes que lo que sólo está de reserva.
     this.render.priorizar(new Set(enPantalla.map(
-      ({ colocada }) => `${colocada.numero}:${colocada.rotacion}:${this.escala}`)));
+      ({ colocada }) => `${colocada.numero}:${colocada.rotacion}:${this.escala}:${this.versionCapas}`)));
   }
 
   /**
@@ -558,6 +575,49 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       this.irAPagina(pagina);
     }
     campo.value = this.etiquetas?.[this.paginaActual - 1] ?? String(this.paginaActual);
+  }
+
+  /** Capas y adjuntos, para la pestaña «Documento»: no hacen esperar a la lectura. */
+  private async cargarCapasYAdjuntos(documento: DocumentoPdf): Promise<void> {
+    try {
+      const [capas, adjuntos] = await Promise.all([documento.capas(), documento.adjuntos()]);
+      if (documento !== this.documento) {
+        return;
+      }
+      this.adjuntos = adjuntos;
+      // Como se dejaron la última vez; las que ya no existan, se ignoran.
+      const recordadas = this.capasRecordadas ?? {};
+      for (const capa of capas.filter(c => c.id in recordadas && recordadas[c.id] !== c.visible)) {
+        await documento.verCapa(capa.id, recordadas[capa.id]);
+        capa.visible = recordadas[capa.id];
+        this.versionCapas++;
+      }
+      this.capas = capas;
+      this.cd.markForCheck();
+    } catch (err) {
+      console.warn('No se han podido leer las capas o los adjuntos:', err);
+    }
+  }
+
+  /** Encender o apagar una capa: sólo cambia lo que se ve, no el archivo. */
+  async verCapa({ id, visible }: { id: string; visible: boolean }): Promise<void> {
+    if (!this.documento) {
+      return;
+    }
+    await this.documento.verCapa(id, visible);
+    this.capas = this.capas.map(capa => (capa.id === id ? { ...capa, visible } : capa));
+    this.versionCapas++;
+    this.recordarMasTarde();
+    this.cd.markForCheck();
+  }
+
+  async descargarAdjunto(adjunto: { id: string; nombre: string }): Promise<void> {
+    try {
+      const contenido = await this.documento!.contenidoDeAdjunto(adjunto.id);
+      await this.api.guardarArchivo(new Blob([contenido as BlobPart]), adjunto.nombre);
+    } catch (err) {
+      avisoError(mensajeDeError(err, 'No se ha podido guardar el adjunto.'));
+    }
   }
 
   /** Ir a una página desde el panel: en móvil, además, lo cierra. */
@@ -809,6 +869,12 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
    */
   async tacharDatosPersonales(): Promise<void> {
     if (!this.documento || this.buscandoDatos) {
+      return;
+    }
+    // Quien busca es «Anonimizar PDF» en el servidor, y no recibe contraseñas.
+    if (this.documento.contrasena) {
+      aviso('En un PDF con contraseña no se pueden buscar los datos personales. Márcalos a mano, '
+        + 'o quítale antes la contraseña con «Proteger PDF».');
       return;
     }
     this.buscandoDatos = true;
@@ -1108,7 +1174,12 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
    */
   private async enviarCambios(): Promise<{ files: ArchivoServidor[] }> {
     const peticion = () => {
-      const cuerpo = { file_ids: [this.fileId], ...this.cambios.aPeticion(this.medidas.length) };
+      const cuerpo = {
+        file_ids: [this.fileId],
+        ...this.cambios.aPeticion(this.medidas.length),
+        // Si el PDF la pedía: el servidor tiene que abrirlo también.
+        contrasena: this.documento?.contrasena ?? undefined,
+      };
       return this.api.ejecutar('visor/guardar', cuerpo).toPromise() as Promise<{ files: ArchivoServidor[] }>;
     };
 
@@ -1146,7 +1217,11 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       if (this.hayCambios) {
         const { files: [archivo] } = await this.enviarCambios();
         const blob = await firstValueFrom(this.api.contenido(archivo));
-        editado = { documento: await this.pdf.abrir(new File([blob], archivo.name)), archivo };
+        // Sale con la misma contraseña que el original, que ya se sabe.
+        const contrasena = this.documento.contrasena;
+        const abierto = await this.pdf.abrir(new File([blob], archivo.name),
+          async incorrecta => (incorrecta ? null : contrasena));
+        editado = { documento: abierto, archivo };
         documento = editado.documento;
         this.imprimiendo = { hechas: 0, total: documento.paginas, preparando: false };
         this.cd.markForCheck();
@@ -1324,6 +1399,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       ? recuerdo.modoLectura as ModoLectura
       : recuerdo.columnas === 2 ? 'dos' : 'continuo';
     this.oscuro = !!recuerdo.oscuro;
+    this.capasRecordadas = recuerdo.capas;
     if (recuerdo.borrador) {
       this.cambios = Cambios.desdeBorrador(recuerdo.borrador);
     }
@@ -1349,6 +1425,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       columnas: this.columnas,
       modoLectura: this.modoLectura,
       oscuro: this.oscuro,
+      capas: this.capas.length
+        ? Object.fromEntries(this.capas.map(capa => [capa.id, capa.visible]))
+        : this.capasRecordadas,
       borrador: conBorrador && this.cambios.hayAlgo ? this.cambios.aBorrador() : undefined,
     };
   }

@@ -43,6 +43,24 @@ export interface CampoPdf {
   marcado: string;
 }
 
+/** Una capa (contenido opcional) del documento. */
+export interface CapaPdf {
+  id: string;
+  nombre: string;
+  visible: boolean;
+}
+
+/**
+ * Un archivo que viaja dentro del PDF. Sin su contenido: pdf.js 6 lo da aparte
+ * (`contenidoDeAdjunto`), y no tiene sentido leer un adjunto de 50 MB para
+ * enseñar su nombre.
+ */
+export interface AdjuntoPdf {
+  id: string;
+  nombre: string;
+  descripcion: string;
+}
+
 /** Ancho al que se rasteriza una página para verla a tamaño completo. */
 export const ANCHO_VISTA = 1100;
 
@@ -63,6 +81,13 @@ const LIMITE_POR_PAGINA = 20000;
  */
 export class DocumentoPdf {
   private readonly cache = new Map<string, string>();
+  /**
+   * La contraseña con la que se abrió, si el PDF la pedía. Hace falta para
+   * guardar: el servidor tiene que abrirlo también. Vive sólo en memoria.
+   */
+  contrasena: string | null = null;
+  /** Las capas, con lo que se haya encendido o apagado; se pide la primera vez. */
+  private configCapas: Promise<any> | null = null;
 
   constructor(private readonly tarea: any, private readonly documento: any,
               private readonly pdfjs: any) {}
@@ -193,8 +218,21 @@ export class DocumentoPdf {
     const viewport = pagina.getViewport({ scale: 1 });
     const enlaces: EnlacePdf[] = [];
 
-    for (const a of anotaciones.filter((a: any) => a.subtype === 'Link')) {
+    for (const a of anotaciones) {
       const rect = enProporciones(a.rect, viewport);
+      // Un clip con un archivo dentro: se descarga al pulsarlo, como en
+      // cualquier lector.
+      if (a.subtype === 'FileAttachment' && a.fileId) {
+        enlaces.push({ rect, adjunto: {
+          id: String(a.fileId),
+          nombre: String(a.file?.filename ?? 'adjunto'),
+          descripcion: String(a.file?.description ?? ''),
+        } });
+        continue;
+      }
+      if (a.subtype !== 'Link') {
+        continue;
+      }
       const url = urlAbrible(a.url);
       if (url) {
         enlaces.push({ rect, url });
@@ -208,6 +246,49 @@ export class DocumentoPdf {
       }
     }
     return enlaces;
+  }
+
+  /**
+   * Las capas del documento (contenido opcional), si las trae. Encender o
+   * apagar una sólo cambia lo que se ve: el archivo no se toca.
+   */
+  async capas(): Promise<CapaPdf[]> {
+    this.configCapas ??= this.documento.getOptionalContentConfig();
+    const config = await this.configCapas;
+    return [...config].map(([id, grupo]: [string, any]) => ({
+      id, nombre: String(grupo.name ?? '').trim() || 'Sin nombre', visible: !!grupo.visible,
+    }));
+  }
+
+  async verCapa(id: string, visible: boolean): Promise<void> {
+    this.configCapas ??= this.documento.getOptionalContentConfig();
+    (await this.configCapas).setVisibility(id, visible);
+    // Las miniaturas guardadas son de cómo estaban las capas antes.
+    this.cache.clear();
+  }
+
+  /** Lo que el dibujo necesita para respetar las capas que se hayan tocado. */
+  get contenidoOpcional(): Promise<any> | undefined {
+    return this.configCapas ?? undefined;
+  }
+
+  /** Los archivos que lleva dentro el documento (no los de una página concreta). */
+  async adjuntos(): Promise<AdjuntoPdf[]> {
+    const adjuntos: Map<string, any> | null = await this.documento.getAttachments();
+    return [...(adjuntos?.entries() ?? [])].map(([id, a]) => ({
+      id,
+      nombre: String(a.filename ?? 'adjunto'),
+      descripcion: String(a.description ?? ''),
+    }));
+  }
+
+  /** Lo que lleva dentro un adjunto, del documento o de una página. */
+  async contenidoDeAdjunto(id: string): Promise<Uint8Array> {
+    const contenido = await this.documento.getAttachmentContent(id);
+    if (!contenido) {
+      throw new Error('El adjunto está vacío o no se puede leer.');
+    }
+    return contenido;
   }
 
   /** Lo que se enseña en «Documento»: `getMetadata` y poco más. */
@@ -339,7 +420,8 @@ export class DocumentoPdf {
     const lienzo = document.createElement('canvas');
     lienzo.width = Math.round(viewport.width);
     lienzo.height = Math.round(viewport.height);
-    const dibujo = pagina.render({ canvas: lienzo, canvasContext: lienzo.getContext('2d')!, viewport });
+    const dibujo = pagina.render({ canvas: lienzo, canvasContext: lienzo.getContext('2d')!, viewport,
+                                   optionalContentConfigPromise: this.contenidoOpcional });
     await conLimite(dibujo.promise, numero);
 
     const imagen = lienzo.toDataURL('image/png');
@@ -365,10 +447,37 @@ export class DocumentoPdf {
 export class PdfService {
   private pdfjs: any;
 
-  async abrir(archivo: File): Promise<DocumentoPdf> {
+  /**
+   * Abre un PDF. Si está protegido, `pedirContrasena` la pide —diciendo si la
+   * anterior estaba mal— y devuelve `null` para no abrirlo; sin ella, un PDF
+   * protegido falla con `PasswordException`, como siempre.
+   */
+  async abrir(archivo: File,
+              pedirContrasena?: (incorrecta: boolean) => Promise<string | null>): Promise<DocumentoPdf> {
     const pdfjs = await this.libreria();
     const tarea = pdfjs.getDocument({ data: await archivo.arrayBuffer() });
-    return new DocumentoPdf(tarea, await tarea.promise, pdfjs);
+    let contrasena: string | null = null;
+    let cancelada = false;
+    if (pedirContrasena) {
+      tarea.onPassword = (responder: (clave: string) => void, motivo: number) => {
+        pedirContrasena(motivo === pdfjs.PasswordResponses.INCORRECT_PASSWORD).then(clave => {
+          if (clave === null) {
+            cancelada = true;
+            tarea.destroy();
+          } else {
+            contrasena = clave;
+            responder(clave);
+          }
+        });
+      };
+    }
+    try {
+      const documento = new DocumentoPdf(tarea, await tarea.promise, pdfjs);
+      documento.contrasena = contrasena;
+      return documento;
+    } catch (err) {
+      throw cancelada ? new AperturaCancelada() : err;
+    }
   }
 
   private async libreria(): Promise<any> {
@@ -399,6 +508,14 @@ function enProporciones(rect: number[], viewport: any): [number, number, number,
     entre(Math.max(x0, x1) / viewport.width),
     entre(Math.max(y0, y1) / viewport.height),
   ];
+}
+
+/** Quien abría el PDF no ha querido dar la contraseña: no es un error que enseñar. */
+export class AperturaCancelada extends Error {
+  constructor() {
+    super('Apertura cancelada');
+    this.name = 'AperturaCancelada';
+  }
 }
 
 function tipoDeCampo(anotacion: any): CampoPdf['tipo'] {

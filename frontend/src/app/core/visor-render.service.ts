@@ -80,6 +80,8 @@ export class VisorRenderService {
             // Los campos rellenables se quedan fuera del lienzo: los pinta el
             // visor como controles de verdad. Si no, se verían dos veces.
             annotationMode: documento.modoConFormularios,
+            // Las capas encendidas o apagadas en el panel.
+            optionalContentConfigPromise: documento.contenidoOpcional,
           });
           this.enCurso = { clave, tarea };
           await tarea.promise;

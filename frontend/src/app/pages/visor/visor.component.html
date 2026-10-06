@@ -229,7 +229,9 @@
         [eliminadas]="cambios.eliminadas" [rotaciones]="cambios.rotaciones"
         [resultados]="resultados" [consulta]="consulta" [buscando]="indexando"
         [indexadas]="indexadas" [resultadoActual]="resultadoActual"
-        [opcionesBusqueda]="opcionesBusqueda" [propiedades]="propiedades" (opcionesBusquedaChange)="cambiarOpcionesBusqueda($event)"
+        [opcionesBusqueda]="opcionesBusqueda" [propiedades]="propiedades"
+        [capas]="capas" [adjuntos]="adjuntos" (verCapa)="verCapa($event)"
+        (descargarAdjunto)="descargarAdjunto($event)" (opcionesBusquedaChange)="cambiarOpcionesBusqueda($event)"
         (pestanaChange)="pestana = $event" (consultaChange)="buscar($event)"
         (irAPagina)="irAPaginaDesdePanel($event)" (irADestino)="irADestinoDesdePanel($event)"
         (irAResultado)="irAResultado($event)"
@@ -301,7 +303,8 @@
               (estiloPedido)="cambiarEstilo($event)"
               (campoRelleno)="alRellenarCampo($event)"
               (camposEncontrados)="alEncontrarCampos($event)"
-              (irADestino)="irADestino($event)">
+              (irADestino)="irADestino($event)" (adjuntoPulsado)="descargarAdjunto($event)"
+              [versionCapas]="versionCapas">
             </app-visor-pagina>
           }
         </div>

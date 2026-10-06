@@ -21,6 +21,8 @@ export interface EnlacePdf {
   /** Fuera del documento, ya comprobada. */
   url?: string;
   destino?: DestinoPdf;
+  /** Un archivo pegado a la página (anotación `FileAttachment`). */
+  adjunto?: { id: string; nombre: string; descripcion: string };
 }
 
 /**

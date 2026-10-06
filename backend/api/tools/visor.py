@@ -61,6 +61,9 @@ MAXIMO_NOMBRE = 300
 # cruza los dos. Al mover uno, mueve el otro.
 MAXIMO_MARCAS = 50_000
 
+# Una contraseña más larga que esto no la escribe nadie: es basura o un abuso.
+MAXIMO_CONTRASENA = 256
+
 
 @bp.post('/visor/guardar')
 @limites.con_plazo(PLAZO_EN_PROCESO, 'El guardado')
@@ -80,8 +83,7 @@ def guardar():
         raise ApiError(f'No se ha podido abrir el PDF: {err}', 422) from err
 
     with documento:
-        if documento.needs_pass:
-            raise ApiError('El PDF está protegido con contraseña. Quítasela primero.', 422)
+        _desbloquear(documento, datos.get('contrasena'))
 
         total = documento.page_count
         subrayados = _leer_marcas(datos.get('subrayados'), total, COLORES_SUBRAYADO, 'subrayado')
@@ -124,9 +126,27 @@ def guardar():
 
         base = os.path.splitext(nombre_seguro(record.name))[0]
         destino, salida = storage.reserve_output(session_id, f'{base}-editado.pdf')
-        documento.save(destino, deflate=True, garbage=3)
+        # Con el mismo cifrado y las mismas contraseñas que traía: quien lo
+        # protegió no espera que editarlo en el visor se lo quite.
+        documento.save(destino, deflate=True, garbage=3, encryption=fitz.PDF_ENCRYPT_KEEP)
 
     return jsonify({'files': [storage.commit_output(session_id, salida).to_json()]}), 201
+
+
+def _desbloquear(documento, contrasena) -> None:
+    """Abre un PDF protegido con la contraseña que mandó el visor.
+
+    Llega en el cuerpo, como el certificado de «Firmar con certificado», y no se
+    guarda en ningún sitio: se usa para esta petición y se suelta. El visor la
+    tiene porque la pidió al abrir el documento, y pdf.js no la necesitaría si
+    no fuera buena.
+    """
+    if not documento.needs_pass:
+        return
+    if not isinstance(contrasena, str) or not contrasena:
+        raise ApiError('El PDF está protegido con contraseña y no ha llegado.', 422)
+    if len(contrasena) > MAXIMO_CONTRASENA or not documento.authenticate(contrasena):
+        raise ApiError('La contraseña del PDF no es correcta.', 422)
 
 
 def _marcar(documento, subrayados: list, tachados: list) -> None:

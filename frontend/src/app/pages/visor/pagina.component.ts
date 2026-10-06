@@ -168,6 +168,8 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   @Input() coincidencias: Coincidencia[] = [];
   /** El resultado de la búsqueda en el que se está: va de otro color y se trae a la vista. */
   @Input() coincidenciaActual: Coincidencia | null = null;
+  /** Cambia al encender o apagar una capa: hay que volver a dibujar. */
+  @Input() versionCapas = 0;
   /**
    * Si hay una herramienta de marcado activa. Leyendo, la selección es del
    * usuario —para copiar— y no se toca.
@@ -207,6 +209,8 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   @Output() campoRelleno = new EventEmitter<CampoRelleno>();
   /** Un enlace del documento a otro sitio de él. */
   @Output() irADestino = new EventEmitter<DestinoPdf>();
+  /** Un archivo pegado a la página: se descarga. */
+  @Output() adjuntoPulsado = new EventEmitter<NonNullable<EnlacePdf['adjunto']>>();
   /** Cuántos campos rellenables tiene esta página, para que el visor lo sepa. */
   @Output() camposEncontrados = new EventEmitter<number>();
 
@@ -333,7 +337,7 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
   // --- dibujo -----------------------------------------------------------
 
   private hayQueRedibujar(cambios: SimpleChanges): boolean {
-    return !!(cambios['documento'] || cambios['escala']
+    return !!(cambios['documento'] || cambios['escala'] || cambios['versionCapas']
       || (cambios['colocada'] && this.cambioDeVerdad(cambios['colocada'])));
   }
 
@@ -347,7 +351,7 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
     const { numero, rotacion, ancho, alto } = this.colocada;
     // La clave es la de la escala pedida, que es la que usa `priorizar`; el
     // lienzo puede ir a menos, pero eso no cambia qué página es.
-    this.clave = `${numero}:${rotacion}:${this.escala}`;
+    this.clave = `${numero}:${rotacion}:${this.escala}:${this.versionCapas}`;
     this.escalaPagina = escalaDelLienzo(ancho / this.escala, alto / this.escala, this.escala,
                                         densidadDePantalla());
     this.dibujada = false;
@@ -784,7 +788,9 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
     this.enlacesPintados = this.enlaces.map(enlace => ({
       ...enlace,
       estilo: aPorcentajes(enlace.rect, this.colocada.rotacion),
-      titulo: enlace.url ?? `Ir a la página ${enlace.destino!.pagina}`,
+      titulo: enlace.url
+        ?? (enlace.adjunto ? `Descargar el adjunto «${enlace.adjunto.nombre}»`
+                           : `Ir a la página ${enlace.destino!.pagina}`),
     }));
   }
 
@@ -793,6 +799,8 @@ export class VisorPaginaComponent implements OnChanges, AfterViewInit, OnDestroy
     evento.preventDefault();
     if (enlace.destino) {
       this.irADestino.emit(enlace.destino);
+    } else if (enlace.adjunto) {
+      this.adjuntoPulsado.emit(enlace.adjunto);
     }
   }
 

@@ -59,6 +59,26 @@ export function confirmar(titulo: string, texto: string, aceptar: string): Promi
   }).then(respuesta => respuesta.isConfirmed);
 }
 
+/**
+ * Pide la contraseña de un PDF protegido. `null` si se cancela. Va en un campo
+ * de contraseña, y no se guarda en ningún sitio: sólo vive en la memoria del
+ * documento abierto.
+ */
+export function pedirContrasena(nombre: string, incorrecta: boolean): Promise<string | null> {
+  return Swal.fire({
+    icon: incorrecta ? 'error' : 'question',
+    title: incorrecta ? 'La contraseña no es correcta' : 'PDF protegido',
+    text: incorrecta ? 'Vuelve a escribirla.' : `«${nombre}» pide una contraseña para abrirse.`,
+    input: 'password',
+    inputLabel: 'Contraseña',
+    inputAttributes: { autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' },
+    showCancelButton: true,
+    confirmButtonText: 'Abrir',
+    cancelButtonText: 'Cancelar',
+    inputValidator: valor => (valor ? null : 'Escribe la contraseña.'),
+  }).then(respuesta => (respuesta.isConfirmed ? String(respuesta.value) : null));
+}
+
 /** Extrae el mensaje útil de un error HTTP, con un texto de respaldo. */
 export function mensajeDeError(err: unknown, respaldo: string): string {
   const detalle = (err as { error?: { error?: string } })?.error?.error;

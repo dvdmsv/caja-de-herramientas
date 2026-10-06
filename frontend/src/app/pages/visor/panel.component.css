@@ -112,6 +112,76 @@
   overflow-wrap: anywhere;
 }
 
+/* Nombre entero en su línea y la descripción debajo, como en la cola de
+   archivos: dos adjuntos «informe-…» sólo se distinguen al final. */
+.adjuntos {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.adjunto {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+  font-size: 0.8rem;
+}
+
+.adjunto__datos {
+  flex: 1;
+  min-width: 0;
+}
+
+.adjunto__nombre {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.adjunto__detalle {
+  display: block;
+  color: var(--bs-secondary-color);
+}
+
+.adjunto__bajar {
+  flex-shrink: 0;
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 0;
+  background: none;
+  color: var(--bs-primary);
+}
+
+.capa {
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+/* TACTIL (core/pantalla.ts): el botón de bajar un adjunto y el interruptor de
+   una capa no llegaban a 44 px. El interruptor es de Bootstrap y no se agranda;
+   se agranda la fila, y la etiqueta, que también lo acciona, la ocupa entera. */
+@media (pointer: coarse) {
+  .adjunto__bajar {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .capa {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .capa .form-check-label {
+    flex: 1;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding-left: 0.4rem;
+  }
+}
+
 /* --- miniaturas --------------------------------------------------------- */
 .miniatura {
   margin-bottom: 0.75rem;

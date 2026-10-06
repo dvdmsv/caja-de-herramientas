@@ -5,7 +5,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { DocumentoPdf } from '../../core/pdf.service';
+import { AdjuntoPdf, CapaPdf, DocumentoPdf } from '../../core/pdf.service';
 import { densidadDePantalla } from '../../core/visor-render.service';
 import { Coincidencia, OpcionesBusqueda } from './buscador';
 import { Propiedad } from './documento-info';
@@ -49,6 +49,10 @@ export class VisorPanelComponent implements AfterViewInit, OnChanges, OnDestroy 
   @Input() opcionesBusqueda: OpcionesBusqueda = {};
   /** Lo que se cuenta en «Documento». */
   @Input() propiedades: Propiedad[] = [];
+  @Input() capas: CapaPdf[] = [];
+  @Input() adjuntos: AdjuntoPdf[] = [];
+  @Output() verCapa = new EventEmitter<{ id: string; visible: boolean }>();
+  @Output() descargarAdjunto = new EventEmitter<AdjuntoPdf>();
 
   @Output() pestanaChange = new EventEmitter<Pestana>();
   @Output() consultaChange = new EventEmitter<string>();

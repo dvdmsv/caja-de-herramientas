@@ -146,6 +146,38 @@
             <!-- Documento: propiedades -->
             @if (pestana === 'documento') {
               <div class="contenido">
+                @if (adjuntos.length) {
+                  <h2 class="seccion">Adjuntos</h2>
+                  <ul class="adjuntos">
+                    @for (adjunto of adjuntos; track $index) {
+                      <li class="adjunto">
+                        <span class="adjunto__datos">
+                          <span class="adjunto__nombre">{{ adjunto.nombre }}</span>
+                          @if (adjunto.descripcion) {
+                            <span class="adjunto__detalle">{{ adjunto.descripcion }}</span>
+                          }
+                        </span>
+                        <button type="button" class="adjunto__bajar" (click)="descargarAdjunto.emit(adjunto)"
+                          [attr.aria-label]="'Descargar ' + adjunto.nombre" title="Descargar">
+                          <i class="bi bi-download"></i>
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                }
+
+                @if (capas.length) {
+                  <h2 class="seccion">Capas</h2>
+                  <p class="aviso mb-2">Sólo cambia lo que ves: al guardar o imprimir, las capas quedan como venían.</p>
+                  @for (capa of capas; track capa.id) {
+                    <div class="form-check form-switch capa">
+                      <input class="form-check-input" type="checkbox" role="switch" [id]="'capa-' + capa.id"
+                        [checked]="capa.visible" (change)="verCapa.emit({ id: capa.id, visible: !capa.visible })">
+                      <label class="form-check-label" [for]="'capa-' + capa.id">{{ capa.nombre }}</label>
+                    </div>
+                  }
+                }
+
                 <h2 class="seccion">Propiedades</h2>
                 <dl class="propiedades">
                   @for (propiedad of propiedades; track propiedad.nombre) {

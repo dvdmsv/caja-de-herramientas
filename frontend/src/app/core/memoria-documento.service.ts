@@ -18,6 +18,8 @@ export interface Recuerdo {
   /** Desde que hay más modos que una o dos columnas; sin él, sale de `columnas`. */
   modoLectura?: string;
   oscuro: boolean;
+  /** Las capas que se han encendido o apagado, por su id. */
+  capas?: Record<string, boolean>;
   borrador?: Borrador;
   actualizado: number;
 }
