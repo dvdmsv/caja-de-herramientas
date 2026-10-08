@@ -267,8 +267,10 @@ def test_json_se_descarga_renombra_empaqueta_y_borra(entorno):
     respuesta = extraer(cliente, factura(), formato='json')
     archivo = respuesta.get_json()['files'][0]
     cabeceras = {'X-Session-Id': SESION}
-    descarga = cliente.get(f"/api/files/{archivo['id']}/download", headers=cabeceras)
-    assert 'tablas' in json.loads(descarga.data)
+    # send_file mantiene abierto el archivo hasta cerrar la respuesta. En
+    # Windows ese descriptor impediría borrarlo al final de la prueba.
+    with cliente.get(f"/api/files/{archivo['id']}/download", headers=cabeceras) as descarga:
+        assert 'tablas' in json.loads(descarga.data)
     registro = storage.record_of(SESION, archivo['id'])
     assert registro.stored_name != f"{archivo['id']}.json"
     renombrado = cliente.patch(f"/api/files/{archivo['id']}", headers=cabeceras,
@@ -276,9 +278,9 @@ def test_json_se_descarga_renombra_empaqueta_y_borra(entorno):
     assert renombrado['name'] == 'Mis tablas.json'
     paquete = cliente.post('/api/files/zip', headers=cabeceras,
                             json={'file_ids': [archivo['id']], 'name': 'tablas.zip'}).get_json()
-    descarga_zip = cliente.get(f"/api/files/{paquete['files'][0]['id']}/download", headers=cabeceras)
-    with zipfile.ZipFile(io.BytesIO(descarga_zip.data)) as zip:
-        assert 'tablas' in json.loads(zip.read('Mis tablas.json'))
+    with cliente.get(f"/api/files/{paquete['files'][0]['id']}/download", headers=cabeceras) as descarga_zip:
+        with zipfile.ZipFile(io.BytesIO(descarga_zip.data)) as zip:
+            assert 'tablas' in json.loads(zip.read('Mis tablas.json'))
     ruta = Path(storage.path_of(SESION, archivo['id']))
     assert cliente.delete(f"/api/files/{archivo['id']}", headers=cabeceras).status_code in {200, 204}
     assert not ruta.exists()
