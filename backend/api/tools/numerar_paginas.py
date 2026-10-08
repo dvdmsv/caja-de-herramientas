@@ -14,6 +14,7 @@ import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
 
 from api import current_session, params, progreso, vista_previa
+from api.texto_pdf import escribir_en_borde as _escribir
 from api.tipografia import COLORES_TEXTO, FAMILIAS, TAMANO_MAXIMO, TAMANO_MINIMO, fuente
 from errors import ApiError
 from storage import storage, nombre_seguro
@@ -139,24 +140,3 @@ def _numerar(origen: str, destino: str, nombre: str, ajustes: dict) -> None:
             documento.save(destino, deflate=True, garbage=3)
         except Exception as err:
             raise ApiError(f'No se ha podido guardar "{nombre}": {err}', 422) from err
-
-
-def _escribir(pagina, texto: str, ajustes: dict) -> None:
-    caja = pagina.rect
-    margen, tamano = ajustes['margen'], ajustes['tamano']
-    ancho = fitz.get_text_length(texto, fontname=ajustes['fuente'], fontsize=tamano)
-
-    if ajustes['alineacion'] == 'izquierda':
-        x = caja.x0 + margen
-    elif ajustes['alineacion'] == 'derecha':
-        x = caja.x1 - margen - ancho
-    else:
-        x = caja.x0 + (caja.width - ancho) / 2
-
-    # `insert_text` sitúa la línea base: arriba hay que bajarla el cuerpo entero
-    # para que el número quede dentro del margen, no pisándolo.
-    y = caja.y0 + margen + tamano if ajustes['borde'] == 'arriba' else caja.y1 - margen
-
-    punto = fitz.Point(x, y) * pagina.derotation_matrix
-    pagina.insert_text(punto, texto, fontname=ajustes['fuente'], fontsize=tamano,
-                       color=ajustes['color'], rotate=pagina.rotation)

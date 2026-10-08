@@ -77,7 +77,7 @@ import { SeccionAjustes } from './seccion';
       </app-fila-ajuste>
 
       <app-fila-ajuste titulo="Servidor de sello de tiempo"
-        detalle="El que usa «Firmar con certificado» para fechar la firma. Sólo le llega un resumen de la firma, nunca el documento.">
+        detalle="El que usan «Firmar con certificado» y «Marca de tiempo». Sólo le llega un resumen criptográfico, nunca el documento.">
         <input type="url" class="form-control url" aria-label="Servidor de sello de tiempo"
           [placeholder]="serie.selloTiempo" [value]="av.sello_tiempo ?? ''" [disabled]="ocupada"
           (change)="sello($any($event.target).value)">

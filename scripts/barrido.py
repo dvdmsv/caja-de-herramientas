@@ -338,6 +338,10 @@ def main():
            {'file_ids': [pdf], 'campos': True, 'anotaciones': True})
     prueba('proteger-pdf', '/api/tools/proteger-pdf',
            {'file_ids': [pdf], 'accion': 'proteger', 'password': 'clave1234', 'password_actual': ''})
+    prueba('marca-de-tiempo (visible)', '/api/tools/marca-de-tiempo',
+           {'file_ids': [pdf], 'modo': 'visible', 'fecha': '2026-10-08T12:00:00+02:00'})
+    prueba('marca-de-tiempo/previsualizar', '/api/tools/marca-de-tiempo/previsualizar',
+           {'file_ids': [pdf], 'modo': 'visible', 'fecha': '2026-10-08T12:00:00+02:00'})
     prueba('numerar-paginas', '/api/tools/numerar-paginas', {'file_ids': [pdf]})
     prueba('numerar/previsualizar', '/api/tools/numerar-paginas/previsualizar',
            {'file_ids': [pdf], 'pagina': 1})
@@ -392,8 +396,9 @@ def main():
     print('\n=== Documentos ===')
     prueba('extraer-tablas/inspec', '/api/tools/extraer-tablas/inspeccionar',
            {'file_ids': [conTabla]})
-    prueba('extraer-tablas', '/api/tools/extraer-tablas',
-           {'file_ids': [conTabla], 'formato': 'xlsx'})
+    for formato in ['xlsx', 'csv', 'json', 'markdown']:
+        prueba(f'extraer-tablas ({formato})', '/api/tools/extraer-tablas',
+               {'file_ids': [conTabla], 'formato': formato})
     prueba('limpiar-metadatos/inspec', '/api/tools/limpiar-metadatos/inspeccionar', {'file_ids': [pdf]})
     prueba('limpiar-metadatos', '/api/tools/limpiar-metadatos',
            {'file_ids': [pdf], 'seleccion': {pdf: ['author']},

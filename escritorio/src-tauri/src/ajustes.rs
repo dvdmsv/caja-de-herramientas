@@ -135,7 +135,7 @@ pub struct Avanzado {
     pub subida_max_mb: Option<u32>,
     /// Lo más que pueden ocupar los archivos de una ventana, en MB (`SESSION_QUOTA_MB`).
     pub cuota_mb: Option<u32>,
-    /// El servidor de sello de tiempo de «Firmar con certificado» (`TSA_URL`).
+    /// El servidor de «Firmar con certificado» y «Marca de tiempo» (`TSA_URL`).
     pub sello_tiempo: Option<String>,
 }
 

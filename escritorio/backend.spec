@@ -54,7 +54,7 @@ a = Analysis(
     pathex=[BACKEND],
     binaries=binaries,
     datas=datas,
-    hiddenimports=hiddenimports + ['waitress'],
+    hiddenimports=hiddenimports + ['waitress', 'pyhanko.sign.timestamps', 'pyhanko.sign.validation'],
     # Lo que sólo sirve al servicio web o a los tests.
     excludes=['gunicorn', 'pytest', 'tkinter'],
     noarchive=False,

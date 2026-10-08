@@ -254,7 +254,7 @@ no cambia nunca:
     Windows, memoria, ajustes cambiados y el final del registro; sin nombres de
     archivo) y la carpeta de registros.
   - **Avanzado**: memoria máxima, prioridad baja, tamaño máximo de subida,
-    espacio por ventana y servidor de sello de tiempo. **Se aplican al volver a
+    espacio por ventana y servidor de sello de tiempo (para «Firmar con certificado» y «Marca de tiempo»). **Se aplican al volver a
     abrir** (el job y las variables de entorno del backend se fijan al
     arrancar), con «Reiniciar ahora». Guardan `null` cuando están de serie: el
     valor lo sigue decidiendo quien lo aplica (`escritorio.preparar_entorno`,
@@ -472,3 +472,8 @@ si falta el runtime de Visual C++):
   de las bibliotecas de Python, que salen idénticos entre compilaciones. Si un
   paquete pesara cientos de MB, se vería comparando los `archivos.json` de las
   dos releases.
+
+«Extraer tablas» también exporta JSON y Markdown sin conexión. «Marca de tiempo»
+comparte los dos modos de la web: la fecha visible se genera localmente; el sello
+RFC 3161 requiere conexión a la autoridad configurada y sólo envía el resumen
+SHA-256, nunca el PDF. Los módulos de pyHanko ya se incluyen en `backend.spec`.

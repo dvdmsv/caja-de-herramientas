@@ -18,6 +18,8 @@ decimal o puntos de millar bien puestos. Un número a secas se queda como texto.
 """
 import csv
 import io
+import json
+import html
 import re
 
 # Un importe escrito a la española: puntos de millar en grupos de tres y coma
@@ -145,3 +147,41 @@ def _nombre_de_hoja(nombre: str, usados: set) -> str:
             usados.add(candidato)
             return candidato
     raise ValueError('demasiadas hojas con el mismo nombre')
+
+
+
+def a_json(tablas: list) -> bytes:
+    """Todas las tablas, con su página y sin inventar nombres de columnas."""
+    contenido = {'tablas': [
+        {'pagina': pagina, 'indice': indice,
+         'filas': [[_valor(celda) for celda in fila] for fila in filas]}
+        for indice, (pagina, filas) in enumerate(tablas, start=1)
+    ]}
+    return (json.dumps(contenido, ensure_ascii=False, indent=2, allow_nan=False) + '\n').encode('utf-8')
+
+
+def a_markdown(tablas: list) -> bytes:
+    """Una sección por tabla; la primera fila es la cabecera."""
+    secciones = []
+    for indice, (pagina, filas) in enumerate(tablas, start=1):
+        if not filas:
+            continue
+        columnas = max(len(fila) for fila in filas)
+
+        def linea(fila):
+            celdas = [_celda_markdown(celda) for celda in fila]
+            celdas += [''] * (columnas - len(celdas))
+            return '| ' + ' | '.join(celdas) + ' |'
+
+        secciones.append('\n'.join([
+            f'## Tabla {indice} · Página {pagina}', '', linea(filas[0]),
+            '| ' + ' | '.join(['---'] * columnas) + ' |',
+            *(linea(fila) for fila in filas[1:]),
+        ]))
+    return ('\n\n'.join(secciones) + '\n').encode('utf-8')
+
+
+def _celda_markdown(celda) -> str:
+    # El texto del PDF debe seguir siendo texto, incluso si contiene HTML.
+    texto = html.escape(_limpiar(celda), quote=False)
+    return re.sub(r'([\\`*_{}\[\]()#+.!|>~-])', r'\\\1', texto)

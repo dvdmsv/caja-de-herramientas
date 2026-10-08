@@ -1,0 +1,113 @@
+<app-tool-page slug="marca-de-tiempo">
+  <app-file-queue [items]="archivos" [deshabilitado]="ocupado"
+    ayuda="Arrastra el PDF al que quieras añadir una marca de tiempo"
+    (agregados)="alAgregar($event)" (itemsChange)="alQuitarDocumento()">
+  </app-file-queue>
+
+  <fieldset class="mt-4" [disabled]="ocupado">
+    <legend class="h6">Tipo de marca</legend>
+    <div class="d-flex flex-wrap gap-2">
+      <input type="radio" class="btn-check" name="modo" id="modo-cripto"
+        [checked]="modo === 'criptografico'" (change)="cambiarModo('criptografico')">
+      <label class="btn btn-outline-primary" for="modo-cripto">Sello criptográfico</label>
+      <input type="radio" class="btn-check" name="modo" id="modo-visible"
+        [checked]="modo === 'visible'" (change)="cambiarModo('visible')">
+      <label class="btn btn-outline-primary" for="modo-visible">Fecha visible</label>
+    </div>
+  </fieldset>
+
+  @if (modo === 'criptografico') {
+    <div class="alert alert-info mt-4">
+      <strong>Fecha certificada por una autoridad de tiempo.</strong>
+      Añade un sello digital al documento sin necesitar un certificado personal.
+      Requiere conexión a internet: sólo se envía el resumen SHA-256 del documento,
+      nunca el PDF. Utiliza la autoridad de tiempo configurada en la aplicación.
+      <span class="d-block mt-2">El sello no cambia el aspecto de las páginas.
+        Puedes consultarlo con «Comprobar firmas». Si las restricciones de una firma
+        existente impiden añadirlo, se explica el problema.</span>
+    </div>
+  } @else {
+    <div class="alert alert-info mt-4">
+      La fecha se escribe en todas las páginas y funciona sin conexión.
+      Es texto: no certifica cuándo existía el documento. Los PDF con firmas o sellos
+      digitales se bloquean para evitar alterarlos.
+    </div>
+    <fieldset class="mt-4" [disabled]="ocupado">
+      <legend class="h6">Fecha y hora</legend>
+      <div class="d-flex flex-wrap gap-3 mb-3">
+        <label><input type="radio" name="origen" [checked]="origenFecha === 'actual'"
+          (change)="cambiarOrigen('actual')"> Actual</label>
+        <label><input type="radio" name="origen" [checked]="origenFecha === 'manual'"
+          (change)="cambiarOrigen('manual')"> Manual</label>
+      </div>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label for="fecha-marca" class="form-label">Fecha y hora que se estamparán</label>
+          <input type="datetime-local" class="form-control" id="fecha-marca" step="1"
+            [readonly]="origenFecha === 'actual'" [(ngModel)]="fecha" (ngModelChange)="alCambiarAjuste()">
+        </div>
+        <div class="col-12 col-md-6">
+          <label for="zona-marca" class="form-label">Zona horaria</label>
+          <select id="zona-marca" class="form-select" [ngModel]="zona" (ngModelChange)="cambiarZona($event)">
+            <option value="local">La de mi equipo ({{ zonaLocal }})</option>
+            <option value="utc">UTC</option>
+          </select>
+        </div>
+      </div>
+      @if (origenFecha === 'actual') {
+        <button class="btn btn-outline-secondary mt-3" type="button" (click)="ahora()">Ahora</button>
+        <p class="form-text">La hora queda fijada para que la vista previa coincida con el resultado.
+          Pulsa «Ahora» para actualizarla.</p>
+      }
+      @if (fechaExplicita) {
+        <p class="form-text">Instante seleccionado: {{ fechaExplicita }}</p>
+      } @else {
+        <p class="text-danger mt-2" role="alert">Indica una fecha y hora válidas para la zona elegida.</p>
+      }
+    </fieldset>
+    <fieldset class="mt-4" [disabled]="ocupado">
+      <legend class="h6">Dónde y cómo se escribe</legend>
+      <div class="row g-3">
+        <div class="col-6">
+          <label for="borde-marca" class="form-label">Borde</label>
+          <select id="borde-marca" class="form-select" [(ngModel)]="borde" (change)="alCambiarAjuste()">
+            @for (opcion of posiciones; track opcion.id) { <option [value]="opcion.id">{{ opcion.nombre }}</option> }
+          </select>
+        </div>
+        <div class="col-6">
+          <label for="alineacion-marca" class="form-label">Alineación</label>
+          <select id="alineacion-marca" class="form-select" [(ngModel)]="alineacion" (change)="alCambiarAjuste()">
+            @for (opcion of alineaciones; track opcion.id) { <option [value]="opcion.id">{{ opcion.nombre }}</option> }
+          </select>
+        </div>
+        <div class="col-6">
+          <label for="fuente-marca" class="form-label">Letra</label>
+          <select id="fuente-marca" class="form-select" [(ngModel)]="fuente" (change)="alCambiarAjuste()">
+            @for (opcion of fuentes; track opcion.id) { <option [value]="opcion.id">{{ opcion.nombre }}</option> }
+          </select>
+        </div>
+        <div class="col-6">
+          <label for="color-marca" class="form-label">Color</label>
+          <select id="color-marca" class="form-select" [(ngModel)]="color" (change)="alCambiarAjuste()">
+            @for (opcion of colores; track opcion.id) { <option [value]="opcion.id">{{ opcion.nombre }}</option> }
+          </select>
+        </div>
+        <div class="col-6">
+          <label for="tamano-marca" class="form-label">Tamaño: {{ tamano }} pt</label>
+          <input type="range" class="form-range" id="tamano-marca" min="6" max="24" step="1"
+            [(ngModel)]="tamano" (change)="alCambiarAjuste()">
+        </div>
+        <div class="col-6">
+          <label for="margen-marca" class="form-label">Margen: {{ margen }} mm</label>
+          <input type="range" class="form-range" id="margen-marca" min="5" max="30" step="1"
+            [(ngModel)]="margen" (change)="alCambiarAjuste()">
+        </div>
+      </div>
+    </fieldset>
+    <app-vista-pagina [imagen]="vista" [paginas]="paginas" [pagina]="paginaVista"
+      [cargando]="previsualizando" [deshabilitado]="ocupado" (paginaChange)="cambiarPagina($event)">
+    </app-vista-pagina>
+  }
+  <app-tool-controls [pagina]="pagina" accion="Añadir marca de tiempo" icono="bi-clock"></app-tool-controls>
+  <app-result-list [archivos]="resultados"></app-result-list>
+</app-tool-page>

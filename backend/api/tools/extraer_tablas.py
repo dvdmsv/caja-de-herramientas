@@ -28,7 +28,7 @@ from storage import storage, nombre_seguro
 
 bp = Blueprint('extraer_tablas', __name__, url_prefix='/api/tools')
 
-FORMATOS = {'xlsx': '.xlsx', 'csv': '.csv'}
+FORMATOS = {'xlsx': '.xlsx', 'csv': '.csv', 'json': '.json', 'markdown': '.md'}
 
 PLAZO_EN_PROCESO = config.entorno_entero('RASTER_TIMEOUT_SECONDS', 180)
 
@@ -84,6 +84,12 @@ def extraer_tablas():
     base = os.path.splitext(nombre_seguro(record.name))[0]
     if formato == 'csv':
         return jsonify({'files': _un_csv_por_tabla(session_id, base, encontradas)}), 201
+    if formato in {'json', 'markdown'}:
+        destino, salida = storage.reserve_output(session_id, f'{base}-tablas{FORMATOS[formato]}')
+        exportar = tablas.a_json if formato == 'json' else tablas.a_markdown
+        with open(destino, 'wb') as archivo:
+            archivo.write(exportar(encontradas))
+        return jsonify({'files': [storage.commit_output(session_id, salida).to_json()]}), 201
     return jsonify({'files': [_un_libro(session_id, base, encontradas)]}), 201
 
 

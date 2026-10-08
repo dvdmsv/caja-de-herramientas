@@ -36,7 +36,7 @@ def nombre_seguro(nombre: str) -> str:
     No se usa ``secure_filename`` de Werkzeug porque destruye los nombres en
     español ("año.pdf" acabaría como "ao.pdf"). Aquí no hace falta su dureza: el
     nombre nunca toca el disco, sólo se guarda como metadato y se devuelve en la
-    descarga; en disco todo se llama ``<uuid><ext>``.
+    descarga; en disco se usa el UUID, con un nombre separado para el contenido JSON.
     """
     limpio = PELIGROSOS_RE.sub('', os.path.basename(nombre or '')).strip().strip('.')
     if len(limpio) > LONGITUD_MAXIMA_NOMBRE:
@@ -55,7 +55,7 @@ class FileRecord:
     """Metadatos de un archivo guardado en una sesión."""
     id: str
     name: str          # nombre original, el que ve el usuario
-    stored_name: str   # nombre en disco, siempre <id><ext>
+    stored_name: str   # <id><ext>; JSON usa <id>.contenido.json para no pisar el sidecar
     size: int
     ext: str           # extensión en minúsculas, con punto
     generated: bool    # True si lo produjo una herramienta, False si lo subió el usuario
@@ -230,7 +230,7 @@ class Storage:
         self._comprobar_disco(anunciado or 1)
 
         file_id = new_id()
-        stored_name = f'{file_id}{ext}'
+        stored_name = f'{file_id}.contenido.json' if ext == '.json' else f'{file_id}{ext}'
         target = os.path.join(self.session_dir(session_id), stored_name)
         file_storage.save(target)
 
@@ -277,7 +277,7 @@ class Storage:
         file_id = new_id()
         name = nombre_seguro(name)
         ext = os.path.splitext(name)[1].lower()
-        stored_name = f'{file_id}{ext}'
+        stored_name = f'{file_id}.contenido.json' if ext == '.json' else f'{file_id}{ext}'
         path = os.path.join(self.session_dir(session_id), stored_name)
         record = FileRecord(id=file_id, name=name, stored_name=stored_name, size=0, ext=ext, generated=True)
         return path, record

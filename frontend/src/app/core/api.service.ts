@@ -93,6 +93,7 @@ export interface DatosCertificado {
 
 /** Una firma digital encontrada dentro de un PDF. */
 export interface FirmaEncontrada {
+  tipo: 'firma' | 'sello_tiempo';
   campo: string;
   firmante: string;
   emisor: string;

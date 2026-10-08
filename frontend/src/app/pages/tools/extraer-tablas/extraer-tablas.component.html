@@ -10,13 +10,19 @@
 
   <fieldset class="mt-4">
     <legend class="h6">Cómo lo quieres</legend>
-    <div class="btn-group" role="group">
+    <div class="d-flex flex-wrap gap-2" role="group" aria-label="Formato de salida">
       <button type="button" class="btn" [class.btn-primary]="formato === 'xlsx'"
         [class.btn-outline-secondary]="formato !== 'xlsx'" [disabled]="ocupado"
         (click)="elegirFormato('xlsx')">Un Excel, una hoja por tabla</button>
       <button type="button" class="btn" [class.btn-primary]="formato === 'csv'"
         [class.btn-outline-secondary]="formato !== 'csv'" [disabled]="ocupado"
         (click)="elegirFormato('csv')">Un CSV por tabla</button>
+      <button type="button" class="btn" [class.btn-primary]="formato === 'json'"
+        [class.btn-outline-secondary]="formato !== 'json'" [disabled]="ocupado"
+        (click)="elegirFormato('json')">Un JSON con todas las tablas</button>
+      <button type="button" class="btn" [class.btn-primary]="formato === 'markdown'"
+        [class.btn-outline-secondary]="formato !== 'markdown'" [disabled]="ocupado"
+        (click)="elegirFormato('markdown')">Un Markdown con todas las tablas</button>
     </div>
   </fieldset>
 
@@ -54,7 +60,7 @@
       significaría entregar de vez en cuando una tabla inventada: con una hoja de cálculo eso
       no se nota hasta que ya has trabajado sobre ella.
       <span class="d-block mt-1">
-        Los importes salen como números para que se puedan sumar. Lo que puede ser otra cosa
+        En Excel y JSON los importes salen como números para que se puedan sumar. Lo que puede ser otra cosa
         —un código postal, un año, una referencia— se queda como texto a propósito.
         Y si el PDF es un escaneado, pásalo antes por «PDF con OCR».
       </span>

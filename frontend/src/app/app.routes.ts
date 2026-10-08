@@ -37,6 +37,13 @@ export const routes: Routes = [
         .then(m => m.FirmarCertificadoComponent),
   },
   {
+    path: 'herramientas/marca-de-tiempo',
+    title: 'Marca de tiempo',
+    loadComponent: () =>
+      import('./pages/tools/marca-de-tiempo/marca-de-tiempo.component')
+        .then(m => m.MarcaDeTiempoComponent),
+  },
+  {
     path: 'herramientas/comprobar-firmas',
     title: 'Comprobar firmas',
     loadComponent: () =>

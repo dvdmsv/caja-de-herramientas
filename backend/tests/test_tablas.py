@@ -205,3 +205,80 @@ def test_lo_que_no_es_un_pdf_se_rechaza(cliente):
 
     assert respuesta.status_code == 400
     assert 'no es un PDF' in respuesta.get_json()['error']
+
+
+@pytest.mark.parametrize('formato, extension', [('json', '.json'), ('markdown', '.md')])
+def test_exportaciones_reunen_tablas_y_paginas(cliente, formato, extension):
+    import json
+    from pathlib import Path
+
+    with fitz.open(stream=factura(), filetype='pdf') as original:
+        with fitz.open(stream=factura(), filetype='pdf') as segunda:
+            original.insert_pdf(segunda)
+        respuesta = extraer(cliente, original.tobytes(), formato=formato)
+    assert respuesta.status_code == 201
+    archivos = respuesta.get_json()['files']
+    assert len(archivos) == 1
+    assert archivos[0]['name'].endswith(extension)
+    texto = Path(leer(respuesta)).read_text(encoding='utf-8')
+    if formato == 'json':
+        tablas = json.loads(texto)['tablas']
+        assert [(t['pagina'], t['indice']) for t in tablas] == [(1, 1), (2, 2)]
+        assert tablas[0]['filas'][1] == ['Horas de desarrollo', '12', 45.0, 540.0]
+    else:
+        assert '## Tabla 1 · Página 1' in texto
+        assert '## Tabla 2 · Página 2' in texto
+        assert '| Concepto | Uds | Precio | Importe |' in texto
+
+
+def test_json_preserva_codigos_unicode_y_celdas_vacias():
+    import json
+    from api.tablas import a_json
+
+    tablas = json.loads(a_json([(3, [['Código', 'Importe'], ['08001', '1.234,56'],
+                                    ['Año', None], ['2026', '45 %']])]))['tablas']
+    assert tablas == [{'pagina': 3, 'indice': 1, 'filas': [
+        ['Código', 'Importe'], ['08001', 1234.56], ['Año', ''], ['2026', '45 %']]}]
+
+
+def test_markdown_escapa_texto_y_completa_filas():
+    from api.tablas import a_markdown
+    from markdown_it import MarkdownIt
+
+    texto = a_markdown([(1, [['A|B', '<img>'], ['**negrita**'], [None, 'línea\nsiguiente']])]).decode()
+    html = MarkdownIt().enable('table').render(texto)
+    assert '<th>A|B</th>' in html
+    assert '&lt;img&gt;' in html
+    assert '<td>**negrita**</td>' in html
+    assert '<strong>' not in html and '<img>' not in html
+    assert '<td>línea siguiente</td>' in html
+
+
+def test_json_se_descarga_renombra_empaqueta_y_borra(entorno):
+    import json
+    import zipfile
+    import io
+    from pathlib import Path
+    from app import create_app
+    from storage import storage
+
+    entorno()
+    cliente = create_app().test_client()
+    respuesta = extraer(cliente, factura(), formato='json')
+    archivo = respuesta.get_json()['files'][0]
+    cabeceras = {'X-Session-Id': SESION}
+    descarga = cliente.get(f"/api/files/{archivo['id']}/download", headers=cabeceras)
+    assert 'tablas' in json.loads(descarga.data)
+    registro = storage.record_of(SESION, archivo['id'])
+    assert registro.stored_name != f"{archivo['id']}.json"
+    renombrado = cliente.patch(f"/api/files/{archivo['id']}", headers=cabeceras,
+                               json={'name': 'Mis tablas'}).get_json()
+    assert renombrado['name'] == 'Mis tablas.json'
+    paquete = cliente.post('/api/files/zip', headers=cabeceras,
+                            json={'file_ids': [archivo['id']], 'name': 'tablas.zip'}).get_json()
+    descarga_zip = cliente.get(f"/api/files/{paquete['files'][0]['id']}/download", headers=cabeceras)
+    with zipfile.ZipFile(io.BytesIO(descarga_zip.data)) as zip:
+        assert 'tablas' in json.loads(zip.read('Mis tablas.json'))
+    ruta = Path(storage.path_of(SESION, archivo['id']))
+    assert cliente.delete(f"/api/files/{archivo['id']}", headers=cabeceras).status_code in {200, 204}
+    assert not ruta.exists()

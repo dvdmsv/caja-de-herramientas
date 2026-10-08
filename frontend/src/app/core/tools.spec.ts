@@ -84,3 +84,22 @@ describe('a qué herramientas mandar un archivo', () => {
     expect(slugs([pdf, foto])).toEqual(['limpiar-metadatos', 'leer-codigo']);
   });
 });
+
+
+describe('herramientas de tablas, correo y marca de tiempo', () => {
+  it('encuentra los formatos nuevos y el sello de tiempo', () => {
+    expect(buscar('tablas json').map(h => h.slug)).toContain('extraer-tablas');
+    expect(buscar('tablas markdown').map(h => h.slug)).toContain('extraer-tablas');
+    expect(buscar('email pdf').map(h => h.slug)).toContain('correo-a-pdf');
+    expect(buscar('timestamp').map(h => h.slug)).toContain('marca-de-tiempo');
+  });
+
+  it('ofrece marcar un PDF y conserva la conversión de correos', () => {
+    expect(destinosPara([{ name: 'a.pdf', type: '' }]).map(h => h.slug)).toContain('marca-de-tiempo');
+    expect(destinosPara([{ name: 'a.pdf', type: '' }, { name: 'b.pdf', type: '' }])
+      .map(h => h.slug)).not.toContain('marca-de-tiempo');
+    for (const ext of ['eml', 'msg']) {
+      expect(destinosPara([{ name: 'correo.' + ext, type: '' }]).map(h => h.slug)).toContain('correo-a-pdf');
+    }
+  });
+});

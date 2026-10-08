@@ -80,12 +80,14 @@ def _firmas_de(ruta: str, nombre: str) -> list[dict]:
 
 def _resumen(firma) -> dict:
     """Lo que se sabe de una firma, ya en castellano y sin objetos de pyHanko."""
-    from pyhanko.sign.validation import validate_pdf_signature
+    from pyhanko.sign.validation import validate_pdf_signature, validate_pdf_timestamp
     from pyhanko_certvalidator import ValidationContext
 
+    es_sello = firma.sig_object.get('/Type') == '/DocTimeStamp'
     certificado = firma.signer_cert
     datos = {
         'campo': firma.field_name,
+        'tipo': 'sello_tiempo' if es_sello else 'firma',
         'firmante': firma_digital.nombre_de(certificado),
         'emisor': firma_digital.emisor_de(certificado),
         'autofirmado': certificado.self_signed != 'no',
@@ -108,15 +110,20 @@ def _resumen(firma) -> dict:
 
     contexto = ValidationContext(trust_roots=[], allow_fetching=False, revocation_mode='soft-fail')
     try:
-        estado = validate_pdf_signature(firma, contexto)
+        validar = validate_pdf_timestamp if es_sello else validate_pdf_signature
+        estado = validar(firma, contexto)
     except Exception as err:
-        datos['error'] = f'No se ha podido comprobar esta firma: {err}'
+        datos['error'] = f'No se ha podido comprobar este sello: {err}' if es_sello else f'No se ha podido comprobar esta firma: {err}'
         return datos
 
-    datos['intacta'] = bool(estado.intact)
+    datos['intacta'] = bool(estado.intact and estado.valid) if es_sello else bool(estado.intact)
     datos['cobertura'] = COBERTURAS.get(getattr(estado.coverage, 'name', ''), 'parcial')
     if estado.modification_level is not None:
         datos['cambios'] = CAMBIOS.get(estado.modification_level.name, 'cambios desconocidos')
+    if es_sello:
+        datos['fecha'] = datos['sello_tiempo'] = _fecha(estado.timestamp)
+        datos['vigente_al_firmar'] = _vigente(certificado, estado.timestamp)
+        return datos
     if estado.timestamp_validity is not None:
         datos['sello_tiempo'] = _fecha(estado.timestamp_validity.timestamp)
     datos['vigente_al_firmar'] = _vigente(certificado, estado.signer_reported_dt)

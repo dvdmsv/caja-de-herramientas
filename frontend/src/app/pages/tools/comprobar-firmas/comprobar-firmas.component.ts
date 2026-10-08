@@ -77,6 +77,14 @@ export class ComprobarFirmasComponent extends PaginaHerramienta {
   }
 
   titular(firma: FirmaEncontrada): string {
+    if (firma.tipo === 'sello_tiempo') {
+      return {
+        bien: 'Sello de tiempo correcto: el documento no ha cambiado',
+        aviso: 'Sello de tiempo correcto, pero se añadió algo después',
+        mal: 'El documento se ha modificado después de sellarlo',
+        desconocido: 'No se ha podido comprobar el sello de tiempo',
+      }[this.estado(firma)];
+    }
     return {
       bien: 'Firma correcta: el documento no ha cambiado',
       aviso: 'Firma correcta, pero se añadió algo después',

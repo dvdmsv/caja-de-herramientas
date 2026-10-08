@@ -11,14 +11,14 @@
   @if (comprobando) {
     <p class="text-body-secondary small mt-3">
       <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-      Comprobando las firmas…
+      Comprobando las firmas y sellos de tiempo…
     </p>
   }
 
   @if (sinFirmas && !comprobando) {
     <div class="alert alert-secondary mt-3">
       <i class="bi bi-info-circle me-1"></i>
-      Este documento <strong>no lleva ninguna firma digital</strong>. Puede llevar la imagen de una
+      Este documento <strong>no lleva ninguna firma digital ni sello de tiempo</strong>. Puede llevar la imagen de una
       firma dibujada encima, que se parece pero no demuestra nada.
     </div>
   }
@@ -41,7 +41,7 @@
               {{ titular(firma) }}
             </h3>
             <dl class="row mb-0 small">
-              <dt class="col-sm-3">Firmante</dt>
+              <dt class="col-sm-3">{{ firma.tipo === 'sello_tiempo' ? 'Autoridad de tiempo' : 'Firmante' }}</dt>
               <dd class="col-sm-9">{{ firma.firmante }}</dd>
               <dt class="col-sm-3">Expedido por</dt>
               <dd class="col-sm-9">
@@ -105,9 +105,10 @@
     <div class="alert alert-secondary mt-4">
       <i class="bi bi-info-circle me-1"></i>
       <strong>Qué se comprueba y qué no.</strong>
-      Se comprueba que el documento no ha cambiado, hasta dónde alcanza cada firma y si el
-      certificado estaba vigente. <strong>No se comprueba que el firmante sea quien dice ser</strong>:
-      para eso habría que contrastar su certificado con las listas de confianza oficiales, y eso
+      Se comprueba que el documento no ha cambiado, hasta dónde alcanza cada firma o sello y si el
+      certificado estaba vigente. <strong>No se comprueba que el firmante sea quien dice ser</strong>.
+      Tampoco se acredita la confianza oficial de la autoridad de tiempo. Para eso habría que
+      contrastar los certificados con las listas de confianza oficiales, y eso
       exige salir a internet. Aquí se identifica al firmante; no se le acredita.
     </div>
   }

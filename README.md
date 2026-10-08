@@ -80,7 +80,7 @@ Cómo está hecha, cómo compilarla y cómo publicar una versión, en
 | Editar imagen | Recorta, gira y cambia de tamaño una foto | proporciones preajustadas, giro, volteo, lado máximo y calidad |
 | Efecto escáner | Quita la sombra y el fondo gris de la foto de un papel | blanco y negro, grises o color; cuánto apretar; vista previa |
 | Imagen a PDF | Reúne varias imágenes en un PDF | tamaño de página, orientación, margen y calidad |
-| Extraer tablas | Saca a Excel o a CSV las tablas de un PDF, con los importes ya como números | un `.xlsx` con una hoja por tabla, o un `.csv` por tabla |
+| Extraer tablas | Exporta las tablas de un PDF a Excel, CSV, JSON o Markdown | Excel con una hoja por tabla; CSV por tabla; JSON y Markdown con todas las tablas y su página |
 | Documento a Markdown | Extrae el contenido para dárselo a un LLM | unir todo en un archivo |
 | Documento a PDF | Pasa Word, Excel, PowerPoint, OpenDocument, RTF o texto plano a PDF | varios documentos de una vez |
 | PDF a Word | Saca un `.docx` editable de un PDF | varios documentos de una vez |
@@ -91,6 +91,7 @@ Cómo está hecha, cómo compilarla y cómo publicar una versión, en
 | Correo a PDF | Guarda un correo `.eml` o `.msg` de Outlook como documento y saca sus adjuntos aparte | varios correos de una vez |
 | Editar metadatos | Enseña lo que tus archivos cuentan de ti, y lo corriges o lo borras | campo a campo, valores editables, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
+| Marca de tiempo | Añade un sello digital RFC 3161 sin certificado personal, o una fecha visible en todas las páginas | sello con la autoridad configurada; fecha actual o manual, zona horaria, posición, letra, color y vista previa |
 | Numerar páginas | Numera el documento | posición, formato, desde qué página, con vista previa |
 | Extraer imágenes | Saca las imágenes que lleva dentro un PDF | tamaño mínimo y formato |
 | Leer QR o código de barras | Saca lo que pone dentro de un código, desde un pantallazo, una foto o un PDF | ninguna |
@@ -235,7 +236,7 @@ configura la propia aplicación, en Herramientas → Preferencias). Sin él, la 
 la pone el reloj del servidor y no demuestra nada; peor aún, el día que caduque
 tu certificado la firma deja de verificarse, porque nadie puede saber si firmaste
 antes o después. Con él, una autoridad de sellado da fe de la hora y la firma
-aguanta. Es la única función de toda la aplicación que sale a internet, y lo
+aguanta. Junto con «Marca de tiempo», es una función que sale a internet, y lo
 único que manda es un resumen de 32 bytes: el documento no viaja.
 
 "Comprobar firmas" contesta lo que se puede contestar sin conexión: si el
@@ -248,6 +249,31 @@ haría falta contrastar su certificado con las listas de confianza europeas.
 Y para quien no tiene certificado, "Crear certificado" genera uno autofirmado.
 Sirve para demostrar integridad y para firmar entre gente que ya se conoce, pero
 Adobe lo marcará como "identidad no verificada": no vale para trámites oficiales.
+
+### Marca de tiempo
+
+En «Marca de tiempo» se elige entre dos modos. **Sello criptográfico** añade un
+sello de documento RFC 3161 con SHA-256, sin certificado personal y sin cambiar
+el aspecto de las páginas. Utiliza `TSA_URL` y `TSA_TIMEOUT_SECONDS`, como «Firmar
+con certificado». Requiere conexión: sólo sale el resumen criptográfico del
+PDF. Si la autoridad falla, no se entrega un resultado sin sello.
+
+Se guarda como una actualización incremental y se comprueba que respete las
+restricciones de las firmas existentes. «Comprobar firmas» identifica estos
+sellos y muestra su autoridad, fecha, integridad y cobertura; su comprobación
+sigue siendo sin conexión y no acredita la confianza oficial de la autoridad.
+
+**Fecha visible** escribe texto en todas las páginas, con fecha actual o manual,
+zona del equipo o UTC, posición, letra, tamaño, color y margen. Funciona sin
+conexión. La fecha queda fijada para coincidir con la vista previa: «Ahora» la
+actualiza. Este modo rechaza PDF con firmas o sellos digitales para evitar
+alterarlos. Una fecha escrita como texto no certifica cuándo existía el PDF.
+
+En «Extraer tablas», JSON contiene `tablas`, una lista de objetos con `pagina`,
+`indice` (desde uno) y `filas` (matrices de celdas). Los importes inequívocos son
+números, como en Excel; los códigos y referencias conservan su texto. Markdown
+usa la primera fila como cabecera y reúne las tablas bajo títulos que indican
+su página e índice. La detección sigue limitada a tablas con líneas dibujadas.
 
 ### El visor
 
