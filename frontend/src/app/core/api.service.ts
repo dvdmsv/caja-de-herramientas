@@ -219,6 +219,8 @@ export interface Resultado {
   comparacion?: ResumenComparacion;
   /** Sólo la manda "Comprimir PDF" cuando se le pide un tamaño: si ha llegado. */
   objetivo?: ObjetivoTamano;
+  /** Sólo la manda "Aplanar PDF": los que hubo que reparar antes de aplanarlos. */
+  reparados?: string[];
 }
 
 export interface ObjetivoTamano {

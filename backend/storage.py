@@ -298,6 +298,20 @@ class Storage:
                 '"Empezar de cero".', 413)
         return self._write_meta(session_id, record)
 
+    def descartar(self, session_id: str, record: FileRecord) -> None:
+        """Quita un resultado reservado o ya confirmado, como si no hubiera existido.
+
+        Para una herramienta que produce varios archivos en una petición: si
+        falla el tercero, los dos primeros no se le devuelven a nadie y sólo
+        ocuparían cuota. Se puede llamar aunque no se llegara a escribir nada.
+        """
+        carpeta = self.session_dir(session_id, create=False)
+        for nombre in (record.stored_name, f'{record.id}.json'):
+            try:
+                os.unlink(os.path.join(carpeta, nombre))
+            except FileNotFoundError:
+                pass
+
     def rename(self, session_id: str, file_id: str, nombre: str) -> FileRecord:
         """Cambia el nombre con el que se descargará un archivo.
 

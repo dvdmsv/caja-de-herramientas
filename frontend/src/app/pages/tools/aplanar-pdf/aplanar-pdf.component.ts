@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 
+import { Resultado } from '../../../core/api.service';
 import { FileQueueComponent } from '../../../shared/file-queue/file-queue.component';
 import { PaginaHerramienta } from '../../../shared/pagina-herramienta';
 import { ResultListComponent } from '../../../shared/result-list/result-list.component';
@@ -20,6 +21,10 @@ export class AplanarPdfComponent extends PaginaHerramienta {
 
   campos = true;
   anotaciones = true;
+  /** Desmarcado de serie: aplanar reescribe el PDF y eso invalida su firma. */
+  firmados = false;
+  /** Los que tenían la estructura dañada y el servidor reparó antes de aplanar. */
+  reparados: string[] = [];
 
   /** Sin nada marcado no hay nada que aplanar; el backend también lo rechaza. */
   get nadaQueAplanar(): boolean {
@@ -27,10 +32,24 @@ export class AplanarPdfComponent extends PaginaHerramienta {
   }
 
   protected override opciones(): Record<string, unknown> {
-    return { campos: this.campos, anotaciones: this.anotaciones };
+    return { campos: this.campos, anotaciones: this.anotaciones, firmados: this.firmados };
   }
 
-  cambiar(cual: 'campos' | 'anotaciones', evento: Event): void {
+  override ejecutar(): void {
+    this.reparados = [];
+    super.ejecutar();
+  }
+
+  protected override alTerminar(resultado: Resultado): void {
+    this.reparados = resultado.reparados ?? [];
+  }
+
+  protected override alReiniciar(): void {
+    super.alReiniciar();
+    this.reparados = [];
+  }
+
+  cambiar(cual: 'campos' | 'anotaciones' | 'firmados', evento: Event): void {
     this[cual] = (evento.target as HTMLInputElement).checked;
     this.alCambiarLista();
   }

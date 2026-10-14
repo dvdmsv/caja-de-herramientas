@@ -47,12 +47,32 @@
       <strong>Esto no tiene vuelta atrás.</strong>
       El archivo que sale ya no lleva campos rellenables ni subrayados que se puedan quitar:
       lo que se veía forma ahora parte de la página. Guarda el original si vas a necesitarlo.
-      Y si el PDF está firmado, aplanarlo invalida la firma, porque reescribe el documento.
     </div>
+  </div>
+
+  <div class="form-check mt-3">
+    <input type="checkbox" class="form-check-input" id="aplanar-firmados"
+      [checked]="firmados" [disabled]="ocupado" (change)="cambiar('firmados', $event)">
+    <label class="form-check-label" for="aplanar-firmados">
+      Aplanar también los PDF firmados
+      <small class="d-block text-body-secondary">
+        Aplanar reescribe el documento y la firma digital deja de ser válida. Sin marcarlo,
+        un PDF firmado no se toca y se te avisa.
+      </small>
+    </label>
   </div>
 
   <app-tool-controls [pagina]="pagina" accion="Aplanar PDF" icono="bi-layers">
   </app-tool-controls>
+
+  @if (reparados.length > 0 && resultados.length > 0) {
+    <div class="alert alert-info mt-3 mb-0" role="status">
+      <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+      {{ reparados.join(', ') }} {{ reparados.length > 1 ? 'tenían' : 'tenía' }} la estructura
+      interna dañada y se {{ reparados.length > 1 ? 'han reparado' : 'ha reparado' }} antes de
+      aplanar. Se conservan los campos y las anotaciones, pero échale un vistazo al resultado.
+    </div>
+  }
 
   <app-result-list [archivos]="resultados" [resumen]="resumen"></app-result-list>
 

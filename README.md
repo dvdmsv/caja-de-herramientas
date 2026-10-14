@@ -716,6 +716,24 @@ borra como objetos, así que lo que se ve pasa a ser lo que hay y nadie puede
 reescribirlo con un lector normal. No tiene vuelta atrás y la página lo avisa
 antes, no después.
 
+**Un PDF firmado no se aplana si no se pide.** Cualquier reescritura invalida la
+firma, aplanes lo que aplanes, y antes eso pasaba sin más aviso que un texto
+genérico de la página. Ahora el servidor lo detecta (un campo de firma con la
+firma dentro; uno vacío no cuenta) y lo rechaza diciendo cuál es, salvo que se
+marque «Aplanar también los PDF firmados».
+
+**Si el PDF tiene la estructura dañada, se repara antes de rendirse.** El caso
+que lo trajo fue un formulario de matrícula que PyMuPDF abría y pintaba bien
+pero no podía guardar ni sin tocarlo: su tabla de referencias tenía huecos,
+números de objeto sin entrada, y MuPDF 1.25 se para ahí al escribir (desde la
+1.26 avisa y sigue). Cuando aplanar o guardar fallan, el archivo se reconstruye
+con qpdf (`api/reconstruccion.py`, por medio de pikepdf, que ya venía con
+ocrmypdf), se vuelve a abrir y se intenta otra vez, una sola. Lo reparado sólo
+se entrega si tiene las mismas páginas, los mismos campos con los mismos valores
+y las mismas anotaciones que el original; si no, se dice en vez de entregar otra
+cosa. La página avisa de qué archivos se repararon. Y si falla un archivo de un
+lote, no se queda ninguno a medias: los resultados se confirman todos al final.
+
 **La barra de progreso viaja por el disco**, y no es un capricho: en producción
 cada trabajo se atiende en un proceso que **muere con la petición**, y quien
 contesta «¿cómo vas?» es otro contenedor (`web`). No hay memoria compartida
