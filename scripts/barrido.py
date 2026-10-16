@@ -239,6 +239,8 @@ def _fabricar(carpeta):
     Image.new('RGB', (640, 480), (200, 120, 60)).save(f'{carpeta}/foto.heic')
     with open(f'{carpeta}/texto.txt', 'w', encoding='utf-8') as fichero:
         fichero.write('Título\n\nPárrafo de prueba con acentos: ñ á é.\n')
+    with open(f'{carpeta}/pagina.html', 'w', encoding='utf-8') as fichero:
+        fichero.write('<html><body><h1 style="color:#1a56a8">Página</h1><p>Hola, <a href="https://example.com">mundo</a></p></body></html>')
     with open(f'{carpeta}/notas.md', 'w', encoding='utf-8') as fichero:
         fichero.write('# Título\n\nPárrafo **en negrita** y `código`:\n\n| a | b |\n|---|---|\n| 1 | 2 |\n')
 
@@ -313,6 +315,7 @@ def main():
     codigo = subir(f'{carpeta}/codigo.png')
     txt = subir(f'{carpeta}/texto.txt')
     md = subir(f'{carpeta}/notas.md')
+    html = subir(f'{carpeta}/pagina.html')
     xlsx = subir(f'{carpeta}/cuentas.xlsx')
     pptx_ = subir(f'{carpeta}/charla.pptx')
     eml = subir(f'{carpeta}/correo.eml')
@@ -406,6 +409,7 @@ def main():
     prueba('a-markdown', '/api/tools/a-markdown', {'file_ids': [pdf]})
     prueba('markdown-a-pdf', '/api/tools/markdown-a-pdf', {'file_ids': [md]})
     prueba_letras(md)
+    prueba('html-a-pdf', '/api/tools/html-a-pdf', {'file_ids': [html], 'pagina': 'carta', 'margen': 0})
     prueba('visor-markdown', '/api/tools/visor-markdown/previsualizar', {'file_ids': [md]})
     prueba('visor-markdown (texto)', '/api/tools/visor-markdown/previsualizar',
            {'texto': '# Hola\n\n- [x] listo\n\n| a | b |\n|---|--:|\n| x | 1,50 € |'})

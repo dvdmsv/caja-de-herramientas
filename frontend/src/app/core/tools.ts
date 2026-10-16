@@ -436,6 +436,18 @@ export const HERRAMIENTAS: Herramienta[] = [
     disponible: true,
   },
   {
+    slug: 'html-a-pdf',
+    nombre: 'HTML a PDF',
+    descripcion: 'Pasa una página .html a PDF con sus estilos y sus imágenes incrustadas.',
+    icono: 'bi-filetype-html',
+    categoria: 'Documentos',
+    acepta: '.html,.htm',
+    varios: true,
+    palabras: ['htm', 'pagina web', 'web', 'guardar', 'imprimir', 'factura', 'informe', 'convertir',
+               'exportar'],
+    disponible: true,
+  },
+  {
     slug: 'visor-markdown',
     nombre: 'Visor de Markdown',
     descripcion: 'Lee un .md o un texto pegado ya maquetado; lo pegado se descarga como .md o PDF.',

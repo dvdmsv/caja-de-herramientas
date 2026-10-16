@@ -38,7 +38,7 @@ export class AcercaDeComponent {
     { nombre: 'Tesseract', para: 'reconocer el texto de un escaneado', licencia: 'Apache-2.0' },
     { nombre: 'ocrmypdf y Ghostscript', para: 'OCR, PDF/A y grises', licencia: 'MPL-2.0 · AGPL-3.0' },
     { nombre: 'pyHanko', para: 'firmar y comprobar firmas', licencia: 'MIT' },
-    { nombre: 'WeasyPrint', para: 'Markdown a PDF', licencia: 'BSD-3-Clause' },
+    { nombre: 'WeasyPrint', para: 'Markdown a PDF y HTML a PDF', licencia: 'BSD-3-Clause' },
     { nombre: 'Pillow', para: 'las imágenes', licencia: 'MIT-CMU' },
     { nombre: 'pdf.js', para: 'el visor', licencia: 'Apache-2.0' },
     { nombre: 'Angular, Bootstrap y Flask', para: 'la aplicación en sí', licencia: 'MIT · BSD-3-Clause' },

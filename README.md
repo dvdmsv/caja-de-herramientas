@@ -88,6 +88,7 @@ Cómo está hecha, cómo compilarla y cómo publicar una versión, en
 | PDF a EPUB | Convierte un PDF en libro electrónico con capítulos, índice, imágenes y portada | título y autor (rellenos con los del PDF), portada |
 | Markdown a PDF | Maqueta un `.md` como documento | tamaño, orientación, tipo de letra, color de acento, cuerpo, margen y respetar los saltos de línea |
 | Visor de Markdown | Lee un `.md` o un texto pegado ya maquetado, sin guardar nada; lo pegado se descarga como `.md` o como PDF (por «Markdown a PDF», borrando después lo subido) | color de acento, tipo de letra, respetar los saltos de línea; sigue el tema claro u oscuro |
+| HTML a PDF | Pasa una página `.html` o `.htm` a PDF con sus estilos e imágenes incrustadas, sin descargar nada de fuera | tamaño, orientación y margen (0–40 mm); varias páginas de una vez |
 | Correo a PDF | Guarda un correo `.eml` o `.msg` de Outlook como documento y saca sus adjuntos aparte | varios correos de una vez |
 | Editar metadatos | Enseña lo que tus archivos cuentan de ti, y lo corriges o lo borras | campo a campo, valores editables, limpieza a fondo |
 | Marca de agua | Estampa un texto o tu logo en todas las páginas | texto o imagen, mosaico, opacidad y giro, con vista previa |
@@ -550,6 +551,18 @@ buscar**. WeasyPrint recibe un `URLFetcher` que sólo admite `data:` y no hay
 servidor y uno con una imagen en `http://` no le pide nada a nadie —comprobado
 con un servidor a la escucha—. Se incrustan sólo las imágenes que el propio
 archivo trae dentro.
+
+"HTML a PDF" guarda una página tal como se ve: su CSS, sus imágenes incrustadas
+(`data:`) y su texto seleccionable, con los enlaces pulsables. La maqueta
+WeasyPrint, como "Markdown a PDF". Lo que se elige en pantalla (papel,
+orientación, margen) manda sobre el `@page` del documento. Un HTML subido es
+contenido de un desconocido, así que no se sale a buscar nada: el `URLFetcher`
+sólo admite `data:`, no hay `base_url` y se quitan `<base>` y los adjuntos
+(`rel="attachment"`), de modo que ni una URL ni un `file://` entran en el PDF.
+No hay JavaScript, y los enlaces con esquema distinto de `http`, `https`,
+`mailto` y `tel` pierden el destino. Si el archivo es UTF-8 se lee como tal; si
+no, manda su `<meta charset>` y, sin él, Windows-1252. Imágenes y estilos
+enlazados no se descargan: se pinta lo que el archivo trae dentro.
 
 "Correo a PDF" guarda un correo como documento: el asunto de título, quién lo
 manda, a quién, con copia a quién y cuándo, el texto y la lista de adjuntos. Los

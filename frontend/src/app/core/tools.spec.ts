@@ -86,6 +86,36 @@ describe('a qué herramientas mandar un archivo', () => {
 });
 
 
+describe('HTML a PDF', () => {
+  const html = (nombre: string) => ({ name: nombre, type: '' });
+
+  it('está disponible, con su ruta, y trabaja por lotes', () => {
+    const herramienta = HERRAMIENTAS.find(h => h.slug === 'html-a-pdf');
+    expect(herramienta?.disponible).toBe(true);
+    expect(herramienta?.varios).toBe(true);
+    expect(herramienta?.categoria).toBe('Documentos');
+    expect(routes.some(r => r.path === 'herramientas/html-a-pdf')).toBe(true);
+  });
+
+  it('se ofrece para páginas .html y .htm, sueltas o varias', () => {
+    expect(destinosPara([html('factura.html')]).map(h => h.slug)).toContain('html-a-pdf');
+    expect(destinosPara([html('INFORME.HTM')]).map(h => h.slug)).toContain('html-a-pdf');
+    expect(destinosPara([html('a.html'), html('b.htm')]).map(h => h.slug)).toContain('html-a-pdf');
+  });
+
+  it('no se ofrece para lo que no es HTML', () => {
+    expect(destinosPara([html('nota.md')]).map(h => h.slug)).not.toContain('html-a-pdf');
+    expect(destinosPara([html('informe.pdf')]).map(h => h.slug)).not.toContain('html-a-pdf');
+  });
+
+  it('el buscador la encuentra por lo que escribiría alguien', () => {
+    for (const texto of ['html', 'pagina web pdf', 'htm', 'guardar web']) {
+      expect(buscar(texto).map(h => h.slug), texto).toContain('html-a-pdf');
+    }
+  });
+});
+
+
 describe('herramientas de tablas, correo y marca de tiempo', () => {
   it('encuentra los formatos nuevos y el sello de tiempo', () => {
     expect(buscar('tablas json').map(h => h.slug)).toContain('extraer-tablas');

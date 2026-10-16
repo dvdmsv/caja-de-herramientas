@@ -1,0 +1,76 @@
+<app-tool-page slug="html-a-pdf">
+
+  <app-file-queue
+    [items]="archivos"
+    [deshabilitado]="ocupado"
+    ayuda="Arrastra tus páginas .html o .htm aquí o haz clic para elegirlas"
+    (agregados)="alAgregar($event)"
+    (itemsChange)="alCambiarLista()">
+  </app-file-queue>
+
+  @if (archivos.length > 1) {
+    <p class="text-body-secondary small mt-3 mb-0">
+      <i class="bi bi-info-circle me-1"></i>
+      Cada página sale como un PDF aparte. Para reunirlas, pásalas luego por «Unir PDF».
+    </p>
+  }
+
+  <fieldset class="mt-4">
+    <legend class="h6">Tamaño de página</legend>
+    <div class="row g-2">
+      @for (opcion of tamanos; track opcion) {
+        <div class="col-12 col-sm-6">
+          <input type="radio" class="btn-check" name="tamano" [id]="'tam-' + opcion.id"
+            [checked]="tamano === opcion.id" [disabled]="ocupado"
+            (change)="elegirTamano(opcion.id)">
+          <label class="btn btn-outline-primary w-100 text-start" [for]="'tam-' + opcion.id">
+            <span class="d-block fw-semibold">{{ opcion.nombre }}</span>
+            <small class="text-body-secondary">{{ opcion.detalle }}</small>
+          </label>
+        </div>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="mt-4">
+    <legend class="h6">Orientación</legend>
+    <div class="row g-2">
+      @for (opcion of orientaciones; track opcion) {
+        <div class="col-12 col-sm-6">
+          <input type="radio" class="btn-check" name="orientacion" [id]="'ori-' + opcion.id"
+            [checked]="orientacion === opcion.id" [disabled]="ocupado"
+            (change)="elegirOrientacion(opcion.id)">
+          <label class="btn btn-outline-primary w-100 text-start" [for]="'ori-' + opcion.id">
+            <span class="d-block fw-semibold">{{ opcion.nombre }}</span>
+            <small class="text-body-secondary">{{ opcion.detalle }}</small>
+          </label>
+        </div>
+      }
+    </div>
+  </fieldset>
+
+  <div class="mt-4">
+    <label for="margen" class="form-label h6 mb-1">
+      Margen: <span class="fw-normal">{{ margen }} mm</span>
+    </label>
+    <input type="range" class="form-range" id="margen" min="0" max="40" step="5"
+      [disabled]="ocupado" [(ngModel)]="margen" (change)="alCambiarLista()">
+    <p class="form-text mt-0">
+      Espacio en blanco alrededor de la página. Con 0 se aprovecha el papel entero, para las
+      páginas que ya traen su propio margen.
+    </p>
+  </div>
+
+  <p class="text-body-secondary small mt-4 mb-0">
+    <i class="bi bi-info-circle me-1"></i>
+    Se respetan los estilos y las imágenes que van dentro del archivo, y el texto sale
+    seleccionable. Las imágenes, hojas de estilo y tipos de letra enlazados no se descargan, y
+    el JavaScript no se ejecuta. Los enlaces a web, correo y teléfono siguen siendo pulsables.
+  </p>
+
+  <app-tool-controls [pagina]="pagina" accion="Crear el PDF" icono="bi-file-earmark-pdf">
+  </app-tool-controls>
+
+  <app-result-list [archivos]="resultados"></app-result-list>
+
+</app-tool-page>
