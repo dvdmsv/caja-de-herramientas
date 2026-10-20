@@ -24,6 +24,19 @@ Caja de herramientas.exe  (Tauri, Rust, ventana de WebView2)
    `http://127.0.0.1:<puerto>/?t=<token>`. El token pasa a una cookie y todo lo
    que no lo traiga, o traiga otro `Host`, recibe un 403.
 
+**Las herramientas cargan después de abrir el puerto.** `LISTO` sale en cuanto
+está la parte `web` (subidas, sesión, «Espacio», el frontend), y las
+herramientas —PyMuPDF, WeasyPrint, numpy, pyHanko…— cargan en otro hilo mientras
+la página se descarga. Es el reparto de nginx dentro del proceso
+(`escritorio.Reparto`): `/api/tools/` va a la aplicación de las herramientas y lo
+demás a la de `web`, y una herramienta que se pida antes de tiempo espera. Antes
+se cargaba todo primero, y eso era casi toda la pantalla de arranque: medido en
+Linux, `LISTO` pasó de 1,4 s a 0,15 s, y en Windows en frío la diferencia es
+mayor porque el antivirus revisa cada DLL al cargarla. La CI saca los dos tiempos
+de la aplicación instalada («Arranque: puerto abierto a los…»). Si las
+herramientas no cargan, la aplicación abre igual y cada una dice que mire
+`backend.log`: antes eso se veía en la pantalla de arranque.
+
 **Cuánto puede gastar.** En la web, cada trabajo corre en un proceso con
 límites de memoria y de CPU (`RLIMIT_*`, `gunicorn.trabajos.conf.py`). En Windows
 eso no existe, y lo sustituye el mismo job object (`src-tauri/src/trabajo.rs`):
@@ -328,7 +341,7 @@ que siga sin hacer nada fuera de ella**: en el backend, detrás de
 | `backend/api/limites.py` | el `hasattr(signal, 'SIGALRM')` de `PlazoMaximo` |
 | `backend/api/ocrmypdf.py` | el registro guarda el final de la salida, no el principio |
 | `backend/api/tools/documento_a_pdf.py` | el perfil de LibreOffice como `Path.as_uri()` |
-| `backend/app.py`, `backend/config.py` | el modo escritorio cuando hay `ESCRITORIO_TOKEN`, y `config.DONDE` |
+| `backend/app.py`, `backend/config.py` | el modo escritorio cuando hay `ESCRITORIO_TOKEN` (con «Espacio» sólo en `web`, por `Reparto`), y `config.DONDE` |
 | `backend/errors.py` | los mensajes de memoria dicen `config.DONDE` («este equipo» / «este servidor») |
 | `frontend/src/app/core/api.service.ts` | `descargar()` pasa por `EscritorioService.guardar()` |
 | `frontend/src/app/app.component.ts`, `pages/home/home.component.ts` | recoger lo abierto con «Abrir con…» |

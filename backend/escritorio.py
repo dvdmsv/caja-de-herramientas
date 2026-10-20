@@ -25,14 +25,23 @@ completa.
 - **`--programa`**: el paquete de PyInstaller no trae los scripts de consola de
   ocrmypdf y pdf2docx, así que `api/conversion.py` llama a este mismo ejecutable
   para arrancarlos (ver `conversion.resolver`).
+- **El puerto se abre antes de cargar las herramientas** (`Reparto`). Lo que
+  dura la pantalla de arranque es lo que tarda en salir `LISTO`, y cargarlo todo
+  antes —PyMuPDF, WeasyPrint, numpy, pyHanko…— era casi todo ese tiempo: medido
+  en Linux, 0,15 s la parte `web` frente a 1,6–2,7 s todo, y en Windows en frío
+  bastante más, porque el antivirus revisa cada DLL al cargarla. Así la página se
+  descarga y arranca mientras las herramientas cargan detrás.
 """
 import hmac
 import importlib
+import logging
 import mimetypes
 import multiprocessing
 import os
 import secrets
 import sys
+import threading
+import time
 
 COOKIE = 'escritorio'
 PARAMETRO = 't'
@@ -274,6 +283,75 @@ def servir_frontend(app, carpeta: str) -> None:
         return send_from_directory(carpeta, 'index.html')
 
 
+class Reparto:
+    """Lo que en la web hace nginx, dentro del proceso: `/api/tools/` va a la
+    aplicación de las herramientas y lo demás a la de `web`.
+
+    La de `web` existe desde el principio y la de las herramientas la crea
+    `cargar` en otro hilo, ya con el puerto abierto. Una petición a
+    `/api/tools/` que llegue antes espera a que termine, sin plazo: la carga
+    acaba o falla, y un plazo sólo convertiría un equipo lento en un error. El
+    inicio no llama a `/api/tools/`, así que lo normal es que no espere nadie.
+    """
+
+    PREFIJO = '/api/tools/'
+
+    def __init__(self, web):
+        self.web = web
+        self.herramientas = None
+        self.lista = threading.Event()
+
+    def cargar(self, crear, crear_sin_herramientas) -> None:
+        """Si la carga falla, las herramientas contestan con un error que dice
+        dónde mirar, y el resto de la aplicación sigue funcionando."""
+        inicio = time.perf_counter()
+        try:
+            herramientas = crear()
+        except Exception:
+            logging.getLogger(__name__).exception('No se han podido cargar las herramientas.')
+            herramientas = crear_sin_herramientas()
+        else:
+            logging.getLogger(__name__).info(
+                'Herramientas cargadas en %.1f s.', time.perf_counter() - inicio)
+        # Con el puerto ya abierto, el `Host` que hay que exigir ya se sabe.
+        herramientas.config['ESCRITORIO_HOST'] = self.web.config.get('ESCRITORIO_HOST')
+        self.herramientas = herramientas
+        self.lista.set()
+
+    def __call__(self, entorno, empezar):
+        if not entorno.get('PATH_INFO', '').startswith(self.PREFIJO):
+            return self.web(entorno, empezar)
+        self.lista.wait()
+        return self.herramientas(entorno, empezar)
+
+
+def crear_herramientas():
+    """La aplicación de las herramientas, con lo que necesitan antes de cargarse."""
+    if os.name == 'nt' and carpeta_vendor():
+        precargar_gtk(os.environ['WEASYPRINT_DLL_DIRECTORIES'])
+    from app import create_app
+    return create_app('pesados')
+
+
+def crear_sin_herramientas():
+    """Lo que contesta `/api/tools/` si no han podido cargarse: con el mismo
+    token y el mismo `Host` exigidos, y el error con la forma de siempre."""
+    from flask import Flask
+
+    from errors import ApiError, register_error_handlers
+
+    app = Flask(__name__)
+    proteger(app, os.environ['ESCRITORIO_TOKEN'])
+    register_error_handlers(app)
+
+    @app.route('/api/tools/<path:_ruta>', methods=['GET', 'POST'])
+    def sin_herramientas(_ruta):
+        raise ApiError('Las herramientas no han podido cargarse. El detalle está en '
+                       f'el registro, {os.path.join(carpeta_de_datos(), "backend.log")}.', 500)
+
+    return app
+
+
 def sin_heredar(argumentos: dict) -> dict:
     """Los argumentos de un `Popen` con entrada y salida nulas si no se dicen.
 
@@ -326,12 +404,14 @@ def preparar_entorno() -> tuple[str, bool]:
     entorno, y los valores por defecto de la web no se tocan.
     """
     datos = carpeta_de_datos()
-    os.environ['SERVICIO'] = 'todo'
+    # `web` y no `todo`: las herramientas las carga `Reparto` después de abrir
+    # el puerto. Y nunca `pesados` en el entorno, aunque sea el papel con el que
+    # se cargan: `config.nucleos_por_trabajo` lo lee de aquí, y con él el OCR
+    # usaría una parte de los núcleos en vez de todos.
+    os.environ['SERVICIO'] = 'web'
     vendor = carpeta_vendor()
     if vendor:
         usar_vendor(vendor)
-        if os.name == 'nt':
-            precargar_gtk(os.environ['WEASYPRINT_DLL_DIRECTORIES'])
     os.environ.setdefault('UPLOAD_ROOT', os.path.join(datos, 'uploads'))
     # Los topes de la web reparten un servidor entre muchos; aquí el disco y la
     # memoria son del propio usuario, y un PDF escaneado de 400 MB es normal.
@@ -393,23 +473,26 @@ def main(argv: list[str]) -> None:
         lanzar_programa(argv[2], argv[3:])
         return
 
+    inicio = time.perf_counter()
     token, inventado = preparar_entorno()
-
-    import logging
 
     from waitress import create_server
 
     from app import app
 
     borrar_sesiones_anteriores()
-    servidor = create_server(app, host='127.0.0.1', port=0, threads=6,
+    reparto = Reparto(app)
+    servidor = create_server(reparto, host='127.0.0.1', port=0, threads=6,
                              max_request_body_size=tope_de_waitress(app.config['MAX_CONTENT_LENGTH']))
     puerto = servidor.effective_port
     app.config['ESCRITORIO_HOST'] = f'127.0.0.1:{puerto}'
+    threading.Thread(target=reparto.cargar, args=(crear_herramientas, crear_sin_herramientas),
+                     name='carga-de-herramientas', daemon=True).start()
 
     # Es lo que espera Tauri para abrir la ventana. Si no se vacía el búfer,
     # la línea puede quedarse dentro hasta que se escriba otra cosa.
     print(f'LISTO {puerto}', flush=True)
+    logging.getLogger(__name__).info('Puerto abierto en %.1f s.', time.perf_counter() - inicio)
     # La URL con el token sólo cuando lo lanza una persona a mano. Si viene de
     # Tauri no se escribe: el registro acaba en un archivo del disco.
     if inventado:

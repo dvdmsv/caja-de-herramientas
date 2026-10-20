@@ -401,3 +401,124 @@ def test_waitress_deja_que_sea_flask_quien_rechace_lo_demasiado_grande():
 
     assert escritorio.tope_de_waitress(100 * 1024 ** 2) > 100 * 1024 ** 2 * 3
     assert escritorio.tope_de_waitress(8 * 1024 ** 3) == 32 * 1024 ** 3
+
+
+# --- El reparto: el puerto se abre antes de cargar las herramientas ---------
+
+def _app_que_dice(nombre, ruta):
+    from flask import Flask
+
+    app = Flask(nombre)
+    app.add_url_rule(ruta, nombre, lambda **_: nombre)
+    return app
+
+
+def test_el_reparto_manda_las_herramientas_a_su_aplicacion_y_lo_demas_a_web():
+    """Como nginx en la web: sólo `/api/tools/` va a las herramientas."""
+    from werkzeug.test import Client
+
+    import escritorio
+
+    reparto = escritorio.Reparto(_app_que_dice('web', '/<path:_r>'))
+    reparto.cargar(lambda: _app_que_dice('herramientas', '/api/tools/<path:_r>'), None)
+    cliente = Client(reparto)
+
+    assert cliente.get('/api/tools/unir-pdf').text == 'herramientas'
+    assert cliente.get('/api/session/uso').text == 'web'
+    assert cliente.get('/api/toolsx').text == 'web'
+    assert cliente.get('/visor').text == 'web'
+
+
+def test_una_herramienta_pedida_antes_de_tiempo_espera_a_que_carguen():
+    import threading
+
+    from werkzeug.test import Client
+
+    import escritorio
+
+    reparto = escritorio.Reparto(_app_que_dice('web', '/<path:_r>'))
+    soltar = threading.Event()
+
+    def crear():
+        soltar.wait(5)
+        return _app_que_dice('herramientas', '/api/tools/<path:_r>')
+
+    threading.Thread(target=reparto.cargar, args=(crear, None), daemon=True).start()
+    cliente = Client(reparto)
+    respuestas = []
+    peticion = threading.Thread(target=lambda: respuestas.append(cliente.get('/api/tools/x').text))
+    peticion.start()
+
+    # Mientras cargan, lo demás contesta y la herramienta sigue esperando.
+    assert cliente.get('/visor').text == 'web'
+    peticion.join(0.2)
+    assert respuestas == []
+
+    soltar.set()
+    peticion.join(5)
+    assert respuestas == ['herramientas']
+
+
+def test_las_herramientas_heredan_el_host_que_se_exige():
+    import escritorio
+
+    web = _app_que_dice('web', '/')
+    web.config['ESCRITORIO_HOST'] = '127.0.0.1:1234'
+    reparto = escritorio.Reparto(web)
+    reparto.cargar(lambda: _app_que_dice('herramientas', '/api/tools/x'), None)
+
+    assert reparto.herramientas.config['ESCRITORIO_HOST'] == '127.0.0.1:1234'
+
+
+def test_si_las_herramientas_no_cargan_se_dice_y_sigue_haciendo_falta_el_token(entorno):
+    """Un DLL que falta en el paquete: antes el backend no arrancaba y se veía
+    en la pantalla de arranque; ahora arranca, y cada herramienta dice dónde
+    mirar. Y ese mensaje no lo recibe quien no trae el token."""
+    from werkzeug.test import Client
+
+    import escritorio
+
+    entorno(ESCRITORIO_TOKEN=TOKEN)
+
+    def crear():
+        raise ImportError('DLL load failed while importing _mupdf')
+
+    reparto = escritorio.Reparto(_app_que_dice('web', '/<path:_r>'))
+    reparto.cargar(crear, escritorio.crear_sin_herramientas)
+    cliente = Client(reparto)
+
+    assert cliente.post('/api/tools/unir-pdf', json={}).status_code == 403
+
+    cliente.set_cookie('escritorio', TOKEN, domain='localhost')
+    respuesta = cliente.post('/api/tools/unir-pdf', json={})
+    assert respuesta.status_code == 500
+    assert 'backend.log' in respuesta.json['error']
+    assert cliente.get('/visor').text == 'web'
+
+
+def test_con_las_aplicaciones_de_verdad_el_token_se_exige_en_las_dos(entorno, tmp_path):
+    from werkzeug.test import Client
+
+    import escritorio
+
+    frontend = tmp_path / 'frontend'
+    frontend.mkdir()
+    (frontend / 'index.html').write_text('<app-root></app-root>')
+    entorno(ESCRITORIO_TOKEN=TOKEN, ESCRITORIO_FRONTEND=str(frontend))
+    import app as modulo
+
+    reparto = escritorio.Reparto(modulo.create_app('web'))
+    reparto.cargar(lambda: modulo.create_app('pesados'), escritorio.crear_sin_herramientas)
+    cliente = Client(reparto)
+    cabeceras = {'X-Session-Id': SESION}
+
+    assert cliente.post('/api/tools/unir-pdf', json={'file_ids': []}, headers=cabeceras).status_code == 403
+    assert cliente.get('/api/escritorio/espacio').status_code == 403
+
+    cliente.set_cookie('escritorio', TOKEN, domain='localhost')
+    # Llega a la herramienta, que se queja de lo que le falta, no de quién es.
+    respuesta = cliente.post('/api/tools/unir-pdf', json={'file_ids': []}, headers=cabeceras)
+    assert respuesta.status_code == 400
+    assert cliente.get('/api/escritorio/espacio').status_code == 200
+    # «Espacio» es de `web`: en la de las herramientas no está.
+    assert '/api/escritorio/espacio' not in {r.rule for r in reparto.herramientas.url_map.iter_rules()}

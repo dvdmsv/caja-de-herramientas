@@ -6,8 +6,9 @@
   <title>Caja de herramientas</title>
   <!--
     Lo que se ve mientras arranca el backend: la ventana se abre enseguida y
-    esto ocupa los segundos que tarda Python en cargar sus bibliotecas. Cuando
-    el backend dice LISTO, Tauri navega a él y esta página desaparece.
+    esto ocupa lo que tarda en abrir el puerto, que es poco: las herramientas
+    cargan después (`escritorio.Reparto`). Cuando el backend dice LISTO, Tauri
+    navega a él y esta página desaparece.
 
     Es de Tauri, no de la aplicación: no carga Angular ni nada de fuera. Si el
     backend no llega a arrancar, main.rs llama a `mostrarError`.

@@ -360,15 +360,25 @@ jobs:
           $autoprueba = "$env:RUNNER_TEMP\autoprueba.json"
           $env:CAJA_AUTOPRUEBA = $autoprueba
           $app = Start-Process $exe.FullName -PassThru
-          foreach ($i in 1..240) {
-            if ((Test-Path $registro) -and (Select-String -Path $registro -Pattern 'listo con \d+ rutas' -Quiet)) { break }
+          # Dos medidas desde que se lanza: cuándo abre el puerto (lo que dura
+          # la pantalla de arranque) y cuándo terminan de cargar las
+          # herramientas, que va detrás (`escritorio.Reparto`).
+          $reloj = [Diagnostics.Stopwatch]::StartNew()
+          $puerto = $null
+          foreach ($i in 1..480) {
+            if (-not $puerto -and (Test-Path $registro) -and (Select-String -Path $registro -Pattern 'Puerto abierto' -Quiet)) {
+              $puerto = $reloj.Elapsed.TotalSeconds
+            }
+            if ((Test-Path $registro) -and (Select-String -Path $registro -Pattern 'Herramientas cargadas|No se han podido cargar' -Quiet)) { break }
             if ($app.HasExited) { break }
-            Start-Sleep -Milliseconds 500
+            Start-Sleep -Milliseconds 250
           }
+          $herramientas = $reloj.Elapsed.TotalSeconds
           Get-Content $registro -ErrorAction SilentlyContinue | Select-Object -Last 20
-          if (-not (Select-String -Path $registro -Pattern 'listo con \d+ rutas' -Quiet)) {
+          if (-not (Select-String -Path $registro -Pattern 'Herramientas cargadas' -Quiet)) {
             throw 'El backend de la aplicación instalada no ha arrancado.'
           }
+          'Arranque: puerto abierto a los {0:N1} s; herramientas cargadas a los {1:N1} s.' -f $puerto, $herramientas
           $backend = Get-Process merge-pdf-backend -ErrorAction SilentlyContinue
           if (-not $backend) { throw 'No hay proceso del backend.' }
           # La prioridad baja la pone el job de src/trabajo.rs: si está, el job
