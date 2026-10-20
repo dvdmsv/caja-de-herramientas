@@ -37,6 +37,41 @@ de la aplicación instalada («Arranque: puerto abierto a los…»). Si las
 herramientas no cargan, la aplicación abre igual y cada una dice que mire
 `backend.log`: antes eso se veía en la pantalla de arranque.
 
+Medido en la VM con la aplicación de verdad (20 de octubre de 2026; en frío es
+tras reiniciar y dejar 90 s a Windows), desde que arranca el proceso hasta que
+el Angular está pintado: **en frío, 4,9 s con la 0.2.15 y 2,3 s con esto**; las
+siguientes veces, 1,6 y 1,15 s. Los 2,3 s se reparten así:
+
+- 0,2 s hasta que Windows arranca WebView2;
+- 0,75 s hasta que Tauri lanza el backend: `setup` crea la ventana antes, y en
+  Windows eso espera a que WebView2 tenga creado el control;
+- ~1,1 s hasta `LISTO`, de los que 0,67 son PyInstaller hasta llegar a nuestro
+  código (0,25 en caliente) y unos 0,4 nuestro `main()`;
+- ~0,4 s hasta que la página del backend pinta. Las herramientas acaban 1,7 s
+  después, con la página ya abierta.
+
+Para medirlo, `Start-Process -Wait` no sirve: añade ~1 s por su cuenta.
+
+**Pendiente, decidido dejarlo para más adelante:**
+
+- *Un test que vigile la mejora.* Nada falla si alguien importa algo pesado en
+  la parte `web` y `LISTO` vuelve a tardar: la CI imprime los tiempos, pero no
+  puede fallar por ellos porque bailan. Lo fiable es importar la parte `web` en
+  un proceso limpio y comprobar que no ha cargado `fitz`, `weasyprint`, `numpy`
+  ni `pyhanko`, como hace `test_arranque.py` con la memoria del maestro.
+- *Lanzar el backend antes de crear la ventana*, para que los dos arranquen a la
+  vez: unos 0,5 s menos en frío. Que diga `LISTO` antes de que exista la ventana
+  ya lo resuelve `ventanas::crear` (pasa con las que se abren después), y si se
+  rompiera la CI lo vería, porque la autoprueba no llegaría. Lo que no prueba
+  nadie, ni ahora ni con el cambio, es la pantalla de error cuando el backend
+  muere al arrancar: habría que mirarla a mano, con `CAJA_TOPE_MEMORIA_MB` muy
+  bajo para que muera al nacer.
+- *Quitar `setuptools` del paquete se descartó.* El run-time hook
+  `pyi_rth_setuptools` de PyInstaller lo importa en cada arranque sin que lo use
+  nada nuestro (en desarrollo ni está instalado), pero sólo son ~0,1 s, y si
+  alguna biblioteca lo pidiera en un camino que el barrido no toca, fallaría sin
+  que nadie lo viera.
+
 **Cuánto puede gastar.** En la web, cada trabajo corre en un proceso con
 límites de memoria y de CPU (`RLIMIT_*`, `gunicorn.trabajos.conf.py`). En Windows
 eso no existe, y lo sustituye el mismo job object (`src-tauri/src/trabajo.rs`):
