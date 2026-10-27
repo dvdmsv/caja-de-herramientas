@@ -33,6 +33,12 @@
   line-height: 1;
 }
 
+/* Entera en una línea: con la barra justa (992–1199 px, el contenedor mide
+   960) se partía en «0 B / 20» y «GB». */
+.uso__cifras {
+  white-space: nowrap;
+}
+
 
 .uso__barra {
   display: block;

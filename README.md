@@ -20,6 +20,9 @@ Pensada para usarse, no sólo para funcionar:
 - **Buscar y soltar.** En la portada escribes «juntar» y aparece Unir PDF (tecla
   `/` para buscar, Intro para entrar). O sueltas un archivo en cualquier parte y
   te dice qué puedes hacer con él.
+- **Favoritas.** La estrella de cada tarjeta, o la de la cabecera de una
+  herramienta, la pone arriba del todo en la portada y en un apartado propio del
+  menú. Se guardan en tu navegador; no hay cuentas.
 - **Te explica lo que pasa.** Si sueltas un archivo que no vale, lo dice y te
   propone la herramienta que sí lo admite. Si el botón está apagado, pone por
   qué. Si comprimir no gana nada, dice que ya estaba optimizado en vez de

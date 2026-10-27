@@ -24,17 +24,22 @@
   </div>
 </header>
 
-<!-- Una tarjeta de herramienta; la usan todas las listas de la portada. -->
+<!-- Una tarjeta de herramienta; la usan todas las listas de la portada. La
+     estrella va al lado del enlace y no dentro: un botón dentro de un enlace no
+     es HTML válido, y el clic no sabría si marcar o entrar. -->
 <ng-template #tarjeta let-h let-clave="clave">
-  <a class="tarjeta card h-100 text-decoration-none" [routerLink]="rutaDe(h)">
-    <div class="card-body tarjeta__cuerpo">
-      <span class="pastilla pastilla--{{ clave }}" aria-hidden="true"><i class="bi {{ h.icono }}"></i></span>
-      <div>
-        <h3 class="h6 mb-1">{{ h.nombre }}</h3>
-        <p class="small text-body-secondary mb-0">{{ h.descripcion }}</p>
+  <div class="con-estrella h-100">
+    <a class="tarjeta card h-100 text-decoration-none" [routerLink]="rutaDe(h)">
+      <div class="card-body tarjeta__cuerpo">
+        <span class="pastilla pastilla--{{ clave }}" aria-hidden="true"><i class="bi {{ h.icono }}"></i></span>
+        <div>
+          <h3 class="h6 mb-1">{{ h.nombre }}</h3>
+          <p class="small text-body-secondary mb-0">{{ h.descripcion }}</p>
+        </div>
       </div>
-    </div>
-  </a>
+    </a>
+    <app-estrella class="con-estrella__estrella" [slug]="h.slug" [nombre]="h.nombre"></app-estrella>
+  </div>
 </ng-template>
 
 <!-- Archivos elegidos o soltados: qué se puede hacer con ellos -->
@@ -99,11 +104,24 @@
     }
   </section>
 } @else {
-  @if (recientes.length > 0) {
+  @if (favoritas.length > 0) {
+    <section class="mb-5">
+      <h2 class="categoria">Favoritas</h2>
+      <div class="row g-3">
+        @for (h of favoritas; track h.slug) {
+          <div class="col-12 col-sm-6 col-lg-3">
+            <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: h, clave: claveDe(h) }"></ng-container>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (recientesSinFavoritas.length > 0) {
     <section class="mb-5">
       <h2 class="categoria">Usadas hace poco</h2>
       <div class="row g-3">
-        @for (h of recientes; track h.slug) {
+        @for (h of recientesSinFavoritas; track h.slug) {
           <div class="col-12 col-sm-6 col-lg-3">
             <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: h, clave: claveDe(h) }"></ng-container>
           </div>

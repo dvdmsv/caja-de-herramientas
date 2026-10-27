@@ -35,9 +35,27 @@
 
 a.tarjeta:hover,
 a.tarjeta:focus-visible {
-  transform: translateY(-2px);
   border-color: var(--bs-border-color);
   box-shadow: var(--sombra-elevada);
+}
+
+/* La tarjeta con su estrella al lado. El levantarse al pasar por encima va en
+   el envoltorio y no en el enlace: si no, la tarjeta subiría y la estrella se
+   quedaría donde estaba. */
+.con-estrella {
+  position: relative;
+  transition: transform 0.15s ease;
+}
+
+.con-estrella:hover,
+.con-estrella:has(a.tarjeta:focus-visible) {
+  transform: translateY(-2px);
+}
+
+.con-estrella__estrella {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
 }
 
 .tarjeta--pendiente {
@@ -70,6 +88,19 @@ a.tarjeta:focus-visible {
     width: 2.4rem;
     height: 2.4rem;
     font-size: 1.15rem;
+  }
+
+  /* En la tarjeta en fila, la estrella centrada en vertical, a la altura del
+     icono y del nombre, y no colgando de la esquina. Y con su hueco: en fila
+     cae encima del final del nombre. En columna, como en escritorio, va a la
+     altura del icono y el hueco sólo partía la descripción en más líneas. */
+  .con-estrella__estrella {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .con-estrella .tarjeta__cuerpo {
+    padding-right: 2.75rem;
   }
 
   .row.g-3 {
@@ -202,4 +233,19 @@ a.tarjeta:focus-visible {
 .capa-soltar__caja .bi {
   font-size: 2.5rem;
   color: var(--acento-texto);
+}
+
+/* Táctil: la estrella crece a 44 px (su propio CSS); se arrima al borde para
+   que no se coma más tarjeta, y en el móvil en fila el hueco crece con ella, o
+   el final del nombre quedaría debajo del dedo (`ESTRECHA` en `core/pantalla.ts`). */
+@media (pointer: coarse) {
+  .con-estrella__estrella {
+    right: 0.25rem;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 575.98px) {
+  .con-estrella .tarjeta__cuerpo {
+    padding-right: 3.25rem;
+  }
 }

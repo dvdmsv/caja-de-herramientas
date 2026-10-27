@@ -1,0 +1,40 @@
+.estrella {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.estrella:hover {
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-emphasis-color);
+}
+
+.estrella:focus-visible {
+  outline: 2px solid var(--acento, var(--bs-primary));
+  outline-offset: 1px;
+}
+
+/* El ámbar «de énfasis» y no el `warning` de Bootstrap: aquél tiene 1,6:1
+   sobre blanco, y una estrella marcada tiene que verse (3:1 para lo que no es
+   texto). Éste cambia solo en el modo oscuro. */
+.estrella--marcada,
+.estrella--marcada:hover {
+  color: var(--bs-warning-text-emphasis);
+}
+
+/* Móvil y táctil: 44 px para el dedo, como el resto de botones (`tema.css`).
+   Visualmente sigue igual de pequeña; crece el área que se toca. */
+@media (pointer: coarse) {
+  .estrella {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}

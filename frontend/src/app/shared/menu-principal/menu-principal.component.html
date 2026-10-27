@@ -1,23 +1,28 @@
 <ul class="navbar-nav menu">
-  @for (grupo of grupos; track grupo) {
+  @for (seccion of secciones; track seccion.titulo) {
     <li class="nav-item seccion"
-      (pointerenter)="alEntrar($event, grupo.categoria)" (pointerleave)="alSalir($event)">
+      (pointerenter)="alEntrar($event, seccion.titulo)" (pointerleave)="alSalir($event)">
       <button type="button" class="seccion__boton"
-        [class.seccion__boton--activa]="esActiva(grupo)"
-        [attr.aria-expanded]="seccionAbierta === grupo.categoria"
-        [attr.aria-controls]="identificador(grupo.categoria)"
-        (click)="alternar($event, grupo.categoria)">
-        {{ grupo.categoria }}
+        [class.seccion__boton--activa]="esActiva(seccion)"
+        [attr.aria-expanded]="seccionAbierta === seccion.titulo"
+        [attr.aria-controls]="identificador(seccion.titulo)"
+        (click)="alternar($event, seccion.titulo)">
+        @if (seccion.titulo === favoritas) {
+          <i class="bi bi-star-fill seccion__estrella" aria-hidden="true"></i>
+          <span class="seccion__titulo--favoritas">{{ seccion.titulo }}</span>
+        } @else {
+          {{ seccion.titulo }}
+        }
         <i class="bi bi-chevron-down seccion__flecha" aria-hidden="true"></i>
       </button>
-      <div class="panel" [id]="identificador(grupo.categoria)"
-        [class.panel--abierto]="seccionAbierta === grupo.categoria">
+      <div class="panel" [id]="identificador(seccion.titulo)"
+        [class.panel--abierto]="seccionAbierta === seccion.titulo">
         <div class="panel__interior">
-          @for (herramienta of grupo.herramientas; track herramienta) {
+          @for (herramienta of seccion.herramientas; track herramienta) {
             <a class="nav-link herramienta"
               [routerLink]="rutaDe(herramienta)" routerLinkActive="herramienta--activa"
               (click)="alNavegar()">
-              <span class="pastilla pastilla--sm pastilla--{{ clave(grupo) }}" aria-hidden="true">
+              <span class="pastilla pastilla--sm pastilla--{{ clave(herramienta) }}" aria-hidden="true">
                 <i class="bi {{ herramienta.icono }}"></i>
               </span>
               <span>

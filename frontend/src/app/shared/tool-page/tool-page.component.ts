@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { RecientesService } from '../../core/recientes.service';
 import { ClaveCategoria, Herramienta, buscarPorSlug, claveDeCategoria } from '../../core/tools';
 import { TraspasoService } from '../../core/traspaso.service';
+import { EstrellaComponent } from '../estrella/estrella.component';
 import { ColaReceptora, MARCO_HERRAMIENTA, MarcoHerramienta } from '../marco-herramienta';
 
 /**
@@ -23,7 +24,7 @@ import { ColaReceptora, MARCO_HERRAMIENTA, MarcoHerramienta } from '../marco-her
  */
 @Component({
   selector: 'app-tool-page',
-  imports: [RouterLink],
+  imports: [EstrellaComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.Eager,
   // `providers` y no `viewProviders`: la cola de subida llega por proyección y
   // tiene que poder encontrar este marco.
@@ -39,10 +40,14 @@ import { ColaReceptora, MARCO_HERRAMIENTA, MarcoHerramienta } from '../marco-her
     
       @if (herramienta; as h) {
         <header class="mb-4">
-          <h1 class="h3 d-flex align-items-center gap-3">
-            <span class="pastilla pastilla--lg" aria-hidden="true"><i class="bi {{ h.icono }}"></i></span>
-            {{ h.nombre }}
-          </h1>
+          <!-- La estrella fuera del h1: dentro, su etiqueta formaría parte del título. -->
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <h1 class="h3 d-flex align-items-center gap-3 flex-grow-1 mb-0">
+              <span class="pastilla pastilla--lg" aria-hidden="true"><i class="bi {{ h.icono }}"></i></span>
+              {{ h.nombre }}
+            </h1>
+            <app-estrella [slug]="h.slug" [nombre]="h.nombre"></app-estrella>
+          </div>
           <p class="text-body-secondary mb-0">{{ h.descripcion }}</p>
         </header>
       }

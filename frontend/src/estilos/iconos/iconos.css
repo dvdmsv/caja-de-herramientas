@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   127 iconos de los 2078 que trae bootstrap-icons.
+   129 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -131,6 +131,8 @@
 .bi-slash-lg::before { content: "\f657"; }
 .bi-sliders::before { content: "\f56b"; }
 .bi-square::before { content: "\f584"; }
+.bi-star::before { content: "\f588"; }
+.bi-star-fill::before { content: "\f586"; }
 .bi-sticky::before { content: "\f58d"; }
 .bi-sun::before { content: "\f5a2"; }
 .bi-symmetry-vertical::before { content: "\f5a9"; }

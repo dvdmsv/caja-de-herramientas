@@ -30,6 +30,10 @@
   font-weight: 600;
 }
 
+.seccion__estrella {
+  color: var(--bs-warning-text-emphasis);
+}
+
 .seccion__flecha {
   font-size: 0.7rem;
   transition: transform 0.2s ease;
@@ -136,6 +140,21 @@
     min-height: 0;
     overflow: hidden;
     padding-left: 0.75rem;
+  }
+}
+
+/* Barra horizontal pero contenedor de 960 px (992–1199): «Favoritas» se queda
+   en su estrella para que quepan el contador de uso y, en la aplicación, los
+   botones de Ajustes, la bóveda y Nueva ventana. El texto sigue ahí para el
+   lector de pantalla, como el `visually-hidden` de Bootstrap. */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .seccion__titulo--favoritas {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 

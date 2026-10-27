@@ -2,7 +2,8 @@
 import { Component, ElementRef, EventEmitter, HostListener, Output, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 
-import { Categoria, ClaveCategoria, Grupo, Herramienta, agruparPorCategoria, claveDeCategoria, rutaDe } from '../../core/tools';
+import { FavoritosService } from '../../core/favoritos.service';
+import { ClaveCategoria, Herramienta, agruparPorCategoria, claveDeCategoria, rutaDe } from '../../core/tools';
 
 /**
  * Al salir del botón no se cierra en el acto: hay un hueco entre el botón y su
@@ -13,8 +14,16 @@ const ESPERA_AL_SALIR = 150;
 /** A partir de aquí la barra es horizontal; debe coincidir con el CSS y con `navbar-expand-lg`. */
 const BARRA_HORIZONTAL = '(min-width: 992px)';
 
+/** Un apartado del menú: una categoría o «Favoritas». */
+interface Seccion {
+  titulo: string;
+  herramientas: Herramienta[];
+}
+
+const FAVORITAS = 'Favoritas';
+
 /**
- * Menú principal agrupado por categorías.
+ * Menú principal agrupado por categorías, con «Favoritas» delante si hay alguna.
  *
  * En escritorio cada sección abre su panel al pasar el ratón; en pantallas
  * estrechas se comporta como un acordeón dentro del menú plegable. Todo va a
@@ -31,10 +40,23 @@ export class MenuPrincipalComponent {
   /** Avisa de que se ha entrado en una herramienta, para cerrar el menú plegable. */
   @Output() navegado = new EventEmitter<void>();
 
-  readonly grupos: Grupo[] = agruparPorCategoria();
+  private readonly categorias: Seccion[] = agruparPorCategoria()
+    .map(grupo => ({ titulo: grupo.categoria, herramientas: grupo.herramientas }));
+  private readonly favoritos = inject(FavoritosService);
+
+  protected readonly favoritas = FAVORITAS;
 
   /** Sólo una sección abierta a la vez, en ambos tamaños de pantalla. */
-  seccionAbierta: Categoria | null = null;
+  seccionAbierta: string | null = null;
+
+  /**
+   * Leídas al pintar y no al crear el menú, que vive mientras dure la página:
+   * una estrella marcada se ve aquí sin recargar.
+   */
+  get secciones(): Seccion[] {
+    const favoritas = this.favoritos.herramientas;
+    return favoritas.length ? [{ titulo: FAVORITAS, herramientas: favoritas }, ...this.categorias] : this.categorias;
+  }
 
   private readonly elemento: ElementRef<HTMLElement> = inject(ElementRef);
   private readonly router = inject(Router);
@@ -48,7 +70,7 @@ export class MenuPrincipalComponent {
    * ahora haría que el clic pareciera no responder. Desde el teclado
    * (`detail === 0`) no hay hover previo, así que ahí sí alterna siempre.
    */
-  alternar(evento: MouseEvent, categoria: Categoria): void {
+  alternar(evento: MouseEvent, categoria: string): void {
     const conTeclado = evento.detail === 0;
     if (!conTeclado && this.abiertaPorRaton && this.seccionAbierta === categoria) {
       this.abiertaPorRaton = false;
@@ -66,7 +88,7 @@ export class MenuPrincipalComponent {
    * dispositivo si "tiene hover": en un portátil táctil ambas cosas conviven, y
    * lo que importa es con qué se está señalando ahora mismo.
    */
-  alEntrar(evento: PointerEvent, categoria: Categoria): void {
+  alEntrar(evento: PointerEvent, categoria: string): void {
     if (!this.conRaton(evento)) {
       return;
     }
@@ -92,19 +114,20 @@ export class MenuPrincipalComponent {
   }
 
   /** Marca la sección de la herramienta que se está usando. */
-  esActiva(grupo: Grupo): boolean {
-    return grupo.herramientas.some(herramienta => this.router.url === rutaDe(herramienta));
+  esActiva(seccion: Seccion): boolean {
+    return seccion.herramientas.some(herramienta => this.router.url === rutaDe(herramienta));
   }
 
   rutaDe(herramienta: Herramienta): string {
     return rutaDe(herramienta);
   }
 
-  clave(grupo: Grupo): ClaveCategoria {
-    return claveDeCategoria(grupo.categoria);
+  /** Por la herramienta y no por la sección: en «Favoritas» van mezcladas. */
+  clave(herramienta: Herramienta): ClaveCategoria {
+    return claveDeCategoria(herramienta.categoria);
   }
 
-  identificador(categoria: Categoria): string {
+  identificador(categoria: string): string {
     return 'seccion-' + categoria.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '');
   }
 

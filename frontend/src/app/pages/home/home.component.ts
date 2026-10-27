@@ -5,16 +5,18 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { EscritorioService } from '../../core/escritorio.service';
+import { FavoritosService } from '../../core/favoritos.service';
 import { RecientesService } from '../../core/recientes.service';
 import {
   ClaveCategoria, Grupo, Herramienta, agruparPorCategoria, buscar, buscarPorSlug, claveDeCategoria,
   destinosPara, rutaDe,
 } from '../../core/tools';
 import { TraspasoService } from '../../core/traspaso.service';
+import { EstrellaComponent } from '../../shared/estrella/estrella.component';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule, NgTemplateOutlet, RouterLink],
+  imports: [EstrellaComponent, FormsModule, NgTemplateOutlet, RouterLink],
   templateUrl: './home.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './home.component.css',
@@ -56,6 +58,18 @@ export class HomeComponent {
   readonly recientes: Herramienta[] = inject(RecientesService).lista()
     .map(slug => buscarPorSlug(slug))
     .filter((h): h is Herramienta => !!h && h.disponible);
+
+  private readonly favoritos = inject(FavoritosService);
+
+  /** Al momento, no al entrar: se marcan y desmarcan desde la propia portada. */
+  get favoritas(): Herramienta[] {
+    return this.favoritos.herramientas;
+  }
+
+  /** Las que ya están en «Favoritas» no se repiten en «Usadas hace poco». */
+  get recientesSinFavoritas(): Herramienta[] {
+    return this.recientes.filter(h => !this.favoritos.es(h.slug));
+  }
 
   get resultados(): Herramienta[] {
     return buscar(this.busqueda);
