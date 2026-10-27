@@ -31,7 +31,12 @@ completa.
   en Linux, 0,15 s la parte `web` frente a 1,6–2,7 s todo, y en Windows en frío
   bastante más, porque el antivirus revisa cada DLL al cargarla. Así la página se
   descarga y arranca mientras las herramientas cargan detrás.
+- **El puerto es siempre el mismo para cada usuario** (`puerto_preferido`). Lo
+  que la página guarda en el navegador va por origen, puerto incluido: con uno
+  aleatorio en cada arranque, «Usadas hace poco», la memoria del visor, el tema
+  y las favoritas se perdían al cerrar. En la VM había 22 orígenes distintos.
 """
+import getpass
 import hmac
 import importlib
 import logging
@@ -39,9 +44,11 @@ import mimetypes
 import multiprocessing
 import os
 import secrets
+import socket
 import sys
 import threading
 import time
+import zlib
 
 COOKIE = 'escritorio'
 PARAMETRO = 't'
@@ -463,6 +470,58 @@ def tope_de_waitress(tope_de_flask: int) -> int:
     return max(4 * tope_de_flask, 16 * 1024 ** 3)
 
 
+# Fuera de 49152–65535, que es el rango dinámico de Windows: ahí el puerto
+# chocaría con las conexiones salientes de cualquier programa.
+PRIMER_PUERTO = 30000
+PUERTOS = 10000
+
+
+def puerto_preferido(usuario: str | None = None) -> int:
+    """El puerto de este usuario: el mismo en cada arranque.
+
+    Con `crc32` y no con `hash()`, que cambia de un proceso a otro. Sale del
+    usuario para que dos personas con sesión abierta en el mismo equipo no se
+    disputen uno.
+    """
+    if usuario is None:
+        try:
+            usuario = getpass.getuser()
+        except Exception:
+            usuario = ''
+    return PRIMER_PUERTO + zlib.crc32(usuario.lower().encode('utf-8')) % PUERTOS
+
+
+def abrir_socket(puerto: int) -> socket.socket:
+    """El socket del servidor en 127.0.0.1, en `puerto` o, si está ocupado, en
+    otro cualquiera.
+
+    Se abre aquí y no en waitress porque waitress pone siempre `SO_REUSEADDR`
+    (`wasyncore.set_reuse_addr`), y en Windows eso **deja abrir un puerto que ya
+    tiene otro programa**: los dos se repartirían las conexiones sin un error.
+    Por eso en Windows va con `SO_EXCLUSIVEADDRUSE`. Si el puerto está ocupado,
+    ese arranque empieza con la página en blanco —otro origen— y lo guardado
+    vuelve en el siguiente.
+    """
+    def en(numero: int) -> socket.socket:
+        conector = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            if os.name == 'nt':
+                conector.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            conector.bind(('127.0.0.1', numero))
+        except OSError:
+            conector.close()
+            raise
+        return conector
+
+    try:
+        return en(puerto)
+    except OSError as error:
+        logging.getLogger(__name__).warning(
+            'El puerto %s está ocupado (%s); se usa otro, y la página no recordará '
+            'lo de otras veces hasta el próximo arranque.', puerto, error)
+        return en(0)
+
+
 def main(argv: list[str]) -> None:
     # Lo primero de todo: ocrmypdf reparte las páginas en procesos, y en un
     # ejecutable congelado cada uno arranca este mismo `main`. Sin esto, cada
@@ -482,9 +541,10 @@ def main(argv: list[str]) -> None:
 
     borrar_sesiones_anteriores()
     reparto = Reparto(app)
-    servidor = create_server(reparto, host='127.0.0.1', port=0, threads=6,
+    servidor = create_server(reparto, sockets=[abrir_socket(puerto_preferido())], threads=6,
                              max_request_body_size=tope_de_waitress(app.config['MAX_CONTENT_LENGTH']))
-    puerto = servidor.effective_port
+    # Con `sockets`, waitress lo da como texto.
+    puerto = int(servidor.effective_port)
     app.config['ESCRITORIO_HOST'] = f'127.0.0.1:{puerto}'
     threading.Thread(target=reparto.cargar, args=(crear_herramientas, crear_sin_herramientas),
                      name='carga-de-herramientas', daemon=True).start()

@@ -522,3 +522,67 @@ def test_con_las_aplicaciones_de_verdad_el_token_se_exige_en_las_dos(entorno, tm
     assert cliente.get('/api/escritorio/espacio').status_code == 200
     # «Espacio» es de `web`: en la de las herramientas no está.
     assert '/api/escritorio/espacio' not in {r.rule for r in reparto.herramientas.url_map.iter_rules()}
+
+
+# --- El puerto: el mismo en cada arranque ------------------------------------
+
+def test_el_puerto_es_el_mismo_para_un_usuario_y_otro_para_otro():
+    """Lo que la página guarda en el navegador va por origen, puerto incluido:
+    con uno distinto en cada arranque, se perdía al cerrar."""
+    import escritorio
+
+    puerto = escritorio.puerto_preferido('w11')
+    assert puerto == escritorio.puerto_preferido('W11')
+    assert puerto != escritorio.puerto_preferido('otra')
+    # Fuera del rango dinámico de Windows, donde chocaría con las salientes.
+    assert escritorio.PRIMER_PUERTO <= puerto < 49152
+
+
+def test_el_socket_se_abre_en_el_puerto_pedido():
+    import escritorio
+
+    libre = escritorio.abrir_socket(0)
+    numero = libre.getsockname()[1]
+    libre.close()
+
+    conector = escritorio.abrir_socket(numero)
+    try:
+        assert conector.getsockname() == ('127.0.0.1', numero)
+    finally:
+        conector.close()
+
+
+def test_con_el_puerto_ocupado_se_abre_otro_y_no_se_comparte():
+    """En Windows, con `SO_REUSEADDR` el segundo se abriría encima del primero y
+    se repartirían las conexiones: el ocupado tiene que dar error y caer a otro."""
+    import socket
+
+    import escritorio
+
+    ocupado = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ocupado.bind(('127.0.0.1', 0))
+    ocupado.listen()
+    numero = ocupado.getsockname()[1]
+    try:
+        conector = escritorio.abrir_socket(numero)
+        try:
+            assert conector.getsockname()[1] != numero
+        finally:
+            conector.close()
+    finally:
+        ocupado.close()
+
+
+def test_waitress_sirve_con_el_socket_ya_abierto():
+    """Y no lo vuelve a abrir: el puerto que dice es el del socket."""
+    from waitress import create_server
+
+    import escritorio
+
+    conector = escritorio.abrir_socket(0)
+    numero = conector.getsockname()[1]
+    servidor = create_server(lambda entorno, empezar: [], sockets=[conector], threads=1)
+    try:
+        assert int(servidor.effective_port) == numero
+    finally:
+        servidor.close()

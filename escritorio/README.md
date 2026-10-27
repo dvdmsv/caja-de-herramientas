@@ -412,6 +412,17 @@ para que aparezcan en «Abrir con…».
 
 ## Trampas, todas vistas en la CI
 
+- **El puerto del backend es fijo por usuario, y el socket lo abre
+  `escritorio.abrir_socket`, no waitress.** Lo que la página guarda en el
+  navegador va por origen, puerto incluido: con `port=0`, cada arranque era otro
+  origen y se perdían «Usadas hace poco», la memoria del visor, el tema y las
+  favoritas (en la VM había 22 orígenes distintos en la WebView2). Waitress pone
+  siempre `SO_REUSEADDR`, que en Windows **deja abrir un puerto que ya tiene otro
+  programa** y los dos se reparten las conexiones; por eso se abre aparte con
+  `SO_EXCLUSIVEADDRUSE`, y si está ocupado se cae a uno cualquiera y se avisa en
+  el registro. El puerto sale del usuario (`puerto_preferido`, con `crc32`: el
+  `hash()` de Python cambia en cada proceso) y fuera de 49152–65535, el rango
+  dinámico de Windows.
 - **Cada comando propio de `main.rs` necesita su permiso en la capacidad.** La
   página la sirve el backend en 127.0.0.1, que para Tauri es un origen remoto, y
   ahí los comandos de la aplicación no se permiten solos: `build.rs` los declara
