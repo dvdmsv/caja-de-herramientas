@@ -1,5 +1,8 @@
 
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import {
+  AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, Output, ViewChild,
+  inject,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 /** Un punto del trazo, en fracciones del lienzo para sobrevivir a un cambio de tamaño. */
@@ -51,6 +54,7 @@ export class PizarraComponent implements AfterViewInit {
   private punteroActivo: number | null = null;
   private ultimo: { punto: Punto; momento: number } | null = null;
   private pintadoPedido = false;
+  private readonly zona = inject(NgZone);
 
   get vacia(): boolean {
     return this.trazos.length === 0;
@@ -218,10 +222,16 @@ export class PizarraComponent implements AfterViewInit {
     this.pintar();
   }
 
+  /**
+   * Se entrega dentro de la zona de Angular: zone.js no intercepta `toBlob`, y
+   * sin volver a ella quien la recibe cambiaba su estado sin que se repintara
+   * nada hasta el siguiente movimiento del ratón. Con la bóveda se veía: la
+   * firma se guardaba y la lista seguía igual.
+   */
   usar(): void {
     this.lienzoRef.nativeElement.toBlob(blob => {
       if (blob) {
-        this.firmada.emit(new File([blob], 'firma-dibujada.png', { type: 'image/png' }));
+        this.zona.run(() => this.firmada.emit(new File([blob], 'firma-dibujada.png', { type: 'image/png' })));
       }
     }, 'image/png');
   }
