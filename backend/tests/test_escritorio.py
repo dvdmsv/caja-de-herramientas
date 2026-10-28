@@ -574,8 +574,11 @@ def test_con_el_puerto_ocupado_se_abre_otro_y_no_se_comparte():
 
 
 def test_waitress_sirve_con_el_socket_ya_abierto():
-    """Y no lo vuelve a abrir: el puerto que dice es el del socket."""
-    from waitress import create_server
+    """Y no lo vuelve a abrir: el puerto que dice es el del socket.
+
+    waitress sólo lo instala la aplicación (`requirements-escritorio.txt`): en
+    la CI de Linux se salta, y la de Windows lo pasa."""
+    create_server = pytest.importorskip('waitress').create_server
 
     import escritorio
 
