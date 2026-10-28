@@ -12,6 +12,9 @@ import { avisoError, mensajeDeError } from '../../../shared/notify';
 import { COLOCACION_INICIAL, Colocacion } from '../../../shared/firma/colocacion';
 import { LienzoFirmaComponent } from '../../../shared/firma/lienzo-firma.component';
 import { PizarraComponent } from '../../../shared/firma/pizarra.component';
+import { BovedaService } from '../../../core/boveda.service';
+import { ElegirFirmaComponent } from '../../../shared/boveda/elegir-firma.component';
+import { GuardarFirmaComponent } from '../../../shared/boveda/guardar-firma.component';
 
 /** Espera antes de repreparar la firma mientras se mueve el umbral. */
 const ESPERA_UMBRAL = 350;
@@ -25,7 +28,9 @@ const ESPERA_UMBRAL = 350;
     ToolControlsComponent,
     ToolPageComponent,
     LienzoFirmaComponent,
-    PizarraComponent
+    PizarraComponent,
+    ElegirFirmaComponent,
+    GuardarFirmaComponent,
 ],
   templateUrl: './firmar.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -39,7 +44,10 @@ export class FirmarComponent extends PaginaHerramienta implements OnDestroy {
 
   /** Cola propia: la heredada `archivos` lleva el documento. */
   firmas: ArchivoEnCola[] = [];
-  modoFirma: 'subir' | 'dibujar' = 'subir';
+  modoFirma: 'subir' | 'dibujar' | 'boveda' = 'subir';
+  /** La firma de la cola salió de la bóveda: no se ofrece volver a guardarla. */
+  firmaDeLaBoveda = false;
+  protected readonly boveda = inject(BovedaService);
 
   colocacion: Colocacion = { ...COLOCACION_INICIAL };
   paginas = 0;
@@ -142,7 +150,8 @@ export class FirmarComponent extends PaginaHerramienta implements OnDestroy {
 
   // --- firma ------------------------------------------------------------
 
-  alAgregarFirma(nuevos: ArchivoEnCola[]): void {
+  alAgregarFirma(nuevos: ArchivoEnCola[], deLaBoveda = false): void {
+    this.firmaDeLaBoveda = deLaBoveda;
     this.olvidarResultadoDeFirma();
     this.subir(nuevos, () => this.prepararFirma());
   }
@@ -162,6 +171,19 @@ export class FirmarComponent extends PaginaHerramienta implements OnDestroy {
     // Un trazo dibujado ya es transparente: no hay fondo que recortar.
     this.quitarFondo = false;
     this.alAgregarFirma(nuevos);
+  }
+
+  /**
+   * Una de la bóveda entra como una dibujada. Se guardó tal como entró, así
+   * que el fondo se quita igual que entonces: una foto (JPEG) lo trae, y un
+   * PNG dibujado ya es transparente.
+   */
+  alElegirDeLaBoveda(archivo: File): void {
+    this.firmas.length = 0;
+    const nuevos = aCola([archivo]);
+    this.firmas.push(...nuevos);
+    this.quitarFondo = archivo.type !== 'image/png';
+    this.alAgregarFirma(nuevos, true);
   }
 
   alCambiarFondo(): void {

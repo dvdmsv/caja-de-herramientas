@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   129 iconos de los 2078 que trae bootstrap-icons.
+   132 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -45,6 +45,7 @@
 .bi-calendar-event::before { content: "\f1e8"; }
 .bi-card-image::before { content: "\f226"; }
 .bi-chat-left-text-fill::before { content: "\f251"; }
+.bi-check-circle::before { content: "\f26b"; }
 .bi-check-circle-fill::before { content: "\f26a"; }
 .bi-check-lg::before { content: "\f633"; }
 .bi-check2-square::before { content: "\f271"; }
@@ -73,6 +74,7 @@
 .bi-file-earmark-diff::before { content: "\f364"; }
 .bi-file-earmark-image::before { content: "\f36d"; }
 .bi-file-earmark-lock::before { content: "\f36f"; }
+.bi-file-earmark-lock2::before { content: "\f371"; }
 .bi-file-earmark-pdf::before { content: "\f63e"; }
 .bi-file-earmark-plus::before { content: "\f37d"; }
 .bi-file-earmark-word::before { content: "\f38d"; }
@@ -123,6 +125,7 @@
 .bi-printer::before { content: "\f501"; }
 .bi-qr-code::before { content: "\f6ae"; }
 .bi-question-circle::before { content: "\f505"; }
+.bi-safe2::before { content: "\f653"; }
 .bi-scissors::before { content: "\f528"; }
 .bi-search::before { content: "\f52a"; }
 .bi-shield-check::before { content: "\f52f"; }

@@ -278,5 +278,11 @@ export const routes: Routes = [
     title: 'Ajustes',
     loadComponent: () => import('./pages/ajustes/ajustes.component').then(m => m.AjustesComponent),
   },
+  {
+    // Sólo se enlaza en la aplicación de Windows; no es una herramienta.
+    path: 'boveda',
+    title: 'Bóveda',
+    loadComponent: () => import('./pages/boveda/boveda.component').then(m => m.BovedaComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

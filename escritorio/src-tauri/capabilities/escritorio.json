@@ -33,6 +33,9 @@
     "allow-reiniciar",
     "allow-elegir-carpeta",
     "allow-elegir-destino",
-    "allow-guardar-en-destino"
+    "allow-guardar-en-destino",
+    "allow-leer-boveda",
+    "allow-guardar-boveda",
+    "allow-borrar-boveda"
   ]
 }

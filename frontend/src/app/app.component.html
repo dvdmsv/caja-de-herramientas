@@ -12,6 +12,10 @@
       <div class="d-flex align-items-center gap-1 order-lg-last ms-auto ms-lg-2">
         <app-uso-sesion></app-uso-sesion>
         @if (escritorio.activo) {
+          <a class="btn btn-link boton-tema" routerLink="/boveda" routerLinkActive="activo"
+            ariaCurrentWhenActive="page" aria-label="Bóveda" title="Bóveda: tus certificados y firmas">
+            <i class="bi bi-safe2" aria-hidden="true"></i>
+          </a>
           <a class="btn btn-link boton-tema" routerLink="/ajustes" routerLinkActive="activo"
             ariaCurrentWhenActive="page" aria-label="Ajustes" title="Ajustes">
             <i class="bi bi-gear" aria-hidden="true"></i>

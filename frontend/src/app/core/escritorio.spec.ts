@@ -3,6 +3,7 @@ import {
   versionDeLaAplicacion, leerMenuContextual, aplicarMenuContextual, textoDelAviso, progresoTarea,
   describirGuardado, nuevaVentana, elegirCarpeta, elegirDestino, guardarEnDestino, acortarCarpeta,
   leerAjustes, guardarAjustes, elegirCarpetaDeGuardado, buscarActualizacionAhora, vaAlVisor,
+  leerBoveda, guardarBoveda, borrarBoveda,
 } from './escritorio';
 
 /** Un Tauri de mentira que apunta lo que le piden. */
@@ -195,5 +196,26 @@ describe('vaAlVisor', () => {
 
   it('lo que llega del menú del Explorador va a su herramienta', () => {
     expect(vaAlVisor({ herramienta: 'comprimir-pdf', archivos: [pdf] }, false)).toBe(false);
+  });
+});
+
+describe('la bóveda en el disco', () => {
+  it('se lee, se guarda y se borra con sus comandos, y sin bóveda se lee null', async () => {
+    let guardada: unknown = null;
+    const { falso, llamadas } = tauriFalso({
+      leer_boveda: () => guardada,
+      guardar_boveda: argumentos => (guardada = (argumentos as { contenido: string }).contenido),
+      borrar_boveda: () => (guardada = null),
+    });
+
+    expect(await leerBoveda(falso)).toBeNull();
+    await guardarBoveda(falso, '{"formato":1}');
+    expect(await leerBoveda(falso)).toBe('{"formato":1}');
+    await borrarBoveda(falso);
+    expect(await leerBoveda(falso)).toBeNull();
+
+    expect(llamadas.map(l => l.comando)).toEqual(
+      ['leer_boveda', 'guardar_boveda', 'leer_boveda', 'borrar_boveda', 'leer_boveda']);
+    expect(llamadas[1].argumentos).toEqual({ contenido: '{"formato":1}' });
   });
 });

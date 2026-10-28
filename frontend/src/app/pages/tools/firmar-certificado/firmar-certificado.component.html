@@ -53,6 +53,14 @@
 
   <!-- Vía del archivo: aquí sí viaja la clave -->
   @if (origen === 'archivo') {
+    @if (boveda.disponible) {
+      <div class="mb-3">
+        <p class="form-label mb-1">De tu bóveda</p>
+        <app-elegir-certificado [deshabilitado]="ocupado" (elegido)="alElegirDeLaBoveda($event)">
+        </app-elegir-certificado>
+        <p class="form-text mt-1 mb-0">O elige el archivo:</p>
+      </div>
+    }
     @if (inseguro) {
       <div class="alert alert-warning d-flex gap-2">
         <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
@@ -83,7 +91,11 @@
             <span class="spinner-border spinner-border-sm me-1"
             aria-hidden="true"></span>
           }
-          Se usa para abrir el certificado y se descarta; no se guarda en ningún sitio.
+          @if (boveda.disponible) {
+            Se usa para abrir el certificado. Sólo se guarda si lo guardas en tu bóveda.
+          } @else {
+            Se usa para abrir el certificado y se descarta; no se guarda en ningún sitio.
+          }
         </p>
       </div>
     </div>
@@ -102,6 +114,23 @@
           <div class="small text-danger-emphasis">
             <i class="bi bi-exclamation-triangle me-1"></i>
             Este certificado está caducado. Puedes firmar con él, pero la firma saldrá como no válida.
+          </div>
+        }
+        @if (origen === 'archivo' && boveda.disponible && !certificadoDeLaBoveda) {
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            @if (certificadoGuardado) {
+              <span class="small"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Guardado en la bóveda</span>
+            } @else {
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                [disabled]="ocupado || guardandoCertificado" (click)="guardarCertificadoEnLaBoveda()">
+                <i class="bi bi-safe2 me-1" aria-hidden="true"></i>Guardar en la bóveda
+              </button>
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="recordar-contrasena"
+                  [disabled]="ocupado || guardandoCertificado" [(ngModel)]="recordarContrasena">
+                <label class="form-check-label small" for="recordar-contrasena">Recordar también la contraseña</label>
+              </div>
+            }
           </div>
         }
         @if (datosCertificado.autofirmado) {
@@ -180,6 +209,14 @@
           <i class="bi bi-pencil me-1"></i>Dibujarla
         </button>
       </li>
+      @if (boveda.disponible) {
+        <li class="nav-item">
+          <button type="button" class="nav-link" [class.active]="modoTrazo === 'boveda'"
+            (click)="modoTrazo = 'boveda'">
+            <i class="bi bi-safe2 me-1"></i>De la bóveda
+          </button>
+        </li>
+      }
     </ul>
     @if (modoTrazo === 'subir') {
       <app-file-queue
@@ -196,6 +233,14 @@
       <app-pizarra [deshabilitado]="ocupado"
         (firmada)="alDibujar($event)">
       </app-pizarra>
+    }
+    @if (modoTrazo === 'boveda') {
+      <app-elegir-firma [deshabilitado]="ocupado" (elegida)="alElegirTrazoDeLaBoveda($event)"></app-elegir-firma>
+    }
+    @if (trazos.length > 0 && !trazoDeLaBoveda) {
+      <div class="mt-2">
+        <app-guardar-firma [archivo]="trazos[0].file" [deshabilitado]="ocupado"></app-guardar-firma>
+      </div>
     }
   }
 

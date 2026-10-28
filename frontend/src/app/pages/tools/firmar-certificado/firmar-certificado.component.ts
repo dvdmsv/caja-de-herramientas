@@ -15,6 +15,11 @@ import { avisoError, avisoExito, mensajeDeError } from '../../../shared/notify';
 import { COLOCACION_INICIAL, Colocacion } from '../../../shared/firma/colocacion';
 import { LienzoFirmaComponent } from '../../../shared/firma/lienzo-firma.component';
 import { PizarraComponent } from '../../../shared/firma/pizarra.component';
+import { BovedaService, CertificadoElegido } from '../../../core/boveda.service';
+import { asegurarAbierta, pedirNombre } from '../../../shared/boveda/dialogos';
+import { ElegirCertificadoComponent } from '../../../shared/boveda/elegir-certificado.component';
+import { ElegirFirmaComponent } from '../../../shared/boveda/elegir-firma.component';
+import { GuardarFirmaComponent } from '../../../shared/boveda/guardar-firma.component';
 
 /** Espera antes de volver a pedir la apariencia mientras se escribe el motivo. */
 const ESPERA = 350;
@@ -63,7 +68,10 @@ const MAXIMO_AUTOFIRMA = 5 * 1024 * 1024;
     ToolControlsComponent,
     ToolPageComponent,
     LienzoFirmaComponent,
-    PizarraComponent
+    PizarraComponent,
+    ElegirCertificadoComponent,
+    ElegirFirmaComponent,
+    GuardarFirmaComponent,
 ],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './firmar-certificado.component.html',
@@ -88,6 +96,15 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
   comprobando = false;
   eligiendo = false;
 
+  // --- la bóveda (sólo en la aplicación) --------------------------------
+  protected readonly boveda = inject(BovedaService);
+  /** El certificado salió de la bóveda: no se ofrece volver a guardarlo. */
+  certificadoDeLaBoveda = false;
+  certificadoGuardado = false;
+  guardandoCertificado = false;
+  recordarContrasena = true;
+  trazoDeLaBoveda = false;
+
   readonly descargaAutofirma = DESCARGA_AUTOFIRMA;
 
   // --- cómo se firma ----------------------------------------------------
@@ -98,7 +115,7 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
 
   /** Cola propia para el trazo manuscrito, opcional, que va de fondo del sello. */
   trazos: ArchivoEnCola[] = [];
-  modoTrazo: 'subir' | 'dibujar' = 'subir';
+  modoTrazo: 'subir' | 'dibujar' | 'boveda' = 'subir';
 
   colocacion: Colocacion = { ...COLOCACION_SELLO };
   paginas = 0;
@@ -231,6 +248,48 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
     lector.readAsDataURL(archivo);
   }
 
+  /**
+   * Uno de la bóveda entra como si se hubiera elegido el archivo y escrito la
+   * contraseña. Si se guardó sin ella, se queda esperando a que se escriba.
+   */
+  alElegirDeLaBoveda(elegido: CertificadoElegido): void {
+    this.olvidarCertificado();
+    this.certificadoDeLaBoveda = true;
+    this.nombreCertificado = elegido.nombre;
+    this.certificado = elegido.p12;
+    this.contrasena = elegido.contrasena ?? '';
+    this.comprobarCertificado();
+  }
+
+  /** El que se acaba de comprobar, con su contraseña si se pide recordarla. */
+  async guardarCertificadoEnLaBoveda(): Promise<void> {
+    const datos = this.datosCertificado;
+    if (!datos || !(await asegurarAbierta(this.boveda))) {
+      return;
+    }
+    const nombre = await pedirNombre('Guardar el certificado', datos.nombre);
+    if (!nombre) {
+      return;
+    }
+    this.guardandoCertificado = true;
+    try {
+      await this.boveda.guardarCertificado({
+        nombre,
+        titular: datos.nombre,
+        emisor: datos.emisor,
+        hasta: datos.hasta,
+        p12: this.certificado,
+        ...(this.recordarContrasena ? { contrasena: this.contrasena } : {}),
+      });
+      this.certificadoGuardado = true;
+      avisoExito('Certificado guardado en la bóveda');
+    } catch (error) {
+      avisoError((error as Error).message);
+    } finally {
+      this.guardandoCertificado = false;
+    }
+  }
+
   /** Cambiar de vía descarta lo elegido en la otra: no se mezclan. */
   cambiarOrigen(origen: 'autofirma' | 'archivo'): void {
     if (this.origen === origen) {
@@ -308,6 +367,7 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
   }
 
   alAgregarTrazo(nuevos: ArchivoEnCola[]): void {
+    this.trazoDeLaBoveda = false;
     this.alCambiarLista();
     this.subir(nuevos, () => this.refrescarApariencia());
   }
@@ -322,6 +382,11 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
     const nuevos = aCola([archivo]);
     this.trazos.push(...nuevos);
     this.alAgregarTrazo(nuevos);
+  }
+
+  alElegirTrazoDeLaBoveda(archivo: File): void {
+    this.alDibujar(archivo);
+    this.trazoDeLaBoveda = true;
   }
 
   private refrescarApariencia(): void {
@@ -488,6 +553,8 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
     this.contrasena = '';
     this.certificadoPublico = '';
     this.datosCertificado = null;
+    this.certificadoDeLaBoveda = false;
+    this.certificadoGuardado = false;
     this.olvidarApariencia();
   }
 

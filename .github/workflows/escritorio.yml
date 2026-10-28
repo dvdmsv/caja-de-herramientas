@@ -263,12 +263,16 @@ jobs:
       # Lo que decide qué se pone y qué se quita al aplicar un paquete de
       # actualización. Sólo usa std, así que se prueba con rustc suelto, sin
       # compilar Tauri para los tests.
-      - name: Tests del plan de actualización
+      - name: Tests del plan de actualización y de la bóveda
         run: |
           rustc --edition 2021 --test escritorio\src-tauri\src\parche_plan.rs -o "$env:RUNNER_TEMP\parche_plan.exe"
           if ($LASTEXITCODE) { throw 'No compila.' }
           & "$env:RUNNER_TEMP\parche_plan.exe"
           if ($LASTEXITCODE) { throw 'Fallan los tests del plan de actualización.' }
+          rustc --edition 2021 --test escritorio\src-tauri\src\boveda_disco.rs -o "$env:RUNNER_TEMP\boveda_disco.exe"
+          if ($LASTEXITCODE) { throw 'No compila la bóveda.' }
+          & "$env:RUNNER_TEMP\boveda_disco.exe"
+          if ($LASTEXITCODE) { throw 'Fallan los tests de la bóveda en el disco.' }
 
       - name: Compilar el instalador
         id: instalador

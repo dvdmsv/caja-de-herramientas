@@ -36,6 +36,7 @@
 
 mod ajustes;
 mod bandeja;
+mod boveda_disco;
 mod menu;
 mod parche;
 mod parche_plan;
@@ -270,6 +271,9 @@ fn main() {
             elegir_carpeta,
             elegir_destino,
             guardar_en_destino,
+            leer_boveda,
+            guardar_boveda,
+            borrar_boveda,
         ])
         .setup(|app| {
             *app.state::<Servidor>().token.lock().unwrap() = token_aleatorio()?;
@@ -889,6 +893,30 @@ fn guardar_ajustes(app: AppHandle, cambios: serde_json::Value) -> Result<EstadoA
     let ajustes = ajustes::mezclar(&app, cambios)?;
     bandeja::sincronizar(&app, ajustes.ventana.a_la_bandeja);
     Ok(estado_ajustes(&app, ajustes))
+}
+
+// --- Bóveda -------------------------------------------------------------------
+//
+// Llega y sale cifrada: la cifra la página con su contraseña maestra, y aquí
+// sólo se guarda el texto (ver `boveda_disco.rs`).
+
+fn ruta_de_la_boveda(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(app.path().local_data_dir().map_err(|error| error.to_string())?.join("merge-pdf").join(boveda_disco::NOMBRE))
+}
+
+#[tauri::command]
+fn leer_boveda(app: AppHandle) -> Result<Option<String>, String> {
+    boveda_disco::leer(&ruta_de_la_boveda(&app)?)
+}
+
+#[tauri::command]
+fn guardar_boveda(app: AppHandle, contenido: String) -> Result<(), String> {
+    boveda_disco::guardar(&ruta_de_la_boveda(&app)?, &contenido)
+}
+
+#[tauri::command]
+fn borrar_boveda(app: AppHandle) -> Result<(), String> {
+    boveda_disco::borrar(&ruta_de_la_boveda(&app)?)
 }
 
 /// «Siempre en esta carpeta»: la elige la persona con el diálogo de Windows. Es

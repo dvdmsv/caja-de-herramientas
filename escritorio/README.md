@@ -265,6 +265,29 @@ no cambia nunca:
 
 ## Lo que la aplicación hace y la web no
 
+- **Bóveda** (`/boveda`, el candado de la barra): certificados `.p12`, con su
+  contraseña si se quiere, y firmas a mano, para usarlos desde «Firmar
+  documento», «Firmar con certificado» y el visor sin buscar el archivo.
+  - **Cifra la página, no Rust**, con WebCrypto: PBKDF2-SHA256 de 600 000
+    iteraciones para sacar la clave de la contraseña maestra y AES-GCM de 256
+    bits, **todo el contenido en un solo bloque** para que no se sepa ni cuántas
+    cosas hay ni cómo se llaman (`frontend/src/app/core/boveda/`). Tauri sólo
+    guarda el texto cifrado en `%LOCALAPPDATA%\merge-pdf\boveda.json`
+    (`src/boveda_disco.rs`, sólo con `std` y probado suelto en la CI, como
+    `parche_plan.rs`), sustituyéndolo de una vez con un temporal y `rename`.
+    Cifrar en Rust no protegería más: el `.p12` y su contraseña tienen que
+    pasar por la página de todos modos para viajar al backend.
+  - **Sólo en la aplicación** porque WebCrypto sólo existe en contexto seguro:
+    127.0.0.1 lo es, y la web servida por HTTP en una red local no.
+  - La clave vive en memoria, no extraíble, y la bóveda **se cierra sola a los
+    15 minutos sin usarla**. Cada ventana la abre por su cuenta, y cada cambio
+    relee el archivo antes de escribir: dos ventanas no se pisan, y si otra
+    cambió la contraseña ésta se cierra y lo dice (`core/boveda.service.ts`).
+  - **Si se olvida la contraseña no hay recuperación**, y se dice al crearla:
+    sólo se puede borrar la bóveda. **Desinstalar no la borra**, como los
+    ajustes: `ganchos.nsh` sólo quita lo temporal de la carpeta de datos.
+  - Desde las herramientas se abre con un diálogo (`shared/boveda/dialogos.ts`)
+    y no mandando a `/boveda`: se perdería el documento que se tenía colocado.
 - **Ajustes** (`pages/ajustes/`, con la disposición de la Configuración de
   Windows 11: menú lateral y una sección por pantalla, en `/ajustes#seccion`).
   Los guarda y los aplica `src-tauri/src/ajustes.rs`, dueño de
@@ -371,6 +394,8 @@ que siga sin hacer nada fuera de ella**: en el backend, detrás de
 
 | Archivo | Lo que añade la aplicación |
 |---|---|
+| `frontend/src/app/pages/tools/firmar/`, `firmar-certificado/` y `pages/visor/firma-visor.component.ts` | «De la bóveda» y «Guardar en la bóveda» (`shared/boveda/`), que sin `puente()` no pintan nada |
+| `frontend/src/app/app.component.html`, `app.routes.ts` | el candado de la barra y la ruta `/boveda`, que en la web dice que no está |
 | `backend/api/conversion.py` | `resolver()`, `entorno_de_programas()`, `murio_por_fallo()`, UTF-8, `CREATE_NO_WINDOW` y `taskkill` al cancelar |
 | `backend/api/progreso.py` | `_insistiendo()` alrededor de `os.replace` y `os.unlink` |
 | `backend/api/limites.py` | el `hasattr(signal, 'SIGALRM')` de `PlazoMaximo` |

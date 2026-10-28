@@ -1,0 +1,73 @@
+.elemento {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.elemento__icono {
+  font-size: 1.4rem;
+  color: var(--bs-secondary-color);
+}
+
+.elemento__texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.elemento__acciones {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.firmas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
+}
+
+.firma {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+}
+
+/* Tinta oscura sobre transparente: sobre el fondo oscuro del tema no se vería,
+   así que la firma va siempre sobre blanco. */
+.firma img {
+  width: 100%;
+  height: 5rem;
+  object-fit: contain;
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-white);
+}
+
+.firma__nombre {
+  overflow: hidden;
+  font-size: 0.9rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.peligro {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+/* Móvil: la ventana de la aplicación no baja de 720 × 540 (`min_inner_size`),
+   pero la página existe en la web, y ahí sí puede verse estrecha
+   (`ESTRECHA` en `core/pantalla.ts`). Los botones de cada certificado bajan a
+   su propia línea: en fila, el nombre se quedaba en unas pocas letras. */
+@media (max-width: 575.98px) {
+  .elemento {
+    flex-wrap: wrap;
+  }
+
+  .elemento__acciones {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

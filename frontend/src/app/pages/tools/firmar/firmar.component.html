@@ -24,6 +24,14 @@
         <i class="bi bi-pencil me-1"></i>Dibujarla
       </button>
     </li>
+    @if (boveda.disponible) {
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="modoFirma === 'boveda'"
+          (click)="modoFirma = 'boveda'">
+          <i class="bi bi-safe2 me-1"></i>De la bóveda
+        </button>
+      </li>
+    }
   </ul>
 
   @if (modoFirma === 'subir') {
@@ -42,6 +50,16 @@
     <app-pizarra [deshabilitado]="ocupado"
       (firmada)="alDibujar($event)">
     </app-pizarra>
+  }
+
+  @if (modoFirma === 'boveda') {
+    <app-elegir-firma [deshabilitado]="ocupado" (elegida)="alElegirDeLaBoveda($event)"></app-elegir-firma>
+  }
+
+  @if (firmas.length > 0 && !firmaDeLaBoveda) {
+    <div class="mt-2">
+      <app-guardar-firma [archivo]="firmas[0].file" [deshabilitado]="ocupado"></app-guardar-firma>
+    </div>
   }
 
   @if (firmas.length > 0) {

@@ -29,6 +29,9 @@ const COMANDOS: &[&str] = &[
     "elegir_carpeta",
     "elegir_destino",
     "guardar_en_destino",
+    "leer_boveda",
+    "guardar_boveda",
+    "borrar_boveda",
 ];
 
 fn main() {

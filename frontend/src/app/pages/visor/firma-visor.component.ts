@@ -4,6 +4,9 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { BovedaService } from '../../core/boveda.service';
+import { asegurarAbierta, pedirNombre } from '../../shared/boveda/dialogos';
+import { ElegirFirmaComponent } from '../../shared/boveda/elegir-firma.component';
 import { PizarraComponent } from '../../shared/firma/pizarra.component';
 import { FirmaPendiente } from './capa-dibujo.component';
 
@@ -19,7 +22,7 @@ const LADO_MAXIMO = 900;
  */
 @Component({
   selector: 'app-visor-firma',
-  imports: [PizarraComponent, RouterLink],
+  imports: [ElegirFirmaComponent, PizarraComponent, RouterLink],
   template: `
     <div class="fondo" (click)="cancelar.emit()"></div>
     <div class="dialogo" role="dialog" aria-modal="true" aria-labelledby="titulo-firma">
@@ -32,6 +35,19 @@ const LADO_MAXIMO = 900;
           <input type="file" accept="image/png,image/jpeg" hidden (change)="alElegir($event)">
         </label>
       </p>
+      @if (boveda.disponible) {
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="guardar-en-boveda"
+            [checked]="guardarEnBoveda" (change)="guardarEnBoveda = !guardarEnBoveda">
+          <label class="form-check-label small" for="guardar-en-boveda">
+            Guardar también en la bóveda la que dibuje o elija
+          </label>
+        </div>
+        <h3 class="h6 mb-2">De tu bóveda</h3>
+        <div class="mb-3">
+          <app-elegir-firma (elegida)="usarArchivo($event, true)"></app-elegir-firma>
+        </div>
+      }
       <p class="small text-body-secondary mb-3">
         Es la imagen de tu firma, no una firma digital: para que el documento quede firmado
         de verdad, usa <a routerLink="/herramientas/firmar-certificado" (click)="cancelar.emit()">Firmar con
@@ -91,7 +107,10 @@ export class VisorFirmaComponent {
   @Output() cancelar = new EventEmitter<void>();
 
   error = '';
+  /** Sólo en la aplicación: la firma dibujada o elegida se guarda antes de usarla. */
+  guardarEnBoveda = false;
 
+  protected readonly boveda = inject(BovedaService);
   private readonly cd = inject(ChangeDetectorRef);
   private readonly zone = inject(NgZone);
 
@@ -107,7 +126,10 @@ export class VisorFirmaComponent {
     }
   }
 
-  async usarArchivo(archivo: File): Promise<void> {
+  async usarArchivo(archivo: File, deLaBoveda = false): Promise<void> {
+    if (this.guardarEnBoveda && !deLaBoveda && !(await this.guardarEnLaBoveda(archivo))) {
+      return;
+    }
     // `createImageBitmap` resuelve fuera de la zona de Angular: sin volver a
     // ella, el visor recibía la firma y no se repintaba.
     try {
@@ -119,6 +141,25 @@ export class VisorFirmaComponent {
         this.cd.markForCheck();
       });
     }
+  }
+
+  /** La guarda tal como entra. `false` si se cancela: entonces no se usa todavía. */
+  private async guardarEnLaBoveda(archivo: File): Promise<boolean> {
+    if (!(await asegurarAbierta(this.boveda))) {
+      return false;
+    }
+    const nombre = await pedirNombre('Guardar la firma', `Firma ${this.boveda.contenido.firmas.length + 1}`);
+    if (!nombre) {
+      return false;
+    }
+    try {
+      await this.boveda.guardarFirma(archivo, nombre);
+    } catch (error) {
+      this.error = (error as Error).message;
+      this.cd.markForCheck();
+      return false;
+    }
+    return true;
   }
 }
 

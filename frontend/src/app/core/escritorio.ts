@@ -210,6 +210,24 @@ export async function informacionDeSoporte(tauri: PuenteTauri): Promise<string> 
   return String(await tauri.invoke('informacion_de_soporte'));
 }
 
+/**
+ * La bóveda tal como está en el disco, **cifrada**, o `null` si aún no hay.
+ * Cifra y descifra la página (`core/boveda/`); Tauri sólo guarda el texto.
+ */
+export async function leerBoveda(tauri: PuenteTauri): Promise<string | null> {
+  const guardada = await tauri.invoke('leer_boveda');
+  return typeof guardada === 'string' ? guardada : null;
+}
+
+/** La sustituye entera, de una vez (ver `boveda_disco::guardar`). */
+export async function guardarBoveda(tauri: PuenteTauri, contenido: string): Promise<void> {
+  await tauri.invoke('guardar_boveda', { contenido });
+}
+
+export async function borrarBoveda(tauri: PuenteTauri): Promise<void> {
+  await tauri.invoke('borrar_boveda');
+}
+
 /** Vuelve a abrir la aplicación, para que valgan los cambios de «Avanzado». */
 export async function reiniciar(tauri: PuenteTauri): Promise<void> {
   await tauri.invoke('reiniciar');
