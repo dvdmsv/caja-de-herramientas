@@ -437,6 +437,14 @@ para que aparezcan en «Abrir con…».
 
 ## Trampas, todas vistas en la CI
 
+- **Al llegar `LISTO`, una ventana puede estar todavía en blanco.** Desde que
+  el backend abre el puerto antes de cargar las herramientas, `LISTO` sale a
+  los 0,3 s, y en un Windows lento la WebView2 aún no ha empezado a cargar la
+  pantalla de arranque: su URL es `about:blank`. `ventanas::en_arranque` sólo
+  miraba la pantalla de arranque, así que esa ventana no se llevaba al backend
+  ni recibía la autoprueba. La CI lo vio una vez de dos con el mismo código, y
+  para quien la usara habría sido «Abriendo…» para siempre. Ahora cuenta toda
+  ventana que no esté ya en el backend.
 - **El puerto del backend es fijo por usuario, y el socket lo abre
   `escritorio.abrir_socket`, no waitress.** Lo que la página guarda en el
   navegador va por origen, puerto incluido: con `port=0`, cada arranque era otro

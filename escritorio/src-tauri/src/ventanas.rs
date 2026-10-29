@@ -116,12 +116,24 @@ pub fn crear_aparte_como(app: &AppHandle, etiqueta: String, destino: Option<Url>
     });
 }
 
-/// Las ventanas que siguen en la pantalla de arranque.
+/// Las ventanas que todavía no están en el backend: en la pantalla de arranque
+/// o, si `LISTO` llega muy pronto, aún en blanco. Las que ya están en él no se
+/// tocan: llevarlas otra vez les haría perder lo que tienen abierto.
 pub fn en_arranque(app: &AppHandle) -> Vec<WebviewWindow> {
     app.webview_windows()
         .into_values()
-        .filter(|ventana| ventana.url().map(|url| es_de_arranque(&url)).unwrap_or(false))
+        .filter(|ventana| ventana.url().map_or(true, |url| aun_sin_backend(&url)))
         .collect()
+}
+
+/// `about:blank` es lo que da una WebView2 que aún no ha empezado a cargar la
+/// pantalla de arranque. Desde que el backend abre el puerto antes de cargar
+/// las herramientas (`escritorio.Reparto`, 0,3 s), `LISTO` puede llegar antes
+/// que eso en un equipo lento, y mirando sólo la pantalla de arranque esa
+/// ventana se quedaba sin llevar al backend —en «Abriendo…» para siempre— y sin
+/// autoprueba. La CI lo vio una vez de dos con el mismo código.
+fn aun_sin_backend(url: &Url) -> bool {
+    es_de_arranque(url) || url.as_str() == "about:blank"
 }
 
 /// Enseña en la pantalla de arranque que el backend no ha arrancado. Con
