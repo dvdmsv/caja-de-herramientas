@@ -15,7 +15,7 @@
     <li class="nav-item">
       <button type="button" class="nav-link" [class.active]="origen === 'autofirma'"
         [disabled]="ocupado" (click)="cambiarOrigen('autofirma')">
-        <i class="bi bi-pc-display me-1"></i>Uno instalado en el equipo
+        <i class="bi bi-pc-display me-1"></i>{{ local ? 'Uno instalado en Android' : 'Uno instalado en el equipo' }}
       </button>
     </li>
     <li class="nav-item">
@@ -28,12 +28,16 @@
 
   <!-- Vía AutoFirma: la clave no sale del equipo -->
   @if (origen === 'autofirma') {
+    @if (local) {
+      <p class="form-text mt-0">Elige un certificado del almacén de Android. La clave permanece en el sistema y el documento se firma en este dispositivo.</p>
+    } @else {
     <p class="form-text mt-0">
       Se abre el selector de certificados del sistema, el mismo de las sedes electrónicas, y la
       firma se hace en tu equipo: <strong>ni tu clave ni el documento salen de aquí</strong>. Es la
       única forma de firmar con el DNIe o una tarjeta, porque esas claves no se pueden exportar.
       Necesita tener <strong>AutoFirma</strong> instalado.
     </p>
+    }
     <button type="button" class="btn btn-outline-primary" [disabled]="ocupado || eligiendo"
       (click)="elegirDelEquipo()">
       @if (eligiendo) {
@@ -44,11 +48,13 @@
       }
       {{ datosCertificado ? 'Elegir otro certificado' : 'Elegir certificado' }}
     </button>
+    @if (!local) {
     <p class="form-text">
       ¿No lo tienes?
       <a [href]="descargaAutofirma" target="_blank" rel="noopener">Descargar AutoFirma</a>
       (es gratis, del Gobierno de España). O firma con un archivo .p12 en la otra pestaña.
     </p>
+    }
   }
 
   <!-- Vía del archivo: aquí sí viaja la clave -->

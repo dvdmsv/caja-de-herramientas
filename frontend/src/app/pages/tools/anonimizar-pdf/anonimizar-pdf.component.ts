@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { SIN_SERVIDOR } from '../../../core/plataforma';
 import { RecuentoAnonimizado } from '../../../core/api.service';
 import { MARCADOS_DE_SERIE, TIPOS_DE_DATO, nombreDeDato } from '../../../shared/datos-personales';
 import { ConstructorRegexComponent } from '../../../shared/constructor-regex/constructor-regex.component';
@@ -33,6 +34,7 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
     return 'Datos tachados';
   }
 
+  readonly local = SIN_SERVIDOR;
   readonly tiposDeDato = TIPOS_DE_DATO;
   marcados: Record<string, boolean> = { ...MARCADOS_DE_SERIE };
   patron = '';

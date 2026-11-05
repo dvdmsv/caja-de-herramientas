@@ -13,6 +13,7 @@ import {
 } from '../../core/tools';
 import { TraspasoService } from '../../core/traspaso.service';
 import { EstrellaComponent } from '../../shared/estrella/estrella.component';
+import { SIN_SERVIDOR } from '../../core/plataforma';
 
 @Component({
   selector: 'app-home',
@@ -22,6 +23,7 @@ import { EstrellaComponent } from '../../shared/estrella/estrella.component';
   styleUrl: './home.component.css',
 })
 export class HomeComponent {
+  readonly local = SIN_SERVIDOR;
   /** La portada sí anuncia las herramientas que aún no están listas. */
   readonly grupos: Grupo[] = agruparPorCategoria(true);
 

@@ -85,3 +85,6 @@ main {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Android: Capacitor ajusta el WebView a las barras del sistema. */
+.android-local body { overscroll-behavior-y: none; }

@@ -28,8 +28,8 @@ let instancias = 0;
  * campo** (`expresion`), no lo que se ha armado aquí: si alguien la retoca a
  * mano, lo que va a tachar es eso.
  *
- * La prueba la hace el servidor, con el `re` de Python que luego tacha, por lo
- * que explica `shared/regex-guiada.ts`.
+ * La API prueba con el mismo motor que luego tacha: Python en Windows/web
+ * y el worker local JavaScript en Android.
  */
 @Component({
   selector: 'app-constructor-regex',

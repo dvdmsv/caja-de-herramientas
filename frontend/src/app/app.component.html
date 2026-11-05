@@ -59,6 +59,8 @@
       <p class="mb-1">
         @if (escritorio.activo) {
           Tus archivos se quedan en tu equipo y se borran al volver a abrir la aplicación.
+        } @else if (local) {
+          Tus documentos se procesan y se guardan en este teléfono. Puedes borrarlos desde el indicador de espacio.
         } @else {
           Tus archivos se borran del servidor 2 horas después de tu última actividad.
         }

@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 
+import { SIN_SERVIDOR } from '../../../core/plataforma';
 import { Resultado, ResumenComparacion } from '../../../core/api.service';
 import { FileQueueComponent } from '../../../shared/file-queue/file-queue.component';
 import { PaginaHerramienta } from '../../../shared/pagina-herramienta';
@@ -20,6 +21,7 @@ export class CompararPdfComponent extends PaginaHerramienta {
     return 'Informe listo';
   }
 
+  readonly local = SIN_SERVIDOR;
   conImagenes = true;
 
   /** El recuento que manda el servidor, para contarlo sin abrir el informe. */

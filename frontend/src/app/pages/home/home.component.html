@@ -1,9 +1,14 @@
 <header class="portada">
   <h1 class="portada__titulo">Herramientas para PDF e imágenes</h1>
   <p class="portada__subtitulo text-body-secondary">
-    Sin registro y sin instalar nada. Busca lo que necesitas o
+    @if (local) { Sin conexión. Tus documentos se procesan en este teléfono. Busca una herramienta o }
+    @else { Sin registro y sin instalar nada. Busca lo que necesitas o }
     <span class="sin-tactil">suelta</span><span class="solo-tactil">elige</span> un archivo.
   </p>
+  @if (local) {
+    <p class="small text-body-secondary">Versión Android en pruebas. Incluye las herramientas que ves aquí;
+      todavía no ofrece todas las funciones de Windows.</p>
+  }
 
   <div class="buscador" role="search">
     <i class="bi bi-search buscador__icono" aria-hidden="true"></i>

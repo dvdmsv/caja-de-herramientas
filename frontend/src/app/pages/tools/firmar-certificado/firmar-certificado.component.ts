@@ -1,6 +1,7 @@
 
 import { Component, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { SIN_SERVIDOR } from '../../../core/plataforma';
 import { firstValueFrom } from 'rxjs';
 
 import { ArchivoServidor, DatosCertificado, PaqueteAutofirma } from '../../../core/api.service';
@@ -77,6 +78,7 @@ const MAXIMO_AUTOFIRMA = 5 * 1024 * 1024;
   templateUrl: './firmar-certificado.component.html',
 })
 export class FirmarCertificadoComponent extends PaginaHerramienta implements OnDestroy {
+  readonly local = SIN_SERVIDOR;
   protected readonly slug = 'firmar-certificado';
   protected override get mensajeExito(): string {
     return 'Documento firmado';
@@ -155,12 +157,12 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
    */
   get inseguro(): boolean {
     const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-    return this.origen === 'archivo' && location.protocol !== 'https:' && !local;
+    return !SIN_SERVIDOR && this.origen === 'archivo' && location.protocol !== 'https:' && !local;
   }
 
   /** El sello de tiempo lo pone quien firma, y por esa vía no firmamos nosotros. */
   get selloDisponible(): boolean {
-    return this.origen === 'archivo';
+    return SIN_SERVIDOR || this.origen === 'archivo';
   }
 
   // --- documento --------------------------------------------------------
@@ -443,7 +445,7 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
         return 'Comprobando el certificado…';
       }
       return this.origen === 'autofirma'
-        ? 'Elige tu certificado con AutoFirma.'
+        ? (SIN_SERVIDOR ? 'Elige tu certificado de Android.' : 'Elige tu certificado con AutoFirma.')
         : 'Sube tu certificado (.p12 o .pfx) y escribe su contraseña.';
     }
     return this.visible && !this.apariencia ? 'Preparando el sello visible…' : null;
@@ -463,7 +465,7 @@ export class FirmarCertificadoComponent extends PaginaHerramienta implements OnD
   // --- firmar con AutoFirma ---------------------------------------------
 
   override ejecutar(): void {
-    if (this.origen === 'archivo') {
+    if (this.origen === 'archivo' || SIN_SERVIDOR) {
       super.ejecutar();
       return;
     }

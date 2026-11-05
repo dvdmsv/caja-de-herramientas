@@ -1,3 +1,4 @@
+import { SIN_SERVIDOR } from '../../core/plataforma';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
 import { EscritorioService } from '../../core/escritorio.service';
@@ -22,6 +23,16 @@ interface Pieza {
   styleUrl: './acerca-de.component.css',
 })
 export class AcercaDeComponent {
+  readonly local = SIN_SERVIDOR;
+  licencias = '';
+  async verLicencias(): Promise<void> {
+    if (!this.local || this.licencias) return;
+    try {
+      const respuesta = await fetch('/assets/legal/AVISOS.txt');
+      if (!respuesta.ok) throw new Error('No disponible');
+      this.licencias = await respuesta.text();
+    } catch { this.licencias = 'No se han podido abrir los avisos incluidos en la aplicación.'; }
+  }
   /** Sólo en la aplicación de Windows, que sabe qué versión es; la web no la tiene. */
   version: string | null = null;
 
@@ -32,7 +43,13 @@ export class AcercaDeComponent {
     'https://github.com/dvdmsv/caja-de-herramientas/releases/latest/download/CajaDeHerramientas-setup.exe';
 
   /** Las mismas de «Lo que viene de fuera» del README, más los programas externos. */
-  readonly piezas: Pieza[] = [
+  readonly piezas: Pieza[] = SIN_SERVIDOR ? [
+    { nombre: 'MuPDF.js', para: 'procesar los PDF dentro del teléfono', licencia: 'AGPL-3.0-or-later' },
+    { nombre: 'pdf.js', para: 'leer y previsualizar documentos', licencia: 'Apache-2.0' },
+    { nombre: 'Capacitor', para: 'integración con Android', licencia: 'MIT' },
+    { nombre: 'Angular y Bootstrap', para: 'la interfaz', licencia: 'MIT' },
+    { nombre: 'fflate y qrcode', para: 'archivos ZIP y códigos QR', licencia: 'MIT' },
+  ] : [
     { nombre: 'PyMuPDF', para: 'casi todo lo que se hace con un PDF', licencia: 'AGPL-3.0' },
     { nombre: 'LibreOffice', para: 'documentos, hojas y presentaciones a PDF', licencia: 'MPL-2.0' },
     { nombre: 'Tesseract', para: 'reconocer el texto de un escaneado', licencia: 'Apache-2.0' },

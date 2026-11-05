@@ -57,8 +57,12 @@
 
   <p class="small text-body-secondary mt-3 mb-0">
     <i class="bi bi-info-circle me-1"></i>
-    La contraseña viaja al servidor para cifrar el documento y no se guarda en ningún sitio. Ten en
-    cuenta que esta aplicación se sirve por HTTP dentro de tu red, sin cifrar.
+    @if (local) {
+      El PDF se cifra dentro del teléfono. La contraseña sólo se utiliza durante esta operación y no se guarda.
+    } @else {
+      La contraseña viaja al servidor para cifrar el documento y no se guarda en ningún sitio. Ten en
+      cuenta que esta aplicación se sirve por HTTP dentro de tu red, sin cifrar.
+    }
   </p>
 
   <app-tool-controls [pagina]="pagina"

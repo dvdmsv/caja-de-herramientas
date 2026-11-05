@@ -7,6 +7,7 @@ import { EscritorioService } from './core/escritorio.service';
 import { TemaService } from './core/tema.service';
 import { MenuPrincipalComponent } from './shared/menu-principal/menu-principal.component';
 import { UsoSesionComponent } from './shared/uso-sesion/uso-sesion.component';
+import { SIN_SERVIDOR } from './core/plataforma';
 
 @Component({
   selector: 'app-root',
@@ -16,6 +17,7 @@ import { UsoSesionComponent } from './shared/uso-sesion/uso-sesion.component';
   styleUrl: './app.component.css',
 })
 export class AppComponent {
+  readonly local = SIN_SERVIDOR;
   readonly anio = new Date().getFullYear();
   readonly perfilAutor = 'https://github.com/dvdmsv';
 
@@ -29,6 +31,7 @@ export class AppComponent {
     // Dentro de la aplicación de Windows, recoge lo abierto con «Abrir con…».
     // En la web no hace nada.
     this.escritorio.iniciar();
+    if (SIN_SERVIDOR) void import('./core/local/android').then(m => m.iniciarAndroid(this.router));
   }
 
   get iconoTema(): string {

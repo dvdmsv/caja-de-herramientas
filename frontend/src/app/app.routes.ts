@@ -1,11 +1,13 @@
 import { Routes } from '@angular/router';
+import { SIN_SERVIDOR } from './core/plataforma';
+import { HERRAMIENTAS_LOCALES } from './core/local/catalogo';
 
 /**
  * Cada herramienta se carga bajo demanda: la portada no arrastra el código de
  * ninguna. Al añadir una herramienta nueva, añade aquí su ruta y su entrada en
  * `core/tools.ts` (el test de `core/tools.spec.ts` comprueba que no se olvide).
  */
-export const routes: Routes = [
+const todas: Routes = [
   {
     path: '',
     title: 'Herramientas para PDF e imágenes',
@@ -263,7 +265,9 @@ export const routes: Routes = [
     path: 'visor',
     title: 'Visor de PDF',
     data: { pantallaCompleta: true },
-    loadComponent: () => import('./pages/visor/visor.component').then(m => m.VisorComponent),
+    loadComponent: () => SIN_SERVIDOR
+      ? import('./pages/visor-android/visor-android.component').then(m => m.VisorAndroidComponent)
+      : import('./pages/visor/visor.component').then(m => m.VisorComponent),
   },
   {
     // No es una herramienta: no va en el catálogo (core/tools.ts).
@@ -286,3 +290,7 @@ export const routes: Routes = [
   },
   { path: '**', redirectTo: '' },
 ];
+
+export const routes: Routes = SIN_SERVIDOR ? todas.filter(r =>
+  r.path?.startsWith('herramientas/') ? HERRAMIENTAS_LOCALES.has(r.path.split('/')[1])
+    : !['ajustes', 'boveda'].includes(r.path ?? '')) : todas;
