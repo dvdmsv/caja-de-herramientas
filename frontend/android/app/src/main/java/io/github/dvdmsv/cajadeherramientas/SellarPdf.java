@@ -25,6 +25,10 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class SellarPdf {
+    /** No se llega a la autoridad de tiempo: el mensaje va tal cual, sin el prefijo de fallo genérico. */
+    static final class SinAutoridad extends IOException {
+        SinAutoridad(){super("No se ha podido contactar con la autoridad de tiempo (freetsa.org). Comprueba que el teléfono tenga conexión a internet y que la app pueda usarla.");}
+    }
     static void comprobar(AtomicBoolean cancelado) throws IOException {if(cancelado.get())throw new IOException("Operación cancelada.");}
     static TimeStampToken tiempo(byte[] hash,AtomicBoolean cancelado) throws Exception {
         comprobar(cancelado);
@@ -36,9 +40,16 @@ final class SellarPdf {
         connection.setRequestProperty("Accept","application/timestamp-reply");
         try {
             byte[] body=request.getEncoded();connection.setFixedLengthStreamingMode(body.length);
-            try(OutputStream out=connection.getOutputStream()){out.write(body);}
-            comprobar(cancelado);
-            if(connection.getResponseCode()!=200)throw new IOException("La autoridad de tiempo no ha aceptado la solicitud.");
+            int codigo;
+            try {
+                try(OutputStream out=connection.getOutputStream()){out.write(body);}
+                comprobar(cancelado);
+                codigo=connection.getResponseCode();
+            } catch(UnknownHostException|ConnectException|SocketTimeoutException|javax.net.ssl.SSLException e) {
+                // Sin esto llegaba al usuario «Unable to resolve host "freetsa.org"…».
+                throw new SinAutoridad();
+            }
+            if(codigo!=200)throw new IOException("La autoridad de tiempo no ha aceptado la solicitud.");
             ByteArrayOutputStream response=new ByteArrayOutputStream();
             try(InputStream in=connection.getInputStream()) {
                 byte[] b=new byte[8192];int n;
@@ -79,8 +90,38 @@ final class SellarPdf {
         }
         return cms.getEncoded();
     }
+    /** El hueco grande de siempre: sólo si el calculado se queda corto. */
+    static final int RESERVA_MAXIMA=256*1024;
+
+    /**
+     * Cuánto reservar para el CMS. Va en hexadecimal dentro del PDF, así que
+     * ocupa el doble: con los 256 KB fijos de antes, cada firma añadía 512 KB
+     * a un PDF de 9 KB. Una firma son la cadena de certificados más unos pocos
+     * KB; un sello de tiempo trae además el token de la autoridad, que lleva sus
+     * propios certificados, y su tamaño no se sabe hasta pedirlo: de ahí el
+     * margen holgado.
+     */
+    static int reserva(FirmasPdf.Identidad identidad,boolean sello,boolean conTiempo)throws Exception {
+        int cadena=0;
+        if(!sello&&identidad!=null)for(java.security.cert.X509Certificate c:identidad.cadena)cadena+=c.getEncoded().length;
+        return cadena+8*1024+(sello||conTiempo?32*1024:0);
+    }
+
     static void ejecutar(File entrada,File salida,FirmasPdf.Identidad identidad,boolean sello,boolean conTiempo,
                          String motivo,String lugar,int pagina,float[] rect,byte[] png,AtomicBoolean cancelado)throws Exception {
+        try {
+            ejecutar(entrada,salida,identidad,sello,conTiempo,motivo,lugar,pagina,rect,png,cancelado,reserva(identidad,sello,conTiempo));
+        } catch(IOException e) {
+            // PDFBox no deja agrandar el hueco una vez escrito: se repite entero.
+            // Con sello de tiempo eso vuelve a pedirlo, lo que sólo pasará si la
+            // autoridad devuelve un token fuera de lo normal.
+            if(e.getMessage()==null||!e.getMessage().contains("not enough space"))throw e;
+            ejecutar(entrada,salida,identidad,sello,conTiempo,motivo,lugar,pagina,rect,png,cancelado,RESERVA_MAXIMA);
+        }
+    }
+
+    private static void ejecutar(File entrada,File salida,FirmasPdf.Identidad identidad,boolean sello,boolean conTiempo,
+                         String motivo,String lugar,int pagina,float[] rect,byte[] png,AtomicBoolean cancelado,int reserva)throws Exception {
         comprobar(cancelado);
         if(entrada.length()==0||entrada.length()>50L*1024*1024)throw new IOException("Selecciona un PDF de hasta 50 MB.");
         try(PDDocument doc=PDDocument.load(entrada);SignatureOptions options=new SignatureOptions()) {
@@ -104,7 +145,7 @@ final class SellarPdf {
             sig.setSubFilter(sello?COSName.getPDFName("ETSI.RFC3161"):PDSignature.SUBFILTER_ETSI_CADES_DETACHED);
             sig.getCOSObject().setName(COSName.TYPE,sello?"DocTimeStamp":"Sig");sig.setSignDate(Calendar.getInstance());
             if(!sello){sig.setName(FirmasPdf.comun(identidad.cadena[0].getSubjectX500Principal()));sig.setReason(motivo);sig.setLocation(lugar);}
-            options.setPreferredSignatureSize(256*1024);
+            options.setPreferredSignatureSize(reserva);
             if(pagina<0||pagina>=doc.getNumberOfPages())throw new IOException("La página de firma no existe.");
             options.setPage(pagina);
             doc.addSignature(sig,input->{
@@ -113,7 +154,8 @@ final class SellarPdf {
                     MessageDigest digest=MessageDigest.getInstance("SHA-256");byte[] b=new byte[8192];int n;
                     while((n=input.read(b))!=-1){comprobar(cancelado);digest.update(b,0,n);}
                     return tiempo(digest.digest(),cancelado).getEncoded();
-                }catch(Exception e){throw new IOException("No se ha podido firmar o sellar el PDF: "+e.getMessage(),e);}
+                }catch(SinAutoridad e){throw e;}
+                catch(Exception e){throw new IOException("No se ha podido firmar o sellar el PDF: "+e.getMessage(),e);}
             },options);
             if(!sello&&rect!=null&&png!=null) {
                 for(float f:rect)if(!Float.isFinite(f))throw new IOException("El recuadro no es válido.");
