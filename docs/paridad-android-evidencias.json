@@ -1,0 +1,180 @@
+{
+  "numerar-paginas": {
+    "estado": "Implementada; validada con MuPDF y navegador móvil. Pendiente teléfono real.",
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "marca-de-agua": {
+    "estado": "Implementada: texto, imagen y vista previa. Pendiente comparación visual exhaustiva y teléfono real.",
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "efecto-escaner": {
+    "estado": "Implementada: tres modos y vista previa. Verificadas sombras y tinta; pendiente teléfono real.",
+    "pruebas": [
+      "frontend/tests/local/escaneo.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "epub-a-pdf": {
+    "estado": "Implementada con texto y metadatos. Pendientes corpus de libros complejos y teléfono real.",
+    "pruebas": [
+      "frontend/tests/local/epub.test.ts"
+    ]
+  },
+  "leer-codigo": {
+    "estado": "Implementada con ZXing-C++ local. QR verificado; pendientes corpus de otros códigos y teléfono real.",
+    "pruebas": [
+      "frontend/tests/local/codigos.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "crear-certificado": {
+    "estado": "Implementada en Java con PKCS12 cifrado AES. Pruebas JVM aprobadas; pendiente puente en teléfono real.",
+    "pruebas": [
+      "frontend/android/app/src/test/java/io/github/dvdmsv/cajadeherramientas/CertificadosTest.java"
+    ]
+  },
+  "firmar": {
+    "estado": "Implementada para PDF e imágenes compatibles con WebView. Firma sobre PDF probada; pendiente teléfono real y formatos restantes.",
+    "pruebas": [
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "extraer-imagenes": {
+    "estado": "Implementada: extracción de XObject e imágenes en formularios, filtro de tamaño, original/PNG/JPEG. Pendiente teléfono real.",
+    "pruebas": [
+      "frontend/tests/local/extraer-imagenes.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "visor-markdown": {
+    "estado": "Implementada: temas, tablas, tareas y resaltado; descarga PDF local. Validada en navegador móvil sin red.",
+    "pruebas": [
+      "frontend/tests/local/markdown.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "markdown-a-pdf": {
+    "estado": "Implementada con MuPDF: texto seleccionable, tablas, portada, márgenes y numeración. Falta pie con título y comparación visual con WeasyPrint.",
+    "pruebas": [
+      "frontend/tests/local/documentos-texto.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "html-a-pdf": {
+    "estado": "Implementada con MuPDF y recursos embebidos; no descarga recursos externos. CSS y maquetación pueden diferir de WeasyPrint.",
+    "pruebas": [
+      "frontend/tests/local/documentos-texto.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "pdf-a-grises": {
+    "estado": "Integrada con Ghostscript 10.08.0 local en cuatro ABI. Motor real validado en Linux: gris, texto seleccionable y orientación; puente/cancelación probados. Prueba instrumentada compilada, pendiente ejecución en Android.",
+    "pruebas": [
+      "frontend/tests/local/ghostscript.test.ts",
+      "frontend/tests/native/ghostscript.mjs",
+      "frontend/android/app/src/test/java/io/github/dvdmsv/cajadeherramientas/MotorGhostscriptTest.java",
+      "frontend/android/app/src/androidTest/java/io/github/dvdmsv/cajadeherramientas/GhostscriptAndroidTest.java"
+    ]
+  },
+  "comparar-pdf": {
+    "estado": "Implementada localmente: alineación de páginas, cambios de texto, diferencias RGB e informe PDF con recuadros. Límites 100 páginas/25 imágenes/120 cambios mostrados. Texto comparado por líneas extraídas, no por el Markdown estructurado de Windows; pendiente corpus complejo y teléfono.",
+    "pruebas": [
+      "frontend/tests/local/comparacion.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "anonimizar-pdf": {
+    "estado": "Implementada: nueve tipos de dato con validación, inspección previa, ayudante, expresiones propias y borrado real en negro/blanco. Patrones generados desde Python y contrastados en 698 casos; texto y flujos eliminados, giros probados. Expresiones propias JavaScript Unicode: no paridad completa con re de Python. Rechaza tachados previos pendientes; no modifica metadatos ni adjuntos. Pendiente teléfono.",
+    "pruebas": [
+      "frontend/tests/local/anonimizar.test.ts",
+      "frontend/tests/local/fixtures/patrones-python.json",
+      "frontend/tests/android/offline.spec.ts"
+    ]
+  },
+  "comprimir-pdf": {
+    "estado": "Niveles y objetivo; qpdf mide el tamaño final linearizado. Máscara alfa conservada. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "frontend/tests/local/compresion-regresion.test.ts"
+    ]
+  },
+  "correo-a-pdf": {
+    "estado": "EML/MSG, destinatarios y adjuntos con nombres únicos; 12 pruebas de regresión. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "frontend/tests/local/correo-regresion.test.ts"
+    ]
+  },
+  "limpiar-metadatos": {
+    "estado": "PDF Info/XMP y limpieza profunda; Exiv2 para imágenes y adaptadores GIF/ICO sin perder frames. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "frontend/tests/local/metadatos-regresion.test.ts"
+    ]
+  },
+  "extraer-tablas": {
+    "estado": "Rejillas PDF y exportación CSV/XLSX/JSON/Markdown; 18 pruebas. No garantiza tablas sin bordes. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "frontend/tests/local/tablas-regresion.test.ts"
+    ]
+  },
+  "pdf-a-epub": {
+    "estado": "EPUB3, navegación, portada y estilos; inspección limitada a 20 páginas como Windows. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "frontend/tests/local/epub-regresion.test.ts"
+    ]
+  },
+  "a-markdown": {
+    "estado": "PDF, Office, HTML, EPUB, correo y texto; 21 pruebas incluyendo estilos, listas y orden PPTX. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "frontend/tests/local/markdown-regresion.test.ts"
+    ]
+  },
+  "pdf-a-word": {
+    "estado": "DOCX editable, tablas e imágenes orientadas; 14 pruebas. No promete maquetación idéntica en documentos arbitrarios. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "frontend/tests/local/word-regresion.test.ts"
+    ]
+  },
+  "ocr-pdf": {
+    "estado": "Tesseract spa/eng local; reconocimiento y rehacer probados en Chromium real, conserva contenido visible. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/reverificacion/INFORME-REVERIFICACION.md"
+    ]
+  },
+  "pdf-a-pdfa": {
+    "estado": "Ghostscript perfiles 1b/2b, OCR opcional. Corrección texto Unicode tras transparencias; ocho muestras finales 1b conformes con veraPDF. Pendiente validación en teléfono físico. Fuentes homónimas con codificaciones incompatibles requieren 2b.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/pdfa/INFORME-P01-Q02.md",
+      "frontend/tests/local/pdfa-restauracion.test.ts",
+      "frontend/tests/local/pdfa-colision.test.ts"
+    ]
+  },
+  "comprobar-firmas": {
+    "estado": "CMS/RFC3161 local, integridad/cobertura/fechas. Sin revocación ni confianza implícita; cambios incrementales no clasificados. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/reverificacion/INFORME-REVERIFICACION.md"
+    ]
+  },
+  "firmar-certificado": {
+    "estado": "PKCS12 y puente KeyChain, firma incremental, sello visible y TSA opcional. P12, apariencia 4 giros y KeyChain software probados en emulador; hardware no probado. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/firma-certificado/REGRESION-FIRMA-ANDROID.md"
+    ]
+  },
+  "marca-de-tiempo": {
+    "estado": "Fecha visible o RFC3161. TSA envía digest SHA256, requiere conexión y no envía documentos. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/tiempo/INFORME-REGRESION-FINAL.md"
+    ]
+  },
+  "documento-a-pdf": {
+    "estado": "LibreOfficeKit nativo: once formatos convertidos en emulador Android 30; cancelación real probada. Pendiente validación en teléfono físico.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/office/INFORME-REGRESION-FINAL.md"
+    ]
+  }
+}

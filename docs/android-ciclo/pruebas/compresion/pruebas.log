@@ -1,0 +1,25 @@
+
+ RUN  v4.1.11 /tmp/caja-ciclo/compresion
+
+ ❯ tests/local/compresion-independiente.test.ts (8 tests | 1 failed) 1857ms
+   × no recomprime ni cambia a RGB la máscara alfa de una imagen transparente 39ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/local/compresion-independiente.test.ts > no recomprime ni cambia a RGB la máscara alfa de una imagen transparente
+AssertionError: expected 'DeviceRGB' to be 'DeviceGray' // Object.is equality
+
+Expected: "DeviceGray"
+Received: "DeviceRGB"
+
+ ❯ tests/local/compresion-independiente.test.ts:70:121
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  12:47:24
+   Duration  2.10s (transform 87ms, setup 0ms, import 146ms, tests 1.86s, environment 0ms)
+

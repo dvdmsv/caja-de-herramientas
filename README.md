@@ -33,6 +33,17 @@ Pensada para usarse, no sólo para funcionar:
 - **Accesible.** Sin fallos serios ni críticos de axe-core en claro, oscuro,
   escritorio y móvil, navegable con teclado y con áreas táctiles de 44 px.
 
+## Aplicación para Android (en pruebas)
+
+La versión Android procesa los documentos dentro del teléfono y no necesita
+servidor ni conexión. Ofrece las 39 herramientas del catálogo, pero varias con
+menos opciones que en Windows —el visor, por ejemplo, sólo lee—: **todavía no
+hay paridad completa**, y lo que falta en cada una está en la
+[matriz de paridad](docs/paridad-android.md). Se puede compilar una APK
+para instalar y un AAB para preparar la publicación en Google Play.
+
+[Funciones disponibles, compilación y publicación](frontend/android/README.md).
+
 ## Aplicación para Windows
 
 Las mismas herramientas, instalables en tu equipo y **sin servidor**: los
