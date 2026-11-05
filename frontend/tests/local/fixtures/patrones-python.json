@@ -1,0 +1,4016 @@
+[
+  {
+    "texto": "+04 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+14 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+30 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+31 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 000 123 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 100 123 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 023 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 103 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 113 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 120 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 121 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 056",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 156",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 406",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 416",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 450",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 451",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 459",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 45A",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 123 45Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 123 496",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 4A6",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 123 4Z6",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 123 956",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 123 A56",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 123 Z56",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 129 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 12A 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 12Z 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 193 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 1A3 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 1Z3 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 923 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 600 A23 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 600 Z23 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 601 123 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 609 123 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 60A 123 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 60Z 123 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 610 123 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 690 123 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 6A0 123 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 6Z0 123 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 900 123 456",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+34 A00 123 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+34 Z00 123 456",
+    "coincidencias": []
+  },
+  {
+    "texto": "+39 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+3A 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+3Z 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+94 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+A4 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+Z4 600 123 456",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 15,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "+٣٤ ٦٠٠ ١٢٣ ٤٥٦",
+    "coincidencias": []
+  },
+  {
+    "texto": "0-1234-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "01234567L",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "0234 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "02345678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "02345678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "028029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "02826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "0539 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "058818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "08001",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "0S91 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "1-1234-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "1034 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "10345678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "10345678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "11234567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "1134 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "11345678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "11345678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1204 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "12045678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12045678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1214 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "12145678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12145678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1230 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "12305678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12305678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1231 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "12315678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12315678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 0CD",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 1CD",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 9CD",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 ACD",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 B0D",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 B1D",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 B9D",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 BAD",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 BC0",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 BC1",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 BC9",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 BCA",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "1234 BCZ",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "1234 BZD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "1234 ZCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "1234 bcd",
+    "coincidencias": []
+  },
+  {
+    "texto": "12340678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12340678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12341678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12341678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345078 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345078Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345178 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345178Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345608 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345608Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345618 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345618Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345670 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345670Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345671 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345671Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345678 0",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345678 1",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345678 9",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345678 A",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345678 Z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 10,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "12345678 z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 10,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "123456780",
+    "coincidencias": []
+  },
+  {
+    "texto": "123456781",
+    "coincidencias": []
+  },
+  {
+    "texto": "123456789",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345678A",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345678Z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "12345678z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "12345679 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345679Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234567A Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234567AZ",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234567Z Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234567ZZ",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345698 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345698Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "123456A8 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "123456A8Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "123456Z8 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "123456Z8Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345978 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345978Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12345A78 Z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "12345A78Z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "12345Z78 Z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "12345Z78Z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "12349678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12349678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234A678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234A678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234Z678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1234Z678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1239 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "12395678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12395678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "123A BCD",
+    "coincidencias": []
+  },
+  {
+    "texto": "123A5678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "123A5678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "123Z BCD",
+    "coincidencias": []
+  },
+  {
+    "texto": "123Z5678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "123Z5678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "128029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "12826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "1294 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "12945678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12945678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "12A4 BCD",
+    "coincidencias": []
+  },
+  {
+    "texto": "12A45678 Z",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "12A45678Z",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "12Z4 BCD",
+    "coincidencias": []
+  },
+  {
+    "texto": "12Z45678 Z",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "12Z45678Z",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "1539 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "158818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "18001",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "1934 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "19345678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "19345678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1A34 BCD",
+    "coincidencias": []
+  },
+  {
+    "texto": "1A345678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1A345678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1S91 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "1Z34 BCD",
+    "coincidencias": []
+  },
+  {
+    "texto": "1Z345678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "1Z345678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "20001",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "21001",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "28000",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "28001",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "28009",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "2800A",
+    "coincidencias": []
+  },
+  {
+    "texto": "2800Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "28011",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "28091",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "280A1",
+    "coincidencias": []
+  },
+  {
+    "texto": "280Z1",
+    "coincidencias": []
+  },
+  {
+    "texto": "28101",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "28901",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "28A01",
+    "coincidencias": []
+  },
+  {
+    "texto": "28Z01",
+    "coincidencias": []
+  },
+  {
+    "texto": "29001",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 5,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "2A001",
+    "coincidencias": []
+  },
+  {
+    "texto": "2Z001",
+    "coincidencias": []
+  },
+  {
+    "texto": "4039 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4139 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4509 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4519 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4530 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4531 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 0488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1088 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1188 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1408 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1418 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1480 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1481 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0043 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0143 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0303 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0313 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0340 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0341 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 0467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 1467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6067",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6167",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6407",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6417",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6460",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6461",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6467",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 19,
+        "tipo": "tarjeta"
+      }
+    ]
+  },
+  {
+    "texto": "4539 1488 0343 6469",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 646A",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 646Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6497",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 64A7",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 64Z7",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6967",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6A67",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 6Z67",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 9467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 A467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0343 Z467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0349 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 034A 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 034Z 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0393 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 03A3 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 03Z3 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0943 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0A43 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 0Z43 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 1343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 9343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 A343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1488 Z343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1489 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 148A 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 148Z 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1498 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 14A8 0343 6467",
+    "coincidencias": [
+      {
+        "inicio": 8,
+        "fin": 19,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "4539 14Z8 0343 6467",
+    "coincidencias": [
+      {
+        "inicio": 8,
+        "fin": 19,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "4539 1988 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1A88 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 1Z88 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 9488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 A488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4539 Z488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "453A 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "453Z 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4599 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "45A9 1488 0343 6467",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 14,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "45Z9 1488 0343 6467",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 14,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "4939 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4A39 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "4Z39 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "9-1234-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "91234567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "9234 BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "92345678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "92345678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "928029643",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "92826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "9539 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "958818501",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "98001",
+    "coincidencias": []
+  },
+  {
+    "texto": "9S91 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "A-1234-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "A08818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A1234567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "A18818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A234 BCD",
+    "coincidencias": []
+  },
+  {
+    "texto": "A2345678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "A2345678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "A28029643",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "A2826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "A50818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A51818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A539 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58018501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58118501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58808501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58810501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58811501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58818001",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58818101",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58818500",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58818501",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "A58818509",
+    "coincidencias": []
+  },
+  {
+    "texto": "A5881850A",
+    "coincidencias": []
+  },
+  {
+    "texto": "A5881850Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58818511",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58818591",
+    "coincidencias": []
+  },
+  {
+    "texto": "A588185A1",
+    "coincidencias": []
+  },
+  {
+    "texto": "A588185Z1",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58818901",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58818A01",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58818Z01",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58819501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A5881A501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A5881Z501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58898501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A588A8501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A588Z8501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58918501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A58A18501",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 9,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "A58Z18501",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 9,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "A59818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A5A818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A5Z818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A8001",
+    "coincidencias": []
+  },
+  {
+    "texto": "A98818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "AA8818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "AS91 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "AZ8818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "A٥٨٨١٨٥٠١",
+    "coincidencias": []
+  },
+  {
+    "texto": "Dato: +34 600 123 456.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 21,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: 1234 BCD.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 14,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: 12345678 Z.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 16,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: 12345678Z.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 15,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: 28001.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 11,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: 4539 1488 0343 6467.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 25,
+        "tipo": "tarjeta"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: A58818501.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 15,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: ES91 2100 0418 4502 0005 1332.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 35,
+        "tipo": "iban"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: G28029643.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 15,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: M-1234-AB.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 15,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: Q2826004J.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 15,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: X1234567L.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 15,
+        "tipo": "nie"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: ana.ruiz@ejemplo.es.",
+    "coincidencias": []
+  },
+  {
+    "texto": "Dato: ١٢٣٤٥٦٧٨Z.",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 15,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "Dato: 🙂 12345678Z y correo ana@ejemplo.es.",
+    "coincidencias": [
+      {
+        "inicio": 9,
+        "fin": 18,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "E091 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "E191 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "E991 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "EA91 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES01 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES11 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES90 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 0100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 1100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2000 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0018 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0118 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0408 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0410 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0411 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 0502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 1502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4002 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4102 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4500 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4501 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0000 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0001 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 0332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1032",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1132",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1302",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1312",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1330",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1331",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1332",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 29,
+        "tipo": "iban"
+      }
+    ]
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1339",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 133A",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 133Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1392",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 13A2",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 13Z2",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1932",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1A32",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 1Z32",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 9332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 A332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0005 Z332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0009 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 000A 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 000Z 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0015 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0095 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 00A5 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 00Z5 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0105 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0905 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0A05 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 0Z05 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 1005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 9005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 A005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4502 Z005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4509 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 450A 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 450Z 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4512 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4592 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 45A2 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 45Z2 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4902 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4A02 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 4Z02 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 9502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 A502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0418 Z502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0419 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 041A 4502 0005 1332",
+    "coincidencias": [
+      {
+        "inicio": 2,
+        "fin": 13,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "ES91 2100 041Z 4502 0005 1332",
+    "coincidencias": [
+      {
+        "inicio": 2,
+        "fin": 13,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "ES91 2100 0498 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 04A8 4502 0005 1332",
+    "coincidencias": [
+      {
+        "inicio": 13,
+        "fin": 24,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "ES91 2100 04Z8 4502 0005 1332",
+    "coincidencias": [
+      {
+        "inicio": 13,
+        "fin": 24,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "ES91 2100 0918 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0A18 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 0Z18 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 1418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 9418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 A418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2100 Z418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2101 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2109 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 210A 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 210Z 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2110 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2190 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 21A0 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 21Z0 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2900 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2A00 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 2Z00 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 9100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 A100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES91 Z100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES99 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES9A 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES9Z 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ESA1 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ESZ1 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "ES٩١ ٢١٠٠ ٠٤١٨ ٤٥٠٢ ٠٠٠٥ ١٣٣٢",
+    "coincidencias": []
+  },
+  {
+    "texto": "EZ91 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "G08029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G18029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G20029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G21029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28009643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28019643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28020643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28021643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029043",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029143",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029603",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029613",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029640",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029641",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029643",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "G28029649",
+    "coincidencias": []
+  },
+  {
+    "texto": "G2802964A",
+    "coincidencias": []
+  },
+  {
+    "texto": "G2802964Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029693",
+    "coincidencias": []
+  },
+  {
+    "texto": "G280296A3",
+    "coincidencias": []
+  },
+  {
+    "texto": "G280296Z3",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029943",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28029A43",
+    "coincidencias": [
+      {
+        "inicio": 1,
+        "fin": 6,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "G28029Z43",
+    "coincidencias": [
+      {
+        "inicio": 1,
+        "fin": 6,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "G2802A643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G2802Z643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28099643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G280A9643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G280Z9643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28129643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28929643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G28A29643",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 9,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "G28Z29643",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 9,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "G29029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G2A029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G2Z029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G98029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "GA8029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "GZ8029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "G٢٨٠٢٩٦٤٣",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-0234-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1034-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1134-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1204-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1214-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1230-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1231-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1234-0B",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-1234-1B",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-1234-9B",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-1234-A0",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-1234-A1",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-1234-A9",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-1234-AA",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1234-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1234-AZ",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1234-ZB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1239-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-123A-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-123Z-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-1294-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-12A4-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-12Z4-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-1934-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-1A34-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-1Z34-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-9234-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "M-A234-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-Z234-AB",
+    "coincidencias": []
+  },
+  {
+    "texto": "M-١٢٣٤-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "Q0826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q1826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2026004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2126004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2806004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2816004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2820004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2821004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826000J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826001J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q28260040",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q28260041",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q28260049",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826004A",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826004J",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "Q2826004Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826009J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q282600AJ",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q282600ZJ",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826014J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826094J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q28260A4J",
+    "coincidencias": [
+      {
+        "inicio": 1,
+        "fin": 6,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "Q28260Z4J",
+    "coincidencias": [
+      {
+        "inicio": 1,
+        "fin": 6,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "Q2826104J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826904J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826A04J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2826Z04J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2829004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q282A004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q282Z004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2896004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q28A6004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q28Z6004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2926004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q2A26004J",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "Q2Z26004J",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "Q9826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "QA826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "QZ826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Q٢٨٢٦٠٠٤J",
+    "coincidencias": []
+  },
+  {
+    "texto": "X+34 600 123 456X",
+    "coincidencias": [
+      {
+        "inicio": 1,
+        "fin": 16,
+        "tipo": "telefono"
+      }
+    ]
+  },
+  {
+    "texto": "X0234567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1034567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1134567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1204567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1214567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1230567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1231567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234 BCDX",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234067L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234167L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234507L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234517L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234560L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234561L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X12345670",
+    "coincidencias": []
+  },
+  {
+    "texto": "X12345671",
+    "coincidencias": []
+  },
+  {
+    "texto": "X12345678 ZX",
+    "coincidencias": []
+  },
+  {
+    "texto": "X12345678ZX",
+    "coincidencias": []
+  },
+  {
+    "texto": "X12345679",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234567A",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234567L",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "nie"
+      }
+    ]
+  },
+  {
+    "texto": "X1234567Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234569L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X123456AL",
+    "coincidencias": []
+  },
+  {
+    "texto": "X123456ZL",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234597L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X12345A7L",
+    "coincidencias": [
+      {
+        "inicio": 1,
+        "fin": 6,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "X12345Z7L",
+    "coincidencias": [
+      {
+        "inicio": 1,
+        "fin": 6,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "X1234967L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234A67L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1234Z67L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1239567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X123A567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X123Z567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1294567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X12A4567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X12Z4567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1934567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X1A34567L",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "X1Z34567L",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "X28001X",
+    "coincidencias": [
+      {
+        "inicio": 1,
+        "fin": 6,
+        "tipo": "codigo_postal"
+      }
+    ]
+  },
+  {
+    "texto": "X4539 1488 0343 6467X",
+    "coincidencias": [
+      {
+        "inicio": 1,
+        "fin": 20,
+        "tipo": "tarjeta"
+      }
+    ]
+  },
+  {
+    "texto": "X9234567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "XA234567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "XA58818501X",
+    "coincidencias": []
+  },
+  {
+    "texto": "XES91 2100 0418 4502 0005 1332X",
+    "coincidencias": []
+  },
+  {
+    "texto": "XG28029643X",
+    "coincidencias": []
+  },
+  {
+    "texto": "XM-1234-ABX",
+    "coincidencias": []
+  },
+  {
+    "texto": "XQ2826004JX",
+    "coincidencias": []
+  },
+  {
+    "texto": "XX1234567LX",
+    "coincidencias": []
+  },
+  {
+    "texto": "XZ234567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "Xana.ruiz@ejemplo.esX",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 21,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "X١٢٣٤٥٦٧L",
+    "coincidencias": []
+  },
+  {
+    "texto": "X١٢٣٤٥٦٧٨ZX",
+    "coincidencias": []
+  },
+  {
+    "texto": "X🙂 12345678Z y correo ana@ejemplo.esX",
+    "coincidencias": [
+      {
+        "inicio": 4,
+        "fin": 13,
+        "tipo": "dni"
+      },
+      {
+        "inicio": 23,
+        "fin": 38,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "Z-1234-AB",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "Z1234567L",
+    "coincidencias": []
+  },
+  {
+    "texto": "Z234 BCD",
+    "coincidencias": []
+  },
+  {
+    "texto": "Z2345678 Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "Z2345678Z",
+    "coincidencias": []
+  },
+  {
+    "texto": "Z28029643",
+    "coincidencias": []
+  },
+  {
+    "texto": "Z2826004J",
+    "coincidencias": []
+  },
+  {
+    "texto": "Z539 1488 0343 6467",
+    "coincidencias": []
+  },
+  {
+    "texto": "Z58818501",
+    "coincidencias": []
+  },
+  {
+    "texto": "Z8001",
+    "coincidencias": []
+  },
+  {
+    "texto": "ZS91 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "a58818501",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "ana.ruiz@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 19,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "es91 2100 0418 4502 0005 1332",
+    "coincidencias": []
+  },
+  {
+    "texto": "g28029643",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "m-1234-ab",
+    "coincidencias": []
+  },
+  {
+    "texto": "q2826004j",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "cif"
+      }
+    ]
+  },
+  {
+    "texto": "x1234567l",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "nie"
+      }
+    ]
+  },
+  {
+    "texto": "١٢٣٤ BCD",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 8,
+        "tipo": "matricula"
+      }
+    ]
+  },
+  {
+    "texto": "١٢٣٤٥٦٧٨ Z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 10,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "١٢٣٤٥٦٧٨0",
+    "coincidencias": []
+  },
+  {
+    "texto": "١٢٣٤٥٦٧٨1",
+    "coincidencias": []
+  },
+  {
+    "texto": "١٢٣٤٥٦٧٨9",
+    "coincidencias": []
+  },
+  {
+    "texto": "١٢٣٤٥٦٧٨A",
+    "coincidencias": []
+  },
+  {
+    "texto": "١٢٣٤٥٦٧٨Z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "١٢٣٤٥٦٧٨z",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 9,
+        "tipo": "dni"
+      }
+    ]
+  },
+  {
+    "texto": "٢٨٠٠١",
+    "coincidencias": []
+  },
+  {
+    "texto": "٤٥٣٩ ١٤٨٨ ٠٣٤٣ ٦٤٦٧",
+    "coincidencias": [
+      {
+        "inicio": 0,
+        "fin": 19,
+        "tipo": "tarjeta"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 02345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 10345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 11345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12045678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12145678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12305678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12315678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12340678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12341678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345078Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345178Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345608Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345618Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345670Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345671Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 123456780 y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 123456781 y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 123456789 y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345678A y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 12,
+        "tipo": "dni"
+      },
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345678z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 12,
+        "tipo": "dni"
+      },
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345679Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 1234567AZ y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 1234567ZZ y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345698Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 123456A8Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 123456Z8Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345978Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345A78Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      },
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12345Z78Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 8,
+        "tipo": "codigo_postal"
+      },
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12349678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 1234A678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 1234Z678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12395678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 123A5678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 123Z5678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12945678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12A45678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 11,
+        "tipo": "codigo_postal"
+      },
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 12Z45678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 6,
+        "fin": 11,
+        "tipo": "codigo_postal"
+      },
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 19345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 1A345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 1Z345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 92345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 A2345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 Z2345678Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  },
+  {
+    "texto": "🙂 ١٢٣٤٥٦٧٨Z y correo ana@ejemplo.es",
+    "coincidencias": [
+      {
+        "inicio": 3,
+        "fin": 12,
+        "tipo": "dni"
+      },
+      {
+        "inicio": 22,
+        "fin": 36,
+        "tipo": "correo"
+      }
+    ]
+  }
+]

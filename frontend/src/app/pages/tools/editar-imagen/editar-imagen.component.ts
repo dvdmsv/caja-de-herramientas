@@ -194,14 +194,24 @@ export class EditarImagenComponent extends PaginaHerramienta implements OnDestro
     };
   }
 
+  /** De qué archivo es la vista que se enseña. */
+  private vistaDe?: File;
+
   /** Lee la foto del navegador para poder marcar el recorte encima. */
   private cargarVista(): void {
     const archivo = this.archivos[0]?.file;
+    // La lista cambia también cuando el mismo archivo termina de subirse.
+    // Rehacer la vista revocaba la URL mientras la imagen aún la cargaba
+    // (ERR_FILE_NOT_FOUND en la consola) y devolvía el recorte a la foto entera.
+    if (archivo && archivo === this.vistaDe) {
+      return;
+    }
     if (!archivo) {
       this.olvidarVista();
       return;
     }
     this.olvidarVista();
+    this.vistaDe = archivo;
     this.vista = URL.createObjectURL(archivo);
     this.recorte = { ...RECORTE_COMPLETO };
 
@@ -220,6 +230,7 @@ export class EditarImagenComponent extends PaginaHerramienta implements OnDestro
     if (this.vista.startsWith('blob:')) {
       URL.revokeObjectURL(this.vista);
     }
+    this.vistaDe = undefined;
     this.vista = '';
     this.anchoReal = 0;
     this.altoReal = 0;

@@ -68,6 +68,15 @@ describe('novedades de una actualización', () => {
     expect(novedadesEntre(releases, '0.2.0', '0.2.1').map(v => v.version)).toEqual(['0.2.1']);
   });
 
+  it('no cuenta las versiones de Android, que comparten repositorio', () => {
+    const conAndroid: ReleaseGitHub[] = [
+      { tag_name: 'android-v0.8.0', body: '## Novedades desde android-v0.7.0\n\n- Compartir resultados' },
+      ...releases,
+    ];
+    expect(novedadesEntre(conAndroid, '0.1.3', '0.2.1').map(v => v.version)).toEqual(['0.2.1', '0.2.0', '0.1.4']);
+    expect(novedadesEntre(conAndroid, '0.0.0', '9.9.9').map(v => v.version)).not.toContain('android-v0.8.0');
+  });
+
   it('sin GitHub, las de la última, que vienen en latest.json', () => {
     const [ultima] = soloLaUltima({ ...aviso, notas: '## Novedades desde v0.2.0\n\n- Novedades en el aviso' });
     expect(ultima).toMatchObject({ version: '0.2.1', novedades: ['Novedades en el aviso'], arreglos: [] });

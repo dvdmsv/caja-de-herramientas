@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { SIN_SERVIDOR } from './plataforma';
 
 /**
  * Firmar con un certificado instalado en el equipo, a través de AutoFirma.
@@ -97,6 +98,11 @@ export class AutofirmaService {
    * operación nunca toca las claves privadas ni pide sus contraseñas.
    */
   async elegirCertificado(): Promise<string> {
+    if(SIN_SERVIDOR) {
+      const {FirmasAndroid}=await import('./local/firmas-digitales');
+      try{return (await FirmasAndroid.elegirCertificado()).certificado;}
+      catch(e){if((e as {code?:string}).code==='CANCELADO')throw new FirmaCancelada();throw e;}
+    }
     await this.cargar();
     return this.conPlazo(ESPERA_SELECCION, (ok, fallo) =>
       AutoScript.selectCertificate(null, ok, (tipo, mensaje) => fallo(this.traducir(tipo, mensaje))));

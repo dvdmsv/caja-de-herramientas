@@ -1,0 +1,138 @@
+apply plugin: 'com.android.application'
+
+def firma = ['CAJA_KEYSTORE', 'CAJA_STORE_PASSWORD', 'CAJA_KEY_ALIAS', 'CAJA_KEY_PASSWORD']
+def conFirma = firma.every { System.getenv(it) }
+if (firma.any { System.getenv(it) } && !conFirma) {
+    throw new GradleException('Faltan variables de firma: configura las cuatro CAJA_KEYSTORE, CAJA_STORE_PASSWORD, CAJA_KEY_ALIAS y CAJA_KEY_PASSWORD.')
+}
+
+// La versión visible manda; la CI la saca de la etiqueta (`android-v0.8.0`).
+def VERSION = System.getenv('CAJA_VERSION_NAME') ?: '0.8.0'
+if (!(VERSION ==~ /\d+\.\d+\.\d+/)) throw new GradleException("CAJA_VERSION_NAME tiene que ser X.Y.Z, no «${VERSION}».")
+
+/**
+ * El número que Android compara para saber si es una actualización, sacado de
+ * la versión visible para que no puedan desacompasarse: 0.8.0 → 800. El paquete
+ * lleva ese número por diez y cada APK por arquitectura le suma la suya
+ * (`CODIGO_ABI`, abajo), así que ninguna se pisa con otra ni con el AAB.
+ */
+static int codigoDeVersion(String version) {
+    def (mayor, menor, parche) = version.tokenize('.')*.toInteger()
+    if (menor > 99 || parche > 99) throw new GradleException("La versión ${version} no cabe en el código: menor y parche, hasta 99.")
+    return mayor * 10000 + menor * 100 + parche
+}
+
+android {
+    namespace = "io.github.dvdmsv.cajadeherramientas"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "io.github.dvdmsv.cajadeherramientas"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode codigoDeVersion(VERSION) * 10
+        versionName VERSION
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (conFirma) {
+            publicacion {
+                storeFile file(System.getenv('CAJA_KEYSTORE'))
+                storePassword System.getenv('CAJA_STORE_PASSWORD')
+                keyAlias System.getenv('CAJA_KEY_ALIAS')
+                keyPassword System.getenv('CAJA_KEY_PASSWORD')
+            }
+        }
+    }
+    // Una APK por arquitectura: la universal pesaba 427 MB, casi todo de las
+    // bibliotecas de x86 y x86_64, que sólo usan los emuladores. El AAB no hace
+    // caso de esto y las lleva todas; Google Play reparte.
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
+            universalApk false
+        }
+    }
+    packaging { jniLibs { useLegacyPackaging = true }; resources { excludes += ["META-INF/versions/9/OSGI-INF/MANIFEST.MF"] } }
+    buildTypes {
+        // Con la clave de publicación, también la compilación de pruebas: si no,
+        // no se instalaría encima de una versión publicada sin desinstalarla.
+        debug {
+            if (conFirma) signingConfig signingConfigs.publicacion
+        }
+        release {
+            if (conFirma) signingConfig signingConfigs.publicacion
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+def CODIGO_ABI = ['armeabi-v7a': 1, 'arm64-v8a': 2, 'x86': 3, 'x86_64': 4]
+androidComponents {
+    onVariants(selector().all()) { variante ->
+        variante.outputs.each { salida ->
+            def abi = salida.filters.find { it.filterType.name() == 'ABI' }?.identifier
+            if (abi) salida.versionCode.set(salida.versionCode.get() + CODIGO_ABI[abi])
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0") { exclude group: "org.bouncycastle" }
+    implementation "org.bouncycastle:bcprov-jdk18on:1.79"
+    implementation "org.bouncycastle:bcpkix-jdk18on:1.79"
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+// Impedir paquetes incompletos: motores y modelos siempre incluidos.
+tasks.register('verificarGhostscript') {
+    doLast {
+        ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'].each { abi ->
+            ['libgs.so', 'libgsrun.so', 'libqpdfrun.so', 'libmetadatosrun.so', 'liboffice-aislamiento.so', 'liblo-native-code.so', 'libc++_shared.so', 'libnss3.so'].each { nombre ->
+                if (!file("src/main/jniLibs/${abi}/${nombre}").isFile())
+                    throw new GradleException("Falta ${nombre} para ${abi}. Prepara los motores con scripts/android.")
+            }
+        }
+    }
+}
+tasks.register('verificarRecursosLocales') {
+    doLast {
+        ['unpack/user/fonts/LiberationSans-Regular.ttf','public/assets/ocr/spa.traineddata','public/assets/ocr/eng.traineddata','public/assets/ocr/worker.min.js','public/assets/pdfa/srgb.icc'].each { recurso ->
+            if (!file("src/main/assets/${recurso}").isFile())
+                throw new GradleException("Falta el recurso local ${recurso}. Prepara LibreOffice y ejecuta npm run android:sync.")
+        }
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'verificarGhostscript', 'verificarRecursosLocales' }

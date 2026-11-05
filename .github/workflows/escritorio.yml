@@ -568,7 +568,7 @@ jobs:
           # Es lo que lee la gente: en la página de la release y en el aviso de
           # actualización de la aplicación, que las pide a GitHub
           # (`frontend/src/app/core/novedades.ts` entiende este formato).
-          $anterior = git describe --tags --abbrev=0 "$etiqueta^" 2>$null
+          $anterior = git describe --tags --abbrev=0 --match 'v*' "$etiqueta^" 2>$null
           $rango = if ($anterior) { "$anterior..$etiqueta" } else { $etiqueta }
           $patron = '^(feat|fix)(\([^)]*\))?!?:\s*(.+)$'
           $novedades = @(); $arreglos = @()

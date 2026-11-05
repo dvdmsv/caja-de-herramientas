@@ -7,6 +7,7 @@ import { PaginaHerramienta } from '../../../shared/pagina-herramienta';
 import { ResultListComponent } from '../../../shared/result-list/result-list.component';
 import { ToolControlsComponent } from '../../../shared/tool-controls/tool-controls.component';
 import { ToolPageComponent } from '../../../shared/tool-page/tool-page.component';
+import { SIN_SERVIDOR } from '../../../core/plataforma';
 
 const LONGITUD_MINIMA = 4;
 
@@ -17,6 +18,7 @@ const LONGITUD_MINIMA = 4;
   templateUrl: './proteger-pdf.component.html',
 })
 export class ProtegerPdfComponent extends PaginaHerramienta {
+  readonly local = SIN_SERVIDOR;
   protected readonly slug = 'proteger-pdf';
   protected override readonly unoPorUno = true;
   protected override get mensajeExito(): string {

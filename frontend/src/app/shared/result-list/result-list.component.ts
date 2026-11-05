@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { ApiService, ArchivoServidor, ResumenTamano } from '../../core/api.service';
 import { EscritorioService } from '../../core/escritorio.service';
+import { SIN_SERVIDOR } from '../../core/plataforma';
 import { PesoPipe } from '../peso.pipe';
 import { UsarEnComponent } from '../usar-en/usar-en.component';
 import { VistaPreviaComponent } from '../vista-previa/vista-previa.component';
@@ -135,6 +136,23 @@ export class ResultListComponent implements OnChanges {
     this.api.descargar(archivo).subscribe({
       error: err => avisoError(mensajeDeError(err, 'No se ha podido descargar el archivo.')),
     });
+  }
+
+  /** Sólo en Android: la hoja de compartir del sistema. */
+  readonly local = SIN_SERVIDOR;
+  compartiendo = false;
+
+  async compartir(archivo: ArchivoServidor): Promise<void> {
+    this.compartiendo = true;
+    try {
+      const [{ compartirEnAndroid }, contenido] = await Promise.all([
+        import('../../core/local/android'), firstValueFrom(this.api.contenido(archivo))]);
+      await compartirEnAndroid(contenido, archivo.name);
+    } catch (err) {
+      avisoError(mensajeDeError(err, 'No se ha podido compartir el archivo.'));
+    } finally {
+      this.compartiendo = false;
+    }
   }
 
   descargarTodo(): void {

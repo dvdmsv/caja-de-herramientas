@@ -15,7 +15,7 @@
       @if (pagina.trabajo?.cancelable && !pagina.cancelando) {
         <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
           (click)="pagina.cancelar()">
-          <i class="bi bi-x-circle me-1"></i>Cancelar
+          <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cancelar
         </button>
       }
       @if (pagina.cancelando) {
@@ -42,7 +42,7 @@
       <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
     }
     @if (!pagina.procesando) {
-      <i class="bi {{ icono }} me-1"></i>
+      <i class="bi {{ icono }} me-1" aria-hidden="true"></i>
     }
     {{ accion }}
   </button>
@@ -60,7 +60,7 @@
   @if (pagina.pendientes.length > 0 && !pagina.ocupado) {
     <button type="button" class="btn btn-outline-warning ms-auto"
       (click)="pagina.reintentar()">
-      <i class="bi bi-arrow-clockwise me-1"></i>Reintentar<span class="d-none d-sm-inline"> la subida</span>
+      <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Reintentar<span class="d-none d-sm-inline"> la subida</span>
     </button>
   }
 </div>

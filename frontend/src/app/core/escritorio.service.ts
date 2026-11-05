@@ -10,6 +10,7 @@ import {
   informacionDeSoporte, leerAjustes, leerMenuContextual, mostrarGuardado, nuevaVentana, progresoTarea, puente,
   recogerAbiertos, reiniciar, textoDelAviso, vaAlVisor, versionDeLaAplicacion,
 } from './escritorio';
+import type { Llegada } from './escritorio';
 import type { AjustesEscritorio, CambiosAjustes, EstadoAjustes } from './ajustes-escritorio';
 import { AvanceTrabajo } from '../shared/progreso';
 import { AjustesMenu, accionesMarcadas, extensionesQueAcepta } from './menu-contextual';
@@ -398,7 +399,19 @@ export class EscritorioService {
       return;
     }
     const ajustes = this.ajustes ?? (await this.estadoAjustes().catch(() => null))?.ajustes;
-    const slug = vaAlVisor(llegada, !!ajustes?.ventana?.pdf_en_la_portada) ? 'visor' : llegada.herramienta;
+    await this.entregar(llegada, !!ajustes?.ventana?.pdf_en_la_portada);
+  }
+
+  /**
+   * Lleva lo que ha llegado de fuera a donde toca. Lo usan «Abrir con…» y el
+   * menú del Explorador en Windows, y «Abrir con» y «Compartir» en Android
+   * (`core/local/android.ts`): ninguno necesita Tauri para esto.
+   */
+  async entregar(llegada: Llegada, pdfEnLaPortada = false): Promise<void> {
+    if (!llegada.archivos.length) {
+      return;
+    }
+    const slug = vaAlVisor(llegada, pdfEnLaPortada) ? 'visor' : llegada.herramienta;
     const herramienta = slug ? buscarPorSlug(slug) : undefined;
     if (herramienta) {
       this.traspaso.dejar(llegada.archivos);

@@ -1,8 +1,8 @@
 @if (uso | async; as ocupacion) {
   <button type="button" class="uso__boton uso--{{ nivel(ocupacion.usado, ocupacion.tope) }}"
     (click)="alternar()" aria-controls="panel-uso" [attr.aria-expanded]="abierto"
-    [attr.aria-label]="'Espacio en el servidor: ' + (ocupacion.usado | peso) + ' de ' + (ocupacion.tope | peso) + '. Pulsa para ver el detalle'"
-    [title]="'Espacio en el servidor: ' + (ocupacion.usado | peso) + ' de ' + (ocupacion.tope | peso)">
+    [attr.aria-label]="(local ? 'Espacio en el teléfono: ' : 'Espacio en el servidor: ') + (ocupacion.usado | peso) + ' de ' + (ocupacion.tope | peso) + '. Pulsa para ver el detalle'"
+    [title]="(local ? 'Espacio en el teléfono: ' : 'Espacio en el servidor: ') + (ocupacion.usado | peso) + ' de ' + (ocupacion.tope | peso)">
     <i class="bi bi-hdd" aria-hidden="true"></i>
     <span class="uso__medida">
       <span class="uso__cifras">{{ ocupacion.usado | peso }} / {{ ocupacion.tope | peso }}</span>
@@ -13,7 +13,7 @@
   </button>
 
   <div class="uso__panel" id="panel-uso" [class.uso__panel--abierto]="abierto">
-    <p class="fw-semibold mb-2">Espacio en el servidor</p>
+    <p class="fw-semibold mb-2">{{ local ? 'Espacio en el teléfono' : 'Espacio en el servidor' }}</p>
 
     <div class="progress mb-2" role="progressbar" aria-label="Espacio ocupado en esta sesión"
       aria-valuemin="0" aria-valuemax="100"
@@ -35,7 +35,9 @@
       </p>
     }
 
-    @if (!ocupacion.caduca) {
+    @if (local && ocupacion.usado > 0) {
+      <p class="mb-3 text-body-secondary small">Tus archivos permanecen en este teléfono hasta que pulses «Vaciar ahora» o borres los datos de la app. Guarda una copia de los resultados que quieras conservar.</p>
+    } @else if (!ocupacion.caduca) {
       <p class="mb-3 text-body-secondary small">No tienes archivos guardados.</p>
     } @else if (ocupacion.al_cerrar) {
       <!-- La aplicación con «Al salir de la aplicación» (Ajustes → Espacio): la

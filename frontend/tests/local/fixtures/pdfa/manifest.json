@@ -1,0 +1,82 @@
+[
+  {
+    "id": "mixed-pages",
+    "original": "mixed-pages-original.pdf",
+    "aplanado": "mixed-pages-aplanado.pdf",
+    "cambiado": true,
+    "sha256": {
+      "original": "cb352ba35d0662f679c6ba31b1e109057f85559f6542becb1a5f3e0519750bb4",
+      "aplanado": "d9eb18bd8fb6b4c352480296a874c7ab98821f545d2693ea139a1d85da80d999"
+    }
+  },
+  {
+    "id": "opaque-unicode",
+    "original": "opaque-unicode-original.pdf",
+    "aplanado": "opaque-unicode-aplanado.pdf",
+    "cambiado": false,
+    "sha256": {
+      "original": "abf335f937289cd4506ad4491b9e2d67efe0b624e1153318d3f3664f5421a0ad",
+      "aplanado": "002f0c74ef75d747156d59182cf044c1c7025a80f2ca9cc733ac4aec00e2ea09"
+    }
+  },
+  {
+    "id": "trans-unicode-0",
+    "original": "trans-unicode-0-original.pdf",
+    "aplanado": "trans-unicode-0-aplanado.pdf",
+    "cambiado": true,
+    "sha256": {
+      "original": "62a6775008f3dea6605bab6c98f89d7d4baf847eb789fd4661b38e3a70d6c626",
+      "aplanado": "87815dd205fecbaf3cc6a9152cbb0cef1d675abf2b13eae4d486805457cbd734"
+    }
+  },
+  {
+    "id": "trans-unicode-180",
+    "original": "trans-unicode-180-original.pdf",
+    "aplanado": "trans-unicode-180-aplanado.pdf",
+    "cambiado": true,
+    "sha256": {
+      "original": "c2320780979ed40aa67747a93b874069401ca28ba0f1eefe00b84a416fbb5556",
+      "aplanado": "77920ba12b4f03d9bf7415a279c150eb4bfd701476386fc3ab1c8204597b3d77"
+    }
+  },
+  {
+    "id": "trans-unicode-270",
+    "original": "trans-unicode-270-original.pdf",
+    "aplanado": "trans-unicode-270-aplanado.pdf",
+    "cambiado": true,
+    "sha256": {
+      "original": "b9892d833b54238d8a53f53eafb1e7a823595b40c29b71b4b8ddfaf84d89b035",
+      "aplanado": "55c29193b15b3354e5fde6807510af16860b516fa82514510d56cc6e1bc11323"
+    }
+  },
+  {
+    "id": "trans-unicode-90",
+    "original": "trans-unicode-90-original.pdf",
+    "aplanado": "trans-unicode-90-aplanado.pdf",
+    "cambiado": true,
+    "sha256": {
+      "original": "45858596425c098d6e56c7059d18f6259621b24363fa63604e39988a66170890",
+      "aplanado": "faf9d03157b41b8e0c0433ad29db218a614d066a7f204b1b870e890c17bd3651"
+    }
+  },
+  {
+    "id": "trans-unicode-subset",
+    "original": "trans-unicode-subset-original.pdf",
+    "aplanado": "trans-unicode-subset-aplanado.pdf",
+    "cambiado": true,
+    "sha256": {
+      "original": "dd15f2f33143b1498bcca2209a40f52f77816f0b7568c206ccd27747a20cfe98",
+      "aplanado": "bbd16f0ec90ad4e5263e920c42498c23613f248de068ca7ad757a3c53d9a2e3b"
+    }
+  },
+  {
+    "id": "trans-unicode-supplementary",
+    "original": "trans-unicode-supplementary-original.pdf",
+    "aplanado": "trans-unicode-supplementary-aplanado.pdf",
+    "cambiado": true,
+    "sha256": {
+      "original": "1c24e5e37afe3aaf31ab8be6f1c8e27702ac84120496078ebb36bf684982c9bd",
+      "aplanado": "dc995d5ea9f3d0b6278008bb10acf1f64229e73722787485232f1025e64a5bf5"
+    }
+  }
+]

@@ -80,15 +80,19 @@
           title="Presentación a pantalla completa (F5)" aria-label="Presentación">
           <i class="bi bi-easel"></i>
         </button>
+        @if (!soloLectura) {
         <button type="button" class="boton" (click)="imprimir()" [disabled]="!!imprimiendo"
           title="Imprimir (Ctrl+P)" aria-label="Imprimir">
           <i class="bi bi-printer"></i>
         </button>
+        }
         <!-- Los atajos sólo sirven con teclado: en táctil no se ofrecen. -->
         <button type="button" class="boton sin-tactil" (click)="ayuda()"
           title="Atajos de teclado (?)" aria-label="Atajos de teclado">
           <i class="bi bi-keyboard"></i>
         </button>
+        <!-- En Android el visor sólo lee (`soloLectura`): marcar y rellenar necesitan guardar en el servidor. -->
+        @if (!soloLectura) {
         <span class="separador"></span>
         <!-- Herramientas de marcado -->
         <button type="button" class="boton" [class.boton--activo]="herramienta === 'leer'"
@@ -236,6 +240,7 @@
           title="Preguntar qué hacer al seleccionar texto">
           <i class="bi bi-menu-button-wide"></i>
         </button>
+        }
         <span class="separador"></span>
         <!--
         Abrir otro documento. La ventana nueva es un enlace de verdad y no un
@@ -244,7 +249,7 @@
         -->
         <span class="abrir-otro">
           <button type="button" class="boton" [class.boton--activo]="preguntandoDonde"
-            (click)="alternarDondeAbrir()" title="Abrir otro PDF">
+            (click)="soloLectura ? selector.click() : alternarDondeAbrir()" title="Abrir otro PDF">
             <i class="bi bi-folder2-open"></i>
           </button>
           @if (preguntandoDonde) {
@@ -261,6 +266,12 @@
       </div>
 
       <div class="barra__archivo">
+        @if (soloLectura) {
+          <button type="button" class="btn btn-sm btn-primary" (click)="guardarCopia()">
+            <i class="bi bi-floppy guardar__icono" aria-hidden="true"></i>
+            <span class="guardar__texto">Guardar copia</span>
+          </button>
+        } @else {
         <button type="button" class="boton" [disabled]="!cambios.sePuedeDeshacer"
           (click)="deshacer()" title="Deshacer (Ctrl+Z)" aria-label="Deshacer">
           <i class="bi bi-arrow-counterclockwise"></i>
@@ -284,6 +295,7 @@
           }
           <span class="guardar__texto">Guardar</span>
         </button>
+        }
       </div>
     }
   </header>
@@ -291,7 +303,7 @@
   <!-- Cuerpo -->
   <div class="cuerpo">
     @if (documento && panelAbierto) {
-      <app-visor-panel
+      <app-visor-panel [soloLectura]="soloLectura"
         [documento]="documento" [totalPaginas]="medidas.length" [paginaActual]="paginaActual"
         [pestana]="pestana" [indice]="indice" [marcas]="cambios.marcas"
         [textos]="cambios.textos"

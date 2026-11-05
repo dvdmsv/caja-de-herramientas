@@ -1,3 +1,4 @@
+import { SIN_SERVIDOR } from '../../core/plataforma';
 import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, HostListener, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -26,6 +27,7 @@ import { NivelDeUso, duracionDelPlazo, horaDeBorrado, nivelDeUso, porcentajeDeUs
   styleUrl: './uso-sesion.component.css',
 })
 export class UsoSesionComponent implements OnInit {
+  readonly local = SIN_SERVIDOR;
   private readonly servicio = inject(UsoService);
   private readonly elemento: ElementRef<HTMLElement> = inject(ElementRef);
 

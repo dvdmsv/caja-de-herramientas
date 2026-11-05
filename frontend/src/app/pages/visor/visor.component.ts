@@ -8,6 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { RouterLink } from '@angular/router';
 
 import { COMPACTA, cumple } from '../../core/pantalla';
+import { SIN_SERVIDOR } from '../../core/plataforma';
 import { TraspasoService } from '../../core/traspaso.service';
 import { ApiService, ArchivoServidor, ZonasAnonimizado } from '../../core/api.service';
 import { MemoriaDocumentoService } from '../../core/memoria-documento.service';
@@ -151,7 +152,13 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   cambios = new Cambios();
   herramienta: Herramienta = 'leer';
   /** Si al soltar una selección leyendo se ofrece qué hacer con ella. */
-  menuAlSeleccionar = true;
+  /**
+   * En Android el visor sólo lee: guardar marcas y campos lo hace
+   * `visor/guardar` con PyMuPDF, y ahí no hay servidor. Se queda todo lo de
+   * leer —zoom, modos, buscar, índice, enlaces, presentación— y «Guardar copia».
+   */
+  readonly soloLectura = SIN_SERVIDOR;
+  menuAlSeleccionar = !SIN_SERVIDOR;
   colorSubrayado: ColorSubrayado = 'amarillo';
   colorTachado: ColorTachado = 'negro';
   /** Con qué sale el próximo texto que se escriba. */
@@ -163,7 +170,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   /** Si el documento trae campos rellenables; hasta saberlo, no se anuncia nada. */
   hayCampos = false;
   /** Si se enseñan esos campos como controles. */
-  conFormulario = true;
+  conFormulario = !SIN_SERVIDOR;
   /** Si se está buscando datos personales; el botón se apaga mientras tanto. */
   buscandoDatos = false;
   /** Con qué sale la próxima nota, dibujo, forma o sello. Se recuerda entre documentos. */
@@ -245,7 +252,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   constructor() {
     const preferencias = this.memoria.preferencias();
     if (typeof preferencias['menuAlSeleccionar'] === 'boolean') {
-      this.menuAlSeleccionar = preferencias['menuAlSeleccionar'] as boolean;
+      this.menuAlSeleccionar = !this.soloLectura && (preferencias['menuAlSeleccionar'] as boolean);
     }
     if (preferencias['modoZoom'] === 'ancho' || preferencias['modoZoom'] === 'pagina') {
       this.modoZoom = preferencias['modoZoom'];
@@ -985,6 +992,10 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   }
 
   elegirHerramienta(herramienta: Herramienta): void {
+    // Los atajos de teclado también llegan aquí: en sólo lectura no hay otra.
+    if (this.soloLectura && herramienta !== 'leer') {
+      return;
+    }
     // La firma necesita antes la firma: se pide y, al tenerla, se activa.
     if (herramienta === 'firma' && !this.firma) {
       this.pidiendoFirma = true;
@@ -1440,8 +1451,21 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Sólo lectura: el PDF tal cual, con el selector de Android. */
+  async guardarCopia(): Promise<void> {
+    if (!this.archivo) {
+      return;
+    }
+    try {
+      await this.api.guardarArchivo(this.archivo, this.archivo.name);
+    } catch (err) {
+      avisoError(mensajeDeError(err, 'No se ha podido guardar la copia.'));
+    }
+  }
+
   private async subirAlServidor(obligatorio = false): Promise<void> {
-    if (!this.archivo || (this.fileId && !obligatorio)) {
+    // Sin nada que guardar, no hace falta dejar otra copia en el almacén.
+    if (this.soloLectura || !this.archivo || (this.fileId && !obligatorio)) {
       return;
     }
     try {

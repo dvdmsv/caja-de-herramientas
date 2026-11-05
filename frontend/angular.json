@@ -13,7 +13,9 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "allowedCommonJsDependencies": ["sweetalert2"],
+            "allowedCommonJsDependencies": [
+              "sweetalert2"
+            ],
             "outputPath": "dist/merge-pdf",
             "index": "src/index.html",
             "browser": "src/main.ts",
@@ -24,7 +26,12 @@
             "assets": [
               "src/favicon.ico",
               "src/favicon.svg",
-              "src/assets",
+              {
+                "glob": "**/*",
+                "input": "src/assets",
+                "output": "assets",
+                "ignore": ["ocr/**", "legal/**", "pdfa/**", "android-webview.html"]
+              },
               {
                 "glob": "pdf.worker.min.mjs",
                 "input": "node_modules/pdfjs-dist/build",
@@ -38,7 +45,8 @@
               "src/estilos/tema.css",
               "src/styles.css"
             ],
-            "scripts": []
+            "scripts": [],
+            "webWorkerTsConfig": "tsconfig.worker.json"
           },
           "configurations": {
             "production": {
@@ -75,6 +83,58 @@
               "polyfills": [
                 "zone.js",
                 "zone.js/testing"
+              ]
+            },
+            "android": {
+              "outputPath": "dist/android",
+              "fileReplacements": [
+                {
+                  "replace": "src/app/core/plataforma.ts",
+                  "with": "src/app/core/plataforma.android.ts"
+                },
+                {
+                  "replace": "src/app/app.config.ts",
+                  "with": "src/app/app.config.android.ts"
+                }
+              ],
+              "assets": [
+                "src/favicon.ico",
+                "src/favicon.svg",
+                "src/assets",
+                {
+                  "glob": "pdf.worker.min.mjs",
+                  "input": "node_modules/pdfjs-dist/build",
+                  "output": "assets"
+                },
+                {
+                  "glob": "*.{js,wasm}",
+                  "input": "node_modules/mupdf/dist",
+                  "output": "assets/mupdf"
+                },
+                {
+                  "glob": "*",
+                  "input": "android/legal",
+                  "output": "assets/legal"
+                },
+                {
+                  "glob": "zxing_reader.wasm",
+                  "input": "node_modules/zxing-wasm/dist/reader",
+                  "output": "assets/zxing"
+                },
+                {
+                  "glob": "worker.min.js",
+                  "input": "node_modules/tesseract.js/dist",
+                  "output": "assets/ocr"
+                },
+                {
+                  "glob": "tesseract-core*.wasm*",
+                  "input": "node_modules/tesseract.js-core",
+                  "output": "assets/ocr"
+                }
+              ],
+              "allowedCommonJsDependencies": [
+                "sweetalert2",
+                "qrcode"
               ]
             }
           },

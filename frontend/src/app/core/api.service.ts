@@ -5,6 +5,7 @@ import { Observable, filter, from, map, switchMap } from 'rxjs';
 import { EstadoTrabajo } from '../shared/progreso';
 import type { Plazo } from './ajustes-escritorio';
 import { EscritorioService } from './escritorio.service';
+import { SIN_SERVIDOR } from './plataforma';
 
 /** Archivo tal y como lo describe el servidor. */
 export interface ArchivoServidor {
@@ -380,6 +381,11 @@ export class ApiService {
    * del «Visor de Markdown».
    */
   async guardarArchivo(blob: Blob, nombre: string): Promise<void> {
+    if (SIN_SERVIDOR) {
+      const { guardarEnAndroid } = await import('./local/android');
+      await guardarEnAndroid(blob, nombre);
+      return;
+    }
     if (!(await this.escritorio.guardar(blob, nombre))) {
       guardarComo(blob, nombre);
     }
@@ -479,8 +485,8 @@ export class ApiService {
    * Lo más ligero que puede quedar un PDF, para no dejar pedir un tamaño
    * imposible. Cuesta una compresión entera: pedirlo sólo cuando haga falta.
    */
-  minimoComprimirPdf(id: string): Observable<MinimoPdf> {
-    return this.http.post<MinimoPdf>('/api/tools/comprimir-pdf/minimo', { file_ids: [id] });
+  minimoComprimirPdf(id: string, web = false): Observable<MinimoPdf> {
+    return this.http.post<MinimoPdf>('/api/tools/comprimir-pdf/minimo', { file_ids: [id], web });
   }
 
   /** Qué códigos QR o de barras llevan dentro unas imágenes o unos PDF. */

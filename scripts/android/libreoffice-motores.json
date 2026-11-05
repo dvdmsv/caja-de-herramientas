@@ -1,0 +1,31 @@
+{
+  "version": "26.2.6.3",
+  "fuentes": "https://f-droid.org/repo/org.documentfoundation.libreoffice_131_src.tar.gz",
+  "paquetes": [
+    {
+      "versionCode": 128,
+      "abi": "x86",
+      "url": "https://f-droid.org/repo/org.documentfoundation.libreoffice_128.apk",
+      "sha256": "44d41200a07782da26e72a112cf0f4461a42d93c679c3e1a71b0e8bb4006fba6"
+    },
+    {
+      "versionCode": 129,
+      "abi": "x86_64",
+      "url": "https://f-droid.org/repo/org.documentfoundation.libreoffice_129.apk",
+      "sha256": "cfaf9eea5fd695c449e92eb10cc0b1617ec51d068345068cea9b7e1c67968df5"
+    },
+    {
+      "versionCode": 130,
+      "abi": "armeabi-v7a",
+      "url": "https://f-droid.org/repo/org.documentfoundation.libreoffice_130.apk",
+      "sha256": "1b8ede653604d7a2df9a090cd333942d115132f4ed19bbb84b3ee1d17b5dcf37"
+    },
+    {
+      "versionCode": 131,
+      "abi": "arm64-v8a",
+      "url": "https://f-droid.org/repo/org.documentfoundation.libreoffice_131.apk",
+      "sha256": "751ac3836890b79a56801bf6d9a2788cda3761ab5131a4f0b6abfbad822bb475"
+    }
+  ],
+  "fuentes_sha256": "0e102144a7cce24e7291e744bef87a573dfb629d595e6a40f0d9fc8a4accb82b"
+}

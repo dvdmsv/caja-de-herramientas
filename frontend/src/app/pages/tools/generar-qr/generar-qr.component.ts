@@ -6,6 +6,7 @@ import { PaginaHerramienta } from '../../../shared/pagina-herramienta';
 import { ResultListComponent } from '../../../shared/result-list/result-list.component';
 import { ToolControlsComponent } from '../../../shared/tool-controls/tool-controls.component';
 import { ToolPageComponent } from '../../../shared/tool-page/tool-page.component';
+import { SIN_SERVIDOR } from '../../../core/plataforma';
 
 type Tipo = 'texto' | 'wifi' | 'contacto' | 'correo' | 'telefono';
 
@@ -18,6 +19,7 @@ interface Opcion { id: string; nombre: string; icono?: string; }
   templateUrl: './generar-qr.component.html',
 })
 export class GenerarQrComponent extends PaginaHerramienta {
+  readonly local = SIN_SERVIDOR;
   protected readonly slug = 'generar-qr';
   /** La única herramienta que no necesita que subas nada. */
   protected override readonly minimoArchivos = 0;

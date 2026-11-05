@@ -1,4 +1,23 @@
 <article class="acerca">
+  @if (local) {
+    <section class="card mb-3"><div class="card-body">
+      <h2 class="h5">Android · procesamiento sin conexión</h2>
+      <p>Los documentos se procesan en este teléfono. La aplicación no incluye anuncios ni analítica y no envía documentos a ningún servidor.
+        Sólo el sello de tiempo opcional necesita Internet: envía una huella criptográfica a la autoridad de tiempo.</p>
+      <p>Los archivos de trabajo se conservan en el almacenamiento privado de la app.
+        Puedes borrarlos desde el indicador de espacio o «Empezar de cero». Al desinstalar se borran
+        esos datos; las copias que hayas guardado fuera de la app permanecen en su destino.</p>
+      <p>Si eliges un proveedor de almacenamiento en la nube en el selector de archivos de Android,
+        ese proveedor gestionará la transferencia según su propia configuración.</p>
+      <p class="mb-0">Esta versión de prueba incluye las herramientas de la portada. El visor permite leer
+        y guardar copias. OCR, conversión de Office y firma digital también se ejecutan en el dispositivo.</p>
+      <details class="mt-3" (toggle)="verLicencias()">
+        <summary>Licencias y avisos incluidos en la aplicación</summary>
+        <pre class="small mt-2" style="white-space: pre-wrap; overflow-wrap: anywhere; max-height: 20rem">{{ licencias }}</pre>
+      </details>
+    </div></section>
+  }
+
   <header class="mb-4">
     <h1 class="h2 mb-2">Acerca de</h1>
     @if (version) {

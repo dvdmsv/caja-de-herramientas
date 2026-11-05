@@ -1,0 +1,277 @@
+{
+  "numerar-paginas": {
+    "estado": "Implementada; validada con MuPDF y navegador móvil.",
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "«Página N de M» arriba a la derecha, desde la 2 empezando en 5."
+  },
+  "marca-de-agua": {
+    "estado": "Implementada: texto, imagen y vista previa. Pendiente comparación visual exhaustiva.",
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "Texto en mosaico, rojo, sin giro y por debajo; logo en imagen; pulsando sin esperar a la vista previa."
+  },
+  "efecto-escaner": {
+    "estado": "Implementada: tres modos y vista previa. Verificadas sombras y tinta.",
+    "pruebas": [
+      "frontend/tests/local/escaneo.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "Blanco y negro, grises y color con intensidad 80."
+  },
+  "epub-a-pdf": {
+    "estado": "Implementada con texto y metadatos. Pendientes corpus de libros complejos.",
+    "pruebas": [
+      "frontend/tests/local/epub.test.ts"
+    ],
+    "telefono": "A4 con letra grande y pantalla de lector con letra pequeña."
+  },
+  "leer-codigo": {
+    "estado": "Implementada con ZXing-C++ local. QR verificado; pendientes corpus de otros códigos.",
+    "pruebas": [
+      "frontend/tests/local/codigos.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "QR de wifi leído y desglosado al subirlo."
+  },
+  "crear-certificado": {
+    "estado": "Implementada en Java con PKCS12 cifrado AES. Pruebas JVM aprobadas.",
+    "pruebas": [
+      "frontend/android/app/src/test/java/io/github/dvdmsv/cajadeherramientas/CertificadosTest.java"
+    ],
+    "telefono": ".p12 y .crt; el .p12 firma."
+  },
+  "firmar": {
+    "estado": "Implementada para PDF e imágenes compatibles con WebView. Firma sobre PDF probada; pendientes formatos restantes.",
+    "pruebas": [
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "Rúbrica en imagen sobre un PDF."
+  },
+  "extraer-imagenes": {
+    "estado": "Implementada: extracción de XObject e imágenes en formularios, filtro de tamaño, original/PNG/JPEG.",
+    "pruebas": [
+      "frontend/tests/local/extraer-imagenes.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "Originales, PNG y JPEG; con tamaño mínimo 500 avisa de que no hay ninguna."
+  },
+  "visor-markdown": {
+    "estado": "Implementada: temas, tablas, tareas y resaltado; descarga PDF local. Validada en navegador móvil sin red.",
+    "pruebas": [
+      "frontend/tests/local/markdown.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "Vista previa al subir."
+  },
+  "markdown-a-pdf": {
+    "estado": "Implementada con MuPDF: texto seleccionable, tablas, portada, márgenes y numeración. Falta pie con título y comparación visual con WeasyPrint.",
+    "pruebas": [
+      "frontend/tests/local/documentos-texto.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "Carta horizontal, serif, acento rojo y cuerpo 14. La letra es la de MuPDF (Nimbus), no Charis."
+  },
+  "html-a-pdf": {
+    "estado": "Implementada con MuPDF y recursos embebidos; no descarga recursos externos. CSS y maquetación pueden diferir de WeasyPrint.",
+    "pruebas": [
+      "frontend/tests/local/documentos-texto.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "Carta horizontal sin margen."
+  },
+  "pdf-a-grises": {
+    "estado": "Integrada con Ghostscript 10.08.0 local en cuatro ABI. Motor real validado en Linux: gris, texto seleccionable y orientación; puente/cancelación probados. Prueba instrumentada compilada, pendiente ejecución en Android.",
+    "pruebas": [
+      "frontend/tests/local/ghostscript.test.ts",
+      "frontend/tests/native/ghostscript.mjs",
+      "frontend/android/app/src/test/java/io/github/dvdmsv/cajadeherramientas/MotorGhostscriptTest.java",
+      "frontend/android/app/src/androidTest/java/io/github/dvdmsv/cajadeherramientas/GhostscriptAndroidTest.java"
+    ],
+    "telefono": "Píxeles grises de verdad; los campos se aplanan, igual que con Ghostscript en el servidor."
+  },
+  "comparar-pdf": {
+    "estado": "Implementada localmente: alineación de páginas, cambios de texto, diferencias RGB e informe PDF con recuadros. Límites 100 páginas/25 imágenes/120 cambios mostrados. Texto comparado por líneas extraídas, no por el Markdown estructurado de Windows; pendiente corpus complejo.",
+    "pruebas": [
+      "frontend/tests/local/comparacion.test.ts",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "Informe con y sin las páginas recuadradas."
+  },
+  "anonimizar-pdf": {
+    "estado": "Implementada: nueve tipos de dato con validación, inspección previa, ayudante, expresiones propias y borrado real en negro/blanco. Patrones generados desde Python y contrastados en 698 casos; texto y flujos eliminados, giros probados. Expresiones propias JavaScript Unicode: no paridad completa con re de Python. Rechaza tachados previos pendientes; no modifica metadatos ni adjuntos.",
+    "pruebas": [
+      "frontend/tests/local/anonimizar.test.ts",
+      "frontend/tests/local/fixtures/patrones-python.json",
+      "frontend/tests/android/offline.spec.ts"
+    ],
+    "telefono": "Tipos de serie, código postal y una expresión propia, con barra o en blanco; la factura de ocho cifras, intacta."
+  },
+  "comprimir-pdf": {
+    "estado": "Niveles y objetivo; qpdf mide el tamaño final linearizado. Máscara alfa conservada.",
+    "pruebas": [
+      "frontend/tests/local/compresion-regresion.test.ts"
+    ],
+    "telefono": "Niveles fuerte (3,7 → 2,6 MB) y ninguno con «para la web» (linearizado); hasta 1 MB (salió 767 KB, 71 s)."
+  },
+  "correo-a-pdf": {
+    "estado": "EML/MSG, destinatarios y adjuntos con nombres únicos; 12 pruebas de regresión.",
+    "pruebas": [
+      "frontend/tests/local/correo-regresion.test.ts"
+    ],
+    "telefono": "EML con adjunto y MSG de Outlook; la fecha, con la zona horaria del remitente."
+  },
+  "limpiar-metadatos": {
+    "estado": "PDF Info/XMP y limpieza profunda; Exiv2 para imágenes y adaptadores GIF/ICO sin perder frames.",
+    "pruebas": [
+      "frontend/tests/local/metadatos-regresion.test.ts"
+    ],
+    "telefono": "Editar el título conservando el autor; limpieza a fondo con campos marcados (fallaba)."
+  },
+  "extraer-tablas": {
+    "estado": "Rejillas PDF y exportación CSV/XLSX/JSON/Markdown; 18 pruebas. No garantiza tablas sin bordes.",
+    "pruebas": [
+      "frontend/tests/local/tablas-regresion.test.ts"
+    ],
+    "telefono": "XLSX con importes numéricos, CSV con ; y BOM, JSON y Markdown."
+  },
+  "pdf-a-epub": {
+    "estado": "EPUB3, navegación, portada y estilos; inspección limitada a 20 páginas como Windows.",
+    "pruebas": [
+      "frontend/tests/local/epub-regresion.test.ts"
+    ],
+    "telefono": "Con título y autor, sin portada."
+  },
+  "a-markdown": {
+    "estado": "PDF, Office, HTML, EPUB, correo y texto; 21 pruebas incluyendo estilos, listas y orden PPTX.",
+    "pruebas": [
+      "frontend/tests/local/markdown-regresion.test.ts"
+    ],
+    "telefono": "PDF, DOCX, XLSX y EML (el adjunto sale aparte)."
+  },
+  "pdf-a-word": {
+    "estado": "DOCX editable, tablas e imágenes orientadas; 14 pruebas. No promete maquetación idéntica en documentos arbitrarios.",
+    "pruebas": [
+      "frontend/tests/local/word-regresion.test.ts"
+    ],
+    "telefono": "DOCX con el texto."
+  },
+  "ocr-pdf": {
+    "estado": "Tesseract spa/eng local; reconocimiento y rehacer probados en Chromium real, conserva contenido visible.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/reverificacion/INFORME-REVERIFICACION.md"
+    ],
+    "telefono": "40 páginas escaneadas en 80 s con tres Tesseract (186 s con uno) y 120 en 235 s, 90 % de renglones exactos; rehacer conserva el texto visible con tildes y no duplica."
+  },
+  "pdf-a-pdfa": {
+    "estado": "Ghostscript perfiles 1b/2b, OCR opcional. Corrección texto Unicode tras transparencias; ocho muestras finales 1b conformes con veraPDF. Fuentes homónimas con codificaciones incompatibles requieren 2b.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/pdfa/INFORME-P01-Q02.md",
+      "frontend/tests/local/pdfa-restauracion.test.ts",
+      "frontend/tests/local/pdfa-colision.test.ts"
+    ],
+    "telefono": "1b y 2b, éste con OCR de un escaneado; perfil declarado en el XMP. Pierde el enlace interno: falta compararlo con el servidor."
+  },
+  "comprobar-firmas": {
+    "estado": "CMS/RFC3161 local, integridad/cobertura/fechas. Sin revocación ni confianza implícita; cambios incrementales no clasificados.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/reverificacion/INFORME-REVERIFICACION.md"
+    ],
+    "telefono": "Firma hecha en el teléfono: correcta y cubriendo todo el archivo."
+  },
+  "firmar-certificado": {
+    "estado": "PKCS12 y puente KeyChain, firma incremental, sello visible y TSA opcional. P12, apariencia 4 giros y KeyChain software probados en emulador; hardware no probado.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/firma-certificado/REGRESION-FIRMA-ANDROID.md"
+    ],
+    "telefono": "Con un .p12 creado en el propio teléfono: válida e incremental según pyHanko. KeyChain sin probar en teléfono."
+  },
+  "marca-de-tiempo": {
+    "estado": "Fecha visible o RFC3161. TSA envía digest SHA256, requiere conexión y no envía documentos.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/tiempo/INFORME-REGRESION-FINAL.md"
+    ],
+    "telefono": "Sello RFC 3161 sin probar: la app no tenía red en ese teléfono. El fallo se explica en castellano."
+  },
+  "documento-a-pdf": {
+    "estado": "LibreOfficeKit nativo: once formatos convertidos en emulador Android 30; cancelación real probada.",
+    "pruebas": [
+      "docs/android-ciclo/pruebas/office/INFORME-REGRESION-FINAL.md"
+    ],
+    "telefono": "DOCX, XLSX y PPTX en 7,8 s."
+  },
+  "unir-pdf": {
+    "telefono": "Dos copias de un PDF con campo, enlace e índice: campos renombrados con su valor, enlaces a su copia, índice desplazado.",
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts"
+    ],
+    "estado": "Conserva texto, orden, índice, enlaces internos (también con nombre), anotaciones y formularios; los campos con el mismo nombre se renombran."
+  },
+  "dividir-pdf": {
+    "telefono": "Rangos «1-2,4», «2,3» por página y elegir la 3 tocando su miniatura.",
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts"
+    ],
+    "estado": "Rangos en un solo PDF, una página por archivo y selección por miniaturas; conserva índice, enlaces y campos de las páginas elegidas."
+  },
+  "organizar-pdf": {
+    "telefono": "Arrastrar la página 4 al principio con el dedo; girar y quitar.",
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts"
+    ],
+    "estado": "Reordenar arrastrando, girar y quitar páginas; el índice y los enlaces siguen a sus páginas."
+  },
+  "pdf-a-imagen": {
+    "telefono": "PNG a 300 ppp y JPG a 96 ppp con calidad 40.",
+    "pruebas": [],
+    "estado": "JPG y PNG a 96, 150 y 300 ppp, con calidad."
+  },
+  "aplanar-pdf": {
+    "telefono": "Sólo campos (los enlaces se quedan) y sólo anotaciones (el campo se queda).",
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts"
+    ],
+    "estado": "Campos, anotaciones o las dos cosas, por separado."
+  },
+  "comprimir-imagen": {
+    "telefono": "Calidad 30 y 800 px; hasta 5 KB (salió 4,4 KB).",
+    "pruebas": [],
+    "estado": "Por calidad y lado máximo, o hasta un tamaño; si no baja, se entrega el original."
+  },
+  "convertir-imagen": {
+    "telefono": "A PNG, a WebP con calidad 50, y HEIC compartida desde Archivos.",
+    "pruebas": [],
+    "estado": "JPG, PNG y WebP desde JPG, PNG, WebP, BMP y HEIC (HEIC con el decodificador de Android 9+)."
+  },
+  "editar-imagen": {
+    "telefono": "Cuatro combinaciones de giro y volteo, iguales esquina por esquina a las del servidor; recorte 1:1 a 300 px.",
+    "pruebas": [],
+    "estado": "Recortar con proporción, voltear, girar y redimensionar, en el orden del servidor."
+  },
+  "imagen-a-pdf": {
+    "telefono": "Dos imágenes en carta horizontal sin margen, y una página del tamaño de la imagen.",
+    "pruebas": [],
+    "estado": "A4, carta o como la imagen; orientación y margen."
+  },
+  "proteger-pdf": {
+    "telefono": "Poner y quitar; se abre con la contraseña.",
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts"
+    ],
+    "estado": "Poner y quitar contraseña (AES-256); conserva índice y campos."
+  },
+  "generar-qr": {
+    "telefono": "Los cinco tipos, leídos con ZXing; SVG; corrección máxima.",
+    "pruebas": [],
+    "estado": "Texto, wifi, contacto, correo y teléfono; PNG o SVG; tamaño y corrección."
+  },
+  "visor": {
+    "telefono": "30 páginas: buscar «Página 17», ir por el índice, seguir un enlace, ampliar con dos dedos (sin ampliar la interfaz).",
+    "pruebas": [],
+    "estado": "Lectura: desplazamiento continuo, zoom con dos dedos, modos, buscar, índice, enlaces, miniaturas y presentación. Sin edición: marcar, anotar o rellenar necesitan guardar con PyMuPDF."
+  }
+}

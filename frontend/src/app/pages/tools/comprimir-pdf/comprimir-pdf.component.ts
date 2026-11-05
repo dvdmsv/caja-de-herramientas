@@ -180,7 +180,9 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
 
   cambiarParaWeb(evento: Event): void {
     this.paraWeb = (evento.target as HTMLInputElement).checked;
+    this.minimos.clear();
     this.alCambiarLista();
+    this.pedirMinimo();
   }
 
   /** El primer PDF ya subido del que aún no se sabe cuánto baja. */
@@ -198,15 +200,16 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
       return;
     }
     this.calculandoMinimo = true;
-    this.api.minimoComprimirPdf(id).subscribe({
+    const web=this.paraWeb;
+    this.api.minimoComprimirPdf(id,web).subscribe({
       next: dato => {
         this.calculandoMinimo = false;
-        this.minimos.set(id, dato);
+        if(web===this.paraWeb)this.minimos.set(id, dato);
         // El siguiente del lote, o uno que se haya añadido mientras tanto.
         this.pedirMinimo();
       },
       // Es una ayuda: si falla, se comprime igual y el aviso llega después.
-      error: () => (this.calculandoMinimo = false),
+      error: () => {this.calculandoMinimo = false;if(web!==this.paraWeb)this.pedirMinimo();},
     });
   }
 }

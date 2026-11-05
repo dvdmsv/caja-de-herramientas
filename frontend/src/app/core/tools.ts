@@ -9,6 +9,8 @@
  */
 
 import { encaja } from '../shared/tipos-archivo';
+import { SIN_SERVIDOR } from './plataforma';
+import { HERRAMIENTAS_LOCALES } from './local/catalogo';
 
 export type Categoria = 'PDF' | 'Imágenes' | 'Documentos';
 
@@ -60,7 +62,7 @@ export function claveDeCategoria(categoria: Categoria): ClaveCategoria {
   return CLAVES[categoria];
 }
 
-export const HERRAMIENTAS: Herramienta[] = [
+const CATALOGO: Herramienta[] = [
   {
     slug: 'unir-pdf',
     nombre: 'Unir PDF',
@@ -506,6 +508,19 @@ export const HERRAMIENTAS: Herramienta[] = [
     disponible: true,
   },
 ];
+
+const IMAGENES_ANDROID = '.jpg,.jpeg,.png,.webp,.bmp,.heic,.heif';
+
+export const HERRAMIENTAS: Herramienta[] = SIN_SERVIDOR
+  ? CATALOGO.filter(h => HERRAMIENTAS_LOCALES.has(h.slug)).map(h => {
+    if (h.slug === 'pdf-a-imagen') return { ...h, descripcion: 'Convierte cada página del PDF en una imagen JPG o PNG.' };
+    if (h.slug === 'visor') return { ...h, descripcion: 'Lee tus PDF: busca, salta por el índice y guarda una copia en el teléfono.', palabras: ['leer', 'ver', 'abrir', 'buscar'] };
+    // HEIC/HEIF (fotos de iPhone y de algunos Android) se pasan a JPEG al
+    // elegirlas, con el decodificador del sistema (`heicAJpeg`).
+    if (h.slug === 'convertir-imagen') return { ...h, descripcion: 'Convierte imágenes a JPG, PNG o WebP dentro del teléfono.', acepta: IMAGENES_ANDROID };
+    if (h.acepta === 'image/*') return { ...h, acepta: IMAGENES_ANDROID };
+    return h;
+  }) : CATALOGO;
 
 /** Una categoría con sus herramientas, tal y como la pintan portada y menú. */
 export interface Grupo {

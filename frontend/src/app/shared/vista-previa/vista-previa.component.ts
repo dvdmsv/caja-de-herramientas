@@ -12,6 +12,7 @@ import { TraspasoService } from '../../core/traspaso.service';
 import { PesoPipe } from '../peso.pipe';
 import { TipoVistaPrevia, tipoDeVistaPrevia } from '../tipos-archivo';
 import { avisoError, mensajeDeError } from '../notify';
+import { SIN_SERVIDOR } from '../../core/plataforma';
 
 /**
  * Ventana para ver un resultado sin descargarlo.
@@ -45,7 +46,7 @@ export class VistaPreviaComponent implements OnChanges, OnDestroy {
   private readonly traspaso = inject(TraspasoService);
 
   /** Si el navegador pinta PDF en un `iframe`. Sin la propiedad, se supone que sí. */
-  readonly pdfEnLinea = navigator.pdfViewerEnabled !== false;
+  readonly pdfEnLinea = !SIN_SERVIDOR && navigator.pdfViewerEnabled !== false;
 
   @ViewChild('botonCerrar') botonCerrar?: ElementRef<HTMLButtonElement>;
 

@@ -1,12 +1,14 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, HostListener, NgZone, inject, ChangeDetectionStrategy } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
 import { EscritorioService } from './core/escritorio.service';
+import { FavoritosService } from './core/favoritos.service';
 import { TemaService } from './core/tema.service';
 import { MenuPrincipalComponent } from './shared/menu-principal/menu-principal.component';
 import { UsoSesionComponent } from './shared/uso-sesion/uso-sesion.component';
+import { SIN_SERVIDOR } from './core/plataforma';
 
 @Component({
   selector: 'app-root',
@@ -16,6 +18,7 @@ import { UsoSesionComponent } from './shared/uso-sesion/uso-sesion.component';
   styleUrl: './app.component.css',
 })
 export class AppComponent {
+  readonly local = SIN_SERVIDOR;
   readonly anio = new Date().getFullYear();
   readonly perfilAutor = 'https://github.com/dvdmsv';
 
@@ -29,6 +32,15 @@ export class AppComponent {
     // Dentro de la aplicación de Windows, recoge lo abierto con «Abrir con…».
     // En la web no hace nada.
     this.escritorio.iniciar();
+    if (SIN_SERVIDOR) {
+      const favoritos = inject(FavoritosService), zona = inject(NgZone);
+      void import('./core/local/android').then(m => m.iniciarAndroid({
+        router: this.router, zona,
+        entregar: archivos => this.escritorio.entregar({ herramienta: null, archivos }),
+        favoritas: () => favoritos.herramientas.map(h => ({ slug: h.slug, nombre: h.nombre })),
+        cambianFavoritas: favoritos.cambian,
+      }));
+    }
   }
 
   get iconoTema(): string {
@@ -62,4 +74,15 @@ export class AppComponent {
    * de Bootstrap, que no se carga: sólo se usaba para esto.
    */
   menuAbierto = false;
+
+  /**
+   * Como el resto de capas (menú de secciones, «Usar en…», vista previa). En
+   * Android, además, el botón Atrás cierra lo abierto mandando este Escape
+   * (`core/local/android.ts`): sin él, Atrás cambiaba de página con el menú
+   * todavía desplegado.
+   */
+  @HostListener('document:keydown.escape')
+  cerrarMenu(): void {
+    this.menuAbierto = false;
+  }
 }

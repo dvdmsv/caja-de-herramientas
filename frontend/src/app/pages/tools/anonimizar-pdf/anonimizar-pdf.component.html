@@ -30,7 +30,7 @@
         [(ngModel)]="patron" [disabled]="ocupado" (ngModelChange)="alCambiarAjuste()">
       <small class="form-text">
         Opcional, para lo que no esté en la lista: un número de expediente, una referencia.
-        Es una expresión regular de las de siempre.
+        {{ local ? 'En Android se usa sintaxis JavaScript Unicode; los patrones exclusivos de Python deben adaptarse. Puedes probarla con el ayudante.' : 'Es una expresión regular de las de siempre.' }}
       </small>
 
       <button type="button" class="btn btn-sm btn-link px-0 mt-1"
@@ -99,10 +99,15 @@
       quitando la barra. Guarda el original si vas a necesitarlo. Y si el PDF está firmado,
       tacharlo invalida la firma, porque reescribe el documento.
       <span class="d-block mt-1">
+        @if (local) {
+          Para nombres y direcciones, utiliza una expresión propia y revisa las coincidencias.
+          No se borran metadatos ni adjuntos. El visor Android todavía no permite tachar a mano.
+        } @else {
         Los nombres y las direcciones no salen en la lista porque no tienen una forma fija:
         para ésos está el visor, donde se tacha a mano lo que elijas.
         Y los metadatos —autor, programa, ubicación de una foto— viven aparte del texto:
         eso se limpia en «Editar metadatos».
+        }
       </span>
     </div>
   </div>
