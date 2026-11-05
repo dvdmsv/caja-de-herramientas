@@ -83,3 +83,16 @@ export async function extraer(pagina, carpeta, vistos) {
   for (const d of datos) { fs.writeFileSync(path.join(dir, d.name), Buffer.from(d.b64, 'base64')); vistos.push(d.id); }
   return datos.map(d => d.name);
 }
+
+/** Marca una opción por el id de su campo. Las de tarjeta son `btn-check`: se pulsa su etiqueta. */
+export async function elegir(pagina, id) {
+  const campo = pagina.locator('#' + id);
+  for (let i = 0; i < 40 && await campo.isDisabled(); i++) await esperar(250);
+  if (await campo.evaluate(el => el.classList.contains('btn-check'))) await pagina.click(`label[for="${id}"]`);
+  else await campo.check();
+}
+
+/** Un deslizador no se rellena: se le da el valor y se avisa como lo haría el dedo. */
+export const deslizar = (pagina, id, valor) => pagina.locator('#' + id).evaluate((el, v) => {
+  el.value = String(v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+}, valor);
