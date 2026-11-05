@@ -4,12 +4,19 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
+    # Una etiqueta android-vX.Y.Z publica la versión: APK firmadas por
+    # arquitectura en una release de GitHub. Las de Windows son vX.Y.Z.
+    tags: ['android-v*']
     paths: ['frontend/**', 'backend/api/patrones.py', 'scripts/android/**', '.github/workflows/android.yml']
   pull_request:
     paths: ['frontend/**', 'backend/api/patrones.py', 'scripts/android/**', '.github/workflows/android.yml']
 
 permissions:
   contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   android:
@@ -68,6 +75,94 @@ jobs:
         with:
           name: caja-android-pruebas
           path: |
-            frontend/android/app/build/outputs/apk/debug/app-debug.apk
+            frontend/android/app/build/outputs/apk/debug/*.apk
             frontend/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
+
+  publicar:
+    # Después de que todo lo anterior haya pasado, y sólo con una etiqueta.
+    needs: android
+    if: startsWith(github.ref, 'refs/tags/android-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # para crear la release
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Versión de la etiqueta
+        run: |
+          version="${GITHUB_REF_NAME#android-v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::La etiqueta tiene que ser android-vX.Y.Z"; exit 1; }
+          echo "CAJA_VERSION_NAME=$version" >> "$GITHUB_ENV"
+      # Los motores los compiló el trabajo anterior y quedan en la caché.
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            frontend/android/app/src/main/jniLibs
+            frontend/android/app/src/main/assets/program
+            frontend/android/app/src/main/assets/share
+            frontend/android/app/src/main/assets/unpack
+          key: motores-android-v7-${{ hashFiles('scripts/android/**', 'frontend/android/native/**') }}
+          fail-on-cache-miss: true
+      - run: python3 ../scripts/android/verificar-motores.py
+      - run: npm ci
+      - run: npm run android:sync
+      - name: Clave de firma
+        env:
+          CLAVE: ${{ secrets.CAJA_KEYSTORE_B64 }}
+        run: |
+          [ -n "$CLAVE" ] || { echo "::error::Falta el secreto CAJA_KEYSTORE_B64"; exit 1; }
+          printf '%s' "$CLAVE" | base64 -d > "$RUNNER_TEMP/caja.jks"
+          echo "CAJA_KEYSTORE=$RUNNER_TEMP/caja.jks" >> "$GITHUB_ENV"
+      - name: APK y AAB firmados
+        working-directory: frontend/android
+        # Las contraseñas, sólo en este paso: ni npm ni lo demás las ven.
+        env:
+          CAJA_STORE_PASSWORD: ${{ secrets.CAJA_STORE_PASSWORD }}
+          CAJA_KEY_ALIAS: ${{ secrets.CAJA_KEY_ALIAS }}
+          CAJA_KEY_PASSWORD: ${{ secrets.CAJA_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon
+      - name: Comprobar la firma
+        working-directory: frontend/android/app/build/outputs
+        run: |
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          for apk in apk/release/*.apk; do "$apksigner" verify --print-certs "$apk" | grep -q 'Android Debug' && { echo "::error::$apk va con la clave de depuración"; exit 1; }; done
+          mkdir -p "$RUNNER_TEMP/publicar"
+          # Para teléfonos sólo arm64 y armv7: x86 y x86_64 son de emuladores,
+          # y van en el AAB por si acaso.
+          for abi in arm64-v8a armeabi-v7a; do
+            cp "apk/release/app-$abi-release.apk" "$RUNNER_TEMP/publicar/CajaDeHerramientas-$CAJA_VERSION_NAME-$abi.apk"
+          done
+          cp bundle/release/app-release.aab "$RUNNER_TEMP/CajaDeHerramientas-$CAJA_VERSION_NAME.aab"
+          (cd "$RUNNER_TEMP/publicar" && sha256sum *.apk > SHA256SUMS.txt)
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # --latest=false: «releases/latest» es de Windows. Su actualizador lee
+          # latest.json de ahí y la web enlaza su instalador; una release de
+          # Android marcada como la última rompería las dos cosas.
+          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP"/publicar/* --verify-tag --latest=false \
+            --title "Caja de herramientas para Android $CAJA_VERSION_NAME" \
+            --notes "APK para Android 8 o posterior. **arm64-v8a** es la de casi todos los teléfonos; **armeabi-v7a**, la de los de 32 bits. Funciona sin conexión: los documentos no salen del teléfono."
+      # El AAB no se instala en un teléfono: es lo que se sube a Google Play.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: caja-android-aab
+          path: ${{ runner.temp }}/CajaDeHerramientas-*.aab
+          if-no-files-found: error
+      - name: Borrar la clave
+        if: always()
+        run: rm -f "$RUNNER_TEMP/caja.jks"
+

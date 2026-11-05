@@ -102,10 +102,12 @@ npm run android:apk
 
 Configura `JAVA_HOME` y `ANDROID_HOME` en el entorno si Android Studio no los ha
 configurado, o `sdk.dir` en `android/local.properties` (no se versiona).
-La APK instalable de pruebas queda en
-`frontend/android/app/build/outputs/apk/debug/app-debug.apk`.
-Puedes copiarla al teléfono y abrirla, autorizando la instalación desde el
-gestor de archivos, o usar `adb install -r` con un dispositivo de pruebas.
+Sale **una APK por arquitectura** en `frontend/android/app/build/outputs/apk/debug/`:
+`app-arm64-v8a-debug.apk` es la de casi todos los teléfonos (~140 MB),
+`app-armeabi-v7a-debug.apk` la de los de 32 bits, y las dos `x86` sirven para
+emuladores. La universal pesaba 427 MB, casi todo de las bibliotecas x86. Puedes
+copiarla al teléfono y abrirla, autorizando la instalación desde el gestor de
+archivos, o usar `adb install -r` con un dispositivo de pruebas.
 
 En Windows, ejecuta `npm run android:sync`, entra en `android` y usa
 `gradlew.bat assembleDebug`. Para abrir el proyecto: `npm run android:open`.
@@ -141,6 +143,51 @@ documentos cerca del tope de 50 MB y otros fabricantes y versiones. Cómo maneja
 la app instalada desde el ordenador está en el informe de esa prueba.
 La CI crea APK debug y AAB sin firmar como artefactos; no publica nada.
 
+## Firma y versiones publicadas
+
+Android sólo actualiza una app si la versión nueva va firmada **con la misma
+clave**. Sin clave propia, cada ordenador firma con su clave de depuración, y
+una APK compilada en otro sitio no se instala encima sin desinstalar la anterior,
+que se lleva el espacio de trabajo de la app. Para Google Play, además, la clave
+propia es obligatoria.
+
+**La clave se crea una vez y no se pierde nunca**: sin ella no se pueden publicar
+más actualizaciones de la app. Se genera fuera del repositorio:
+
+```bash
+keytool -genkeypair -v -keystore caja-subida.jks -alias caja \
+  -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Guarda `caja-subida.jks` y sus contraseñas en un sitio seguro, con copia. Para
+que la CI publique, crea en GitHub (*Settings → Secrets and variables →
+Actions*) cuatro secretos:
+
+| Secreto | Valor |
+|---|---|
+| `CAJA_KEYSTORE_B64` | `base64 -w0 caja-subida.jks` |
+| `CAJA_STORE_PASSWORD` | la contraseña del almacén |
+| `CAJA_KEY_ALIAS` | `caja` |
+| `CAJA_KEY_PASSWORD` | la contraseña de la clave |
+
+**Publicar** es empujar una etiqueta `android-vX.Y.Z`. `android.yml` pasa todas
+las pruebas y después compila, firma y crea una release con las APK de arm64-v8a
+y armeabi-v7a y sus SHA-256. El AAB queda como artefacto del flujo, para subirlo
+a Google Play. La release **no** se marca como la última, porque
+`releases/latest` es de Windows: de ahí lee su actualizador. Por lo mismo, las
+etiquetas de Windows son `vX.Y.Z` y las notas y el aviso de novedades de Windows
+no cuentan las de Android.
+
+La versión visible sale de la etiqueta (`CAJA_VERSION_NAME`, de serie 0.8.0), y
+el número que Android compara, de la versión: 0.8.0 es 800. El AAB lleva 8000 y
+cada APK le suma su arquitectura (armeabi-v7a 1, arm64-v8a 2, x86 3, x86_64 4).
+
+**El primer cambio de clave obliga a desinstalar una vez** la app firmada con la
+de depuración. Antes, guarda los resultados que quieras conservar. Con las
+cuatro variables `CAJA_*` en el entorno (`CAJA_KEYSTORE` con la ruta del `.jks`),
+también la compilación de pruebas se firma con la clave propia y se instala
+encima de una versión publicada.
+
 ## AAB y Google Play
 
 ```bash
@@ -153,13 +200,9 @@ Sin variables de firma es un **AAB sin firmar**, útil para verificar la
 compilación, que no se debe subir a Play Console. La APK debug usa la clave de
 desarrollo y tampoco es una publicación de producción.
 
-Para firmar, usa *Build → Generate Signed Bundle/APK* en Android Studio con tu
-clave de subida, o configura las cuatro variables que lee `app/build.gradle`:
-`CAJA_KEYSTORE` (ruta absoluta), `CAJA_STORE_PASSWORD`, `CAJA_KEY_ALIAS` y
-`CAJA_KEY_PASSWORD`. No guardes contraseñas ni almacenes de claves en el repo.
-`CAJA_VERSION_CODE` es un entero creciente (predeterminado: 7); `CAJA_VERSION_NAME`
-es la versión visible (predeterminado: 0.7.0). Conserva el identificador después de
-publicar y protege una copia de la clave de subida.
+El AAB firmado lo genera la CI al publicar (ver «Firma y versiones publicadas»);
+en local, con las cuatro variables `CAJA_*`. No guardes contraseñas ni almacenes
+de claves en el repo, y conserva el identificador después de publicar.
 
 Antes de publicar faltan probar más teléfonos y versiones de Android, decidir el alcance de la primera
 versión pública, firmar el AAB con tu clave y completar Play Console: ficha,
