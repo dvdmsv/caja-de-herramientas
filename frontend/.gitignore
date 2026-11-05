@@ -40,3 +40,9 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Pruebas de Android y claves de publicación
+/test-results/
+/playwright-report/
+*.jks
+*.keystore
