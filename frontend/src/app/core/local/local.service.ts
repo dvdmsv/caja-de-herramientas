@@ -332,9 +332,15 @@ export class LocalService {
         limpiar(); reject(new HttpErrorResponse({ status: 409, error: { error: 'Operación cancelada.' } }));
       };
       const auxiliar = peticion.slug === 'anonimizar-pdf/probar' || peticion.slug === 'anonimizar-pdf/inspeccionar';
+      // El OCR crece con las páginas (4,6 s cada una en un OnePlus 6 con un
+      // solo Tesseract): con cinco minutos no pasaba de unas 65. Se puede
+      // cancelar y enseña por qué página va, así que se le deja una hora.
+      const ocr = peticion.slug === 'ocr-pdf';
       const plazo = setTimeout(() => {
-        limpiar(); reject(new Error(auxiliar ? 'La búsqueda ha superado diez segundos. Simplifica la expresión o divide el PDF.' : 'La operación ha superado cinco minutos. Prueba con un archivo más pequeño.'));
-      }, auxiliar ? 10_000 : 300_000);
+        limpiar(); reject(new Error(auxiliar ? 'La búsqueda ha superado diez segundos. Simplifica la expresión o divide el PDF.'
+          : ocr ? 'El reconocimiento ha superado una hora. Prueba a dividir el PDF.'
+          : 'La operación ha superado cinco minutos. Prueba con un archivo más pequeño.'));
+      }, auxiliar ? 10_000 : ocr ? 3_600_000 : 300_000);
       this.activo = { id, worker, cancelar, hechos: 0, total: 0, desde: Date.now() / 1000 };
       signal.addEventListener('abort', cancelar, { once: true });
       worker.onmessage = ({ data }) => {

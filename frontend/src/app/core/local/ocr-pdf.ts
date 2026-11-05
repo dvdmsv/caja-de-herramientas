@@ -49,18 +49,44 @@ export function quitarTextoInvisible(m:typeof MuPDF,doc:MuPDF.PDFDocument,n:numb
   }finally{stroke.destroy();writer.destroy();buffer.destroy();page.destroy();}
 }
 
+/**
+ * Cuántos Tesseract a la vez. Reconocer es lo lento (4,6 s por página en un
+ * OnePlus 6 con uno solo) y cada página es independiente, así que se reparten.
+ * Cada uno pide su propia memoria de WebAssembly, unos 100 MB con español e
+ * inglés: con poca memoria, menos; y nunca más de cuatro, que a partir de ahí
+ * los núcleos lentos de un móvil ya no suman.
+ */
+export function trabajadoresOcr(nucleos: number | undefined, memoriaGb: number | undefined): number {
+  const porNucleos = Math.floor((nucleos || 2) / 2);
+  const porMemoria = memoriaGb === undefined ? 4 : memoriaGb < 2 ? 1 : memoriaGb < 4 ? 2 : 4;
+  return Math.max(1, Math.min(4, porNucleos, porMemoria));
+}
+
 export async function ocrPdf(m:typeof MuPDF,p:PeticionMotor,avance:(n:number,total:number)=>void):Promise<ResultadoMotor> {
   if(!p.archivos.length||!/\.pdf$/i.test(p.archivos[0].name))throw new Error('Selecciona un PDF.');
   const idioma=p.opciones['idioma']??'spa+eng',rehacer=p.opciones['rehacer']??false;
   if(!['spa','eng','spa+eng'].includes(String(idioma))||typeof rehacer!=='boolean')throw new Error('Las opciones de OCR no son válidas.');
-  const doc=await abrirPdf(m,p.archivos[0]);let worker:WorkerOCR|undefined;
+  const doc=await abrirPdf(m,p.archivos[0]);
+  const maximo=trabajadoresOcr(navigator.hardwareConcurrency,(navigator as {deviceMemory?:number}).deviceMemory);
+  const creados:WorkerOCR[]=[],libres:WorkerOCR[]=[];
+  const crear=async()=>{
+    const assets=new URL('/assets/ocr/',self.location.origin).href;
+    const w=await createWorker(String(idioma),OEM.LSTM_ONLY,{workerPath:assets+'worker.min.js',corePath:assets,langPath:assets,gzip:false,cacheMethod:'none',workerBlobURL:false});
+    creados.push(w);return w;
+  };
+  // Las capas de texto reconocidas, por página. Se incorporan al final y en
+  // orden: son PDF de pocos KB y así MuPDF sólo toca el documento desde aquí.
+  const capas=new Map<number,Uint8Array>();
+  const enCurso=new Set<Promise<void>>();
+  const total=doc.countPages();let hechos=0;
+  const contar=()=>{hechos++;avance(hechos,total);};
   try {
-    for(let n=0;n<doc.countPages();n++) {
+    for(let n=0;n<total;n++) {
       let page=doc.loadPage(n);
       try {
         const text=page.toStructuredText('');let hayTexto=false;
         try{hayTexto=Boolean(text.asText().trim());}finally{text.destroy();}
-        if(hayTexto&&!rehacer){avance(n+1,doc.countPages());continue;}
+        if(hayTexto&&!rehacer){contar();continue;}
         let visibles:MuPDF.Rect[]=[];
         if(rehacer){page.destroy();visibles=quitarTextoInvisible(m,doc,n);page=doc.loadPage(n);}
         const box=page.getBounds(),scale=Math.min(200/72,Math.sqrt(20_000_000/((box[2]-box[0])*(box[3]-box[1]))));
@@ -75,23 +101,38 @@ export async function ocrPdf(m:typeof MuPDF,p:PeticionMotor,avance:(n:number,tot
           }
           png=pix.asPNG().slice();
         }finally{pix.destroy();}
-        if(!worker) {
-          const assets=new URL('/assets/ocr/',self.location.origin).href;
-          worker=await createWorker(String(idioma),OEM.LSTM_ONLY,{workerPath:assets+'worker.min.js',corePath:assets,langPath:assets,gzip:false,cacheMethod:'none',workerBlobURL:false});
-        }
-        await worker.setParameters({user_defined_dpi:String(Math.round(scale*72))});
-        const result=await worker.recognize(new Blob([png]),{pdfTextOnly:true},{pdf:true,text:true});
-        if(result.data.pdf&&result.data.text.trim()) {
-          const layer=new m.PDFDocument(Uint8Array.from(result.data.pdf));
-          try{incorporar(m,doc,n,layer);}finally{layer.destroy();}
-        }
-        avance(n+1,doc.countPages());
+        // Hueco: no rasterizar más páginas de las que se pueden reconocer, o
+        // se acumularían imágenes de 20 megapíxeles esperando.
+        while(enCurso.size>=maximo)await Promise.race(enCurso);
+        const pagina=n,dpi=String(Math.round(scale*72));
+        const tarea=(async()=>{
+          const w=libres.pop()??await crear();
+          try {
+            await w.setParameters({user_defined_dpi:dpi});
+            const result=await w.recognize(new Blob([png]),{pdfTextOnly:true},{pdf:true,text:true});
+            if(result.data.pdf&&result.data.text.trim())capas.set(pagina,Uint8Array.from(result.data.pdf));
+          }finally{libres.push(w);}
+          contar();
+        })();
+        enCurso.add(tarea);
+        // Quitarla al acabar, también si falla: el fallo lo recoge el Promise.all de abajo.
+        void tarea.then(()=>enCurso.delete(tarea),()=>enCurso.delete(tarea));
       }finally{page.destroy();}
+    }
+    await Promise.all(enCurso);
+    for(const n of [...capas.keys()].sort((a,b)=>a-b)) {
+      const layer=new m.PDFDocument(capas.get(n)!);
+      try{incorporar(m,doc,n,layer);}finally{layer.destroy();}
     }
     // MuPDF 1.28.1 puede deduplicar incorrectamente Forms recién injertados.
     // Recoger objetos sin fusionarlos conserva la estructura y el contenido.
     const blob=guardarPdf(doc,rehacer?{garbage:2}:{});
     if(blob.size>250*1024*1024)throw new Error('El PDF reconocido supera 250 MB.');
     return {archivos:[{name:base(p.archivos[0].name)+'-con-texto.pdf',blob}]};
-  }finally{doc.destroy();await worker?.terminate();}
+  }finally{
+    // Si una página falla, las que siguen en marcha no deben quedar colgando.
+    await Promise.allSettled(enCurso);
+    doc.destroy();
+    await Promise.all(creados.map(w=>w.terminate()));
+  }
 }
