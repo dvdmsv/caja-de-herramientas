@@ -68,6 +68,13 @@
           @if (editando !== archivo.id && archivos.length > 1) {
             <app-usar-en [archivos]="[archivo]"></app-usar-en>
           }
+          @if (editando !== archivo.id && local) {
+            <!-- Android: mandarlo a otra app sin guardarlo antes. -->
+            <button type="button" class="btn btn-sm btn-outline-success flex-shrink-0" [disabled]="compartiendo"
+              (click)="compartir(archivo)">
+              <i class="bi bi-share" aria-hidden="true"></i><span class="visually-hidden">Compartir {{ archivo.name }}</span>
+            </button>
+          }
           @if (editando !== archivo.id) {
             <button type="button" class="btn btn-sm btn-outline-success flex-shrink-0"
               (click)="descargar(archivo)">

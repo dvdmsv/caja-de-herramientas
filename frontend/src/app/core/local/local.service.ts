@@ -48,8 +48,13 @@ export class LocalService {
       await this.almacen.eliminar(); return {};
     }
     if (ruta === '/api/files' && req.body instanceof FormData) {
-      const entradas = req.body.getAll('files').filter((a): a is File => a instanceof File);
+      let entradas = req.body.getAll('files').filter((a): a is File => a instanceof File);
       if (!entradas.length) throw new Error('Elige al menos un archivo.');
+      // El WebView no lee HEIC: se guarda ya como JPEG, y así le vale a cualquier herramienta.
+      if (entradas.some(a => /\.hei[cf]$/i.test(a.name))) {
+        const { ES_HEIC, heicAJpeg } = await import('./android');
+        entradas = await Promise.all(entradas.map(a => ES_HEIC.test(a.name) ? heicAJpeg(a) : a));
+      }
       return { files: (await this.almacen.guardar(entradas.map(a => ({ name: a.name, blob: a })), false)).map(metadatos) };
     }
     const archivo = /^\/api\/files\/([0-9a-f]{32})(?:\/(download|paginas))?$/.exec(ruta);

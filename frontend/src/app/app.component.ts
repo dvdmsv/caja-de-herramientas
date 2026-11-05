@@ -1,9 +1,10 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, HostListener, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, HostListener, NgZone, inject, ChangeDetectionStrategy } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
 import { EscritorioService } from './core/escritorio.service';
+import { FavoritosService } from './core/favoritos.service';
 import { TemaService } from './core/tema.service';
 import { MenuPrincipalComponent } from './shared/menu-principal/menu-principal.component';
 import { UsoSesionComponent } from './shared/uso-sesion/uso-sesion.component';
@@ -31,7 +32,15 @@ export class AppComponent {
     // Dentro de la aplicación de Windows, recoge lo abierto con «Abrir con…».
     // En la web no hace nada.
     this.escritorio.iniciar();
-    if (SIN_SERVIDOR) void import('./core/local/android').then(m => m.iniciarAndroid(this.router));
+    if (SIN_SERVIDOR) {
+      const favoritos = inject(FavoritosService), zona = inject(NgZone);
+      void import('./core/local/android').then(m => m.iniciarAndroid({
+        router: this.router, zona,
+        entregar: archivos => this.escritorio.entregar({ herramienta: null, archivos }),
+        favoritas: () => favoritos.herramientas.map(h => ({ slug: h.slug, nombre: h.nombre })),
+        cambianFavoritas: favoritos.cambian,
+      }));
+    }
   }
 
   get iconoTema(): string {

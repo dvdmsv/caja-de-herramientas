@@ -9,6 +9,9 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(DocumentosPlugin.class);
         registerPlugin(CertificadosPlugin.class);
         registerPlugin(GhostscriptPlugin.class);
+        registerPlugin(LlegadasPlugin.class);
+        registerPlugin(AtajosPlugin.class);
+        registerPlugin(ImagenesPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

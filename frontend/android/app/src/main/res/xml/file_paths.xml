@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lo único que la app ofrece a otras por FileProvider:
+  - compartir/: el resultado que se comparte, copiado con su nombre (DocumentosPlugin).
+  - Pictures/: la foto que hace Capacitor si un campo de archivo pide la cámara.
+  La plantilla de Capacitor traía «external-path .» y «cache-path .»: todo el
+  almacenamiento externo y toda la caché. Sobraban.
+-->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="my_images" path="." />
-    <cache-path name="my_cache_images" path="." />
+    <cache-path name="compartir" path="compartir/" />
+    <external-files-path name="camara" path="Pictures/" />
 </paths>

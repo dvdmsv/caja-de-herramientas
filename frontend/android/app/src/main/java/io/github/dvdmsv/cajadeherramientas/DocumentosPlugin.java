@@ -10,9 +10,12 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import androidx.core.content.FileProvider;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.util.UUID;
 
 /** Storage Access Framework: el usuario elige el destino, sin acceso general al disco. */
 @CapacitorPlugin(name = "Documentos")
@@ -26,6 +29,38 @@ public class DocumentosPlugin extends Plugin {
         if (!archivo.getParentFile().equals(carpeta) || !archivo.isFile())
             throw new Exception("El archivo temporal ya no está disponible.");
         return archivo;
+    }
+
+    /** Las copias compartidas la vez anterior: la app que las recibió ya ha tenido tiempo de leerlas. */
+    @Override
+    public void load() {
+        MotorGhostscript.borrar(new File(getContext().getCacheDir(), "compartir"));
+    }
+
+    /**
+     * La hoja de compartir de Android. El archivo se copia a `compartir/` con su
+     * nombre (la app que lo recibe enseña ése) y se ofrece por FileProvider con
+     * permiso de lectura sólo para quien lo reciba. No se borra al volver: la
+     * otra app puede leerlo más tarde; se borra en el siguiente arranque.
+     */
+    @PluginMethod
+    public void compartir(PluginCall call) {
+        try {
+            File archivo = origen(call);
+            String nombre = call.getString("nombre", "documento").replaceAll("[\\x00-\\x1f\\x7f/\\\\:*?\"<>|]", "").trim();
+            File dir = new File(new File(getContext().getCacheDir(), "compartir"), UUID.randomUUID().toString());
+            if (!dir.mkdirs()) throw new Exception("Sin espacio en la caché.");
+            File copia = new File(dir, nombre.isEmpty() ? "documento" : nombre);
+            Files.copy(archivo.toPath(), copia.toPath());
+            Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", copia);
+            Intent intent = new Intent(Intent.ACTION_SEND);
+            intent.setType(call.getString("tipo", "application/octet-stream"));
+            intent.putExtra(Intent.EXTRA_STREAM, uri);
+            intent.setClipData(android.content.ClipData.newRawUri(copia.getName(), uri));
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            getActivity().startActivity(Intent.createChooser(intent, null));
+            call.resolve();
+        } catch (Exception e) { call.reject("No se ha podido compartir el archivo.", e); }
     }
 
     @PluginMethod

@@ -509,12 +509,16 @@ const CATALOGO: Herramienta[] = [
   },
 ];
 
+const IMAGENES_ANDROID = '.jpg,.jpeg,.png,.webp,.bmp,.heic,.heif';
+
 export const HERRAMIENTAS: Herramienta[] = SIN_SERVIDOR
   ? CATALOGO.filter(h => HERRAMIENTAS_LOCALES.has(h.slug)).map(h => {
     if (h.slug === 'pdf-a-imagen') return { ...h, descripcion: 'Convierte cada página del PDF en una imagen JPG o PNG.' };
-    if (h.slug === 'visor') return { ...h, descripcion: 'Lee tus PDF y guarda una copia en el teléfono.', palabras: ['leer', 'ver', 'abrir'] };
-    if (h.slug === 'convertir-imagen') return { ...h, descripcion: 'Convierte imágenes a JPG, PNG o WebP dentro del teléfono.', acepta: '.jpg,.jpeg,.png,.webp,.bmp' };
-    if (h.acepta === 'image/*') return { ...h, acepta: '.jpg,.jpeg,.png,.webp,.bmp' };
+    if (h.slug === 'visor') return { ...h, descripcion: 'Lee tus PDF: busca, salta por el índice y guarda una copia en el teléfono.', palabras: ['leer', 'ver', 'abrir', 'buscar'] };
+    // HEIC/HEIF (fotos de iPhone y de algunos Android) se pasan a JPEG al
+    // elegirlas, con el decodificador del sistema (`heicAJpeg`).
+    if (h.slug === 'convertir-imagen') return { ...h, descripcion: 'Convierte imágenes a JPG, PNG o WebP dentro del teléfono.', acepta: IMAGENES_ANDROID };
+    if (h.acepta === 'image/*') return { ...h, acepta: IMAGENES_ANDROID };
     return h;
   }) : CATALOGO;
 

@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Subject } from 'rxjs';
 
 import { CLAVE_FAVORITOS, alternarFavorito, leerFavoritos } from './favoritos';
 import { Herramienta, buscarPorSlug } from './tools';
@@ -18,6 +19,9 @@ import { Herramienta, buscarPorSlug } from './tools';
 @Injectable({ providedIn: 'root' })
 export class FavoritosService {
   private slugs: string[] = this.leer();
+
+  /** Avisa al marcar o desmarcar una. En Android, para los atajos del icono. */
+  readonly cambian = new Subject<void>();
 
   constructor() {
     window.addEventListener('storage', evento => {
@@ -40,6 +44,7 @@ export class FavoritosService {
 
   alternar(slug: string): void {
     this.slugs = alternarFavorito(this.slugs, slug);
+    this.cambian.next();
     try {
       localStorage.setItem(CLAVE_FAVORITOS, JSON.stringify(this.slugs));
     } catch {
