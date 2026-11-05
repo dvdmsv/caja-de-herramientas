@@ -69,7 +69,7 @@ def inventario():
         for slug in slugs], 'contratos_backend': routes}
 
 
-TELEFONO = 'OnePlus 6, Android 15 con LineageOS 22.2 y WebView 155, el 5 de noviembre de 2026'
+TELEFONO = 'OnePlus 6, Android 15 con LineageOS 22.2 y WebView 155, el 5 de noviembre de 2026, versiones 0.7.0 y 0.8.0'
 
 
 def markdown(data):
@@ -98,7 +98,9 @@ def markdown(data):
         '- OCR: Tesseract 6.0.1 WebAssembly y modelos locales español/inglés.',
         '- Optimización web: qpdf 12.4.2. Metadatos de imagen: Exiv2 0.28.9.', '',
         '## Limitaciones conocidas de las herramientas habilitadas', '',
-        '- Visor: solo lectura; faltan edición, anotaciones y búsqueda avanzada.',
+        '- Visor: sólo lectura; marcar, anotar y rellenar no están, porque guardarlos lo hace PyMuPDF en el servidor.',
+        '- PDF/A: el resultado pierde los enlaces internos; falta comparar con el servidor, que también usa Ghostscript.',
+        '- Markdown y HTML a PDF: maqueta MuPDF con sus letras (Nimbus), no WeasyPrint con Inter y Charis.',
         '- Imágenes: el adaptador ofrece JPG, PNG y WebP; falta comparar formatos con Windows.',
         f'- Probado en un emulador Android 30 y en un teléfono físico ({TELEFONO}); faltan otros '
         'fabricantes y versiones, y claves de hardware en KeyChain.',

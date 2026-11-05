@@ -25,9 +25,12 @@ Las diferencias de formatos y visor se documentan abajo y en
 - Pasar PDF a grises con Ghostscript local, conservando texto seleccionable y vectores.
 - Convertir páginas PDF a JPG/PNG y reunir imágenes en un PDF.
 - Convertir imágenes a JPG/PNG/WebP; comprimir por calidad o tamaño objetivo;
-  recortar, girar, reflejar y redimensionar.
+  recortar, girar, reflejar y redimensionar. Las fotos HEIC/HEIF se pasan a JPEG
+  al elegirlas, con el decodificador de Android 9 o posterior.
 - Generar QR en PNG/SVG: texto, wifi, contacto, correo y teléfono.
-- Visor de lectura por páginas, ampliación y guardado de una copia.
+- El visor de la web en modo lectura: desplazamiento continuo, zoom con dos dedos,
+  modos de lectura, buscar, índice, enlaces, miniaturas, presentación y guardar
+  una copia.
 - Renombrar resultados, encadenar herramientas y descargar conjuntos en ZIP.
 - Numeración y marcas de agua de texto o imagen con vista previa local.
 - Efecto escáner en blanco y negro, gris y color con corrección de iluminación.
@@ -41,6 +44,20 @@ Las diferencias de formatos y visor se documentan abajo y en
   En Markdown falta el pie con título; se incluyen portada y numeración.
 - Creación de certificados autofirmados en Android: RSA 2048/4096, PKCS12 cifrado
   con AES y certificado público PEM. También se puede firmar con un certificado PKCS12 o uno del almacén Android.
+- OCR con varios Tesseract a la vez (tres como mucho, según núcleos, memoria y
+  tamaño de página): en un OnePlus 6, 40 páginas escaneadas en 80 s.
+
+### Con el resto del teléfono
+
+- **Abrir con y Compartir**: la app sale al abrir o compartir un PDF, una foto,
+  un documento de Office, un EPUB, un correo, Markdown o HTML desde otra app.
+  Un PDF suelto va al visor; lo demás, a la portada, que ofrece las herramientas
+  que lo aceptan. Hasta 50 MB por archivo.
+- **Compartir resultados** con la hoja del sistema, sin guardarlos antes.
+- **Atajos del icono**: al mantenerlo pulsado salen hasta cuatro favoritas.
+- **Atrás** cierra lo que esté abierto (ventana, menú, hoja) y luego vuelve a la
+  pantalla anterior; desde el inicio, minimiza.
+- Pellizcar amplía las páginas en el visor, no la interfaz entera.
 
 El ciclo actual incorpora las trece herramientas restantes del catálogo:
 compresión PDF (incluida optimización web), correo EML/MSG, metadatos PDF e
@@ -49,16 +66,17 @@ comprobación de firmas, firma con certificado, marca de tiempo y Office a PDF.
 Los informes y planes de regresión están en `docs/android-ciclo/pruebas/`.
 Se han ejecutado pruebas de motor, navegador, JVM y un emulador Android 30 x86_64,
 y el 5 de noviembre de 2026 las 39 herramientas en un teléfono físico (OnePlus 6,
-Android 15), sin conexión: qué se probó y qué se arregló, en
+Android 15), sin conexión y opción a opción: qué se probó y qué se arregló, en
 [`docs/android-ciclo/telefono-2026-11-05.md`](../../docs/android-ciclo/telefono-2026-11-05.md).
+Las piezas para repetirlo están en [`frontend/tests/telefono/`](../tests/telefono/README.md).
 
 La unión conserva el texto, el orden, el índice, los enlaces internos (también
 los que van a un destino con nombre), las anotaciones y los formularios con sus
 valores. Si dos documentos traen un campo con el mismo nombre, el segundo se
 renombra («firmante_2»): con el mismo nombre compartirían valor.
 
-El visor Android es de lectura: las anotaciones, la búsqueda avanzada y la
-edición del visor de Windows no están portadas. La extracción de tablas reconoce rejillas; la reconstrucción editable de PDF
+El visor es el de Windows en modo lectura: marcar, anotar, firmar y rellenar
+campos no están, porque guardarlos lo hace PyMuPDF en el servidor. La extracción de tablas reconoce rejillas; la reconstrucción editable de PDF
 no garantiza reproducir maquetaciones arbitrarias. La inspección EPUB conserva
 el límite de las primeras veinte páginas de Windows. La comprobación de firmas
 es criptográfica y local: no consulta revocación ni presume confianza en la raíz;
@@ -80,7 +98,8 @@ Las exportaciones temporales se borran al terminar; tras una interrupción se
 limpian en el siguiente arranque.
 
 Límites iniciales: 50 MB por archivo de entrada, 250 MB en el espacio de trabajo,
-20 megapíxeles por imagen/página rasterizada y cinco minutos por operación.
+20 megapíxeles por imagen/página rasterizada y cinco minutos por operación
+(una hora para el OCR, que crece con las páginas y se puede cancelar).
 El trabajo se ejecuta en un worker; cancelar lo termina y descarta sus resultados
 sin publicar un lote incompleto. Al crear un certificado, cancelar descarta el
 resultado; la generación criptográfica nativa termina antes de admitir otro
