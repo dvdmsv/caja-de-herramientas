@@ -1,5 +1,5 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, HostListener, inject, ChangeDetectionStrategy } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
@@ -65,4 +65,15 @@ export class AppComponent {
    * de Bootstrap, que no se carga: sólo se usaba para esto.
    */
   menuAbierto = false;
+
+  /**
+   * Como el resto de capas (menú de secciones, «Usar en…», vista previa). En
+   * Android, además, el botón Atrás cierra lo abierto mandando este Escape
+   * (`core/local/android.ts`): sin él, Atrás cambiaba de página con el menú
+   * todavía desplegado.
+   */
+  @HostListener('document:keydown.escape')
+  cerrarMenu(): void {
+    this.menuAbierto = false;
+  }
 }
