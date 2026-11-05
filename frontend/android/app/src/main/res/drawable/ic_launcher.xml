@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- La misma marca vectorial que frontend/src/favicon.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#1f2230" android:pathData="M0,0H48V48H0Z" />
+    <path android:fillColor="#d0341f" android:pathData="M12.5,24a4.5,4.5 0,1 0,9 0a4.5,4.5 0,1 0,-9 0" />
+    <path android:fillColor="#7c3aed" android:pathData="M19.5,24a4.5,4.5 0,1 0,9 0a4.5,4.5 0,1 0,-9 0" />
+    <path android:fillColor="#0f7a6b" android:pathData="M26.5,24a4.5,4.5 0,1 0,9 0a4.5,4.5 0,1 0,-9 0" />
+</vector>

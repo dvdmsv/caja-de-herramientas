@@ -1,0 +1,96 @@
+apply plugin: 'com.android.application'
+
+def firma = ['CAJA_KEYSTORE', 'CAJA_STORE_PASSWORD', 'CAJA_KEY_ALIAS', 'CAJA_KEY_PASSWORD']
+def conFirma = firma.every { System.getenv(it) }
+if (firma.any { System.getenv(it) } && !conFirma) {
+    throw new GradleException('Faltan variables de firma: configura las cuatro CAJA_KEYSTORE, CAJA_STORE_PASSWORD, CAJA_KEY_ALIAS y CAJA_KEY_PASSWORD.')
+}
+
+android {
+    namespace = "io.github.dvdmsv.cajadeherramientas"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "io.github.dvdmsv.cajadeherramientas"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode Integer.parseInt(System.getenv('CAJA_VERSION_CODE') ?: '7')
+        versionName System.getenv('CAJA_VERSION_NAME') ?: '0.7.0'
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (conFirma) {
+            publicacion {
+                storeFile file(System.getenv('CAJA_KEYSTORE'))
+                storePassword System.getenv('CAJA_STORE_PASSWORD')
+                keyAlias System.getenv('CAJA_KEY_ALIAS')
+                keyPassword System.getenv('CAJA_KEY_PASSWORD')
+            }
+        }
+    }
+    packaging { jniLibs { useLegacyPackaging = true }; resources { excludes += ["META-INF/versions/9/OSGI-INF/MANIFEST.MF"] } }
+    buildTypes {
+        release {
+            if (conFirma) signingConfig signingConfigs.publicacion
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0") { exclude group: "org.bouncycastle" }
+    implementation "org.bouncycastle:bcprov-jdk18on:1.79"
+    implementation "org.bouncycastle:bcpkix-jdk18on:1.79"
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+// Impedir paquetes incompletos: motores y modelos siempre incluidos.
+tasks.register('verificarGhostscript') {
+    doLast {
+        ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'].each { abi ->
+            ['libgs.so', 'libgsrun.so', 'libqpdfrun.so', 'libmetadatosrun.so', 'liboffice-aislamiento.so', 'liblo-native-code.so', 'libc++_shared.so', 'libnss3.so'].each { nombre ->
+                if (!file("src/main/jniLibs/${abi}/${nombre}").isFile())
+                    throw new GradleException("Falta ${nombre} para ${abi}. Prepara los motores con scripts/android.")
+            }
+        }
+    }
+}
+tasks.register('verificarRecursosLocales') {
+    doLast {
+        ['unpack/user/fonts/LiberationSans-Regular.ttf','public/assets/ocr/spa.traineddata','public/assets/ocr/eng.traineddata','public/assets/ocr/worker.min.js','public/assets/pdfa/srgb.icc'].each { recurso ->
+            if (!file("src/main/assets/${recurso}").isFile())
+                throw new GradleException("Falta el recurso local ${recurso}. Prepara LibreOffice y ejecuta npm run android:sync.")
+        }
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'verificarGhostscript', 'verificarRecursosLocales' }
