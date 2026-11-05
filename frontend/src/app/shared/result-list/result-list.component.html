@@ -34,13 +34,13 @@
       @for (archivo of archivos; track archivo) {
         <li class="list-group-item d-flex align-items-center gap-2 resultado"
           [class.resultado--editando]="editando === archivo.id">
-          <i class="bi bi-file-earmark-check text-success flex-shrink-0"></i>
+          <i class="bi bi-file-earmark-check text-success flex-shrink-0" aria-hidden="true"></i>
           @if (editando !== archivo.id) {
             <span class="text-truncate flex-grow-1 resultado__nombre" [title]="archivo.name">{{ archivo.name }}</span>
             <span class="small text-body-secondary flex-shrink-0 resultado__peso">{{ archivo.size | peso }}</span>
             <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 flex-shrink-0 boton-tactil resultado__renombrar"
               (click)="editar(archivo)" [attr.aria-label]="'Cambiar el nombre de ' + archivo.name">
-              <i class="bi bi-pencil"></i>
+              <i class="bi bi-pencil" aria-hidden="true"></i>
             </button>
           }
           @if (editando === archivo.id) {
@@ -52,17 +52,17 @@
             </div>
             <button type="button" class="btn btn-sm btn-success flex-shrink-0" [disabled]="guardando"
               (click)="confirmar(archivo)" aria-label="Guardar el nombre">
-              <i class="bi bi-check-lg"></i>
+              <i class="bi bi-check-lg" aria-hidden="true"></i>
             </button>
             <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
               [disabled]="guardando" (click)="cancelar()" aria-label="Dejarlo como estaba">
-              <i class="bi bi-x-lg"></i>
+              <i class="bi bi-x-lg" aria-hidden="true"></i>
             </button>
           }
           @if (editando !== archivo.id && sePuedeVer(archivo)) {
             <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
               (click)="ver(archivo, $event)">
-              <i class="bi bi-eye"></i><span class="visually-hidden">Ver {{ archivo.name }}</span>
+              <i class="bi bi-eye" aria-hidden="true"></i><span class="visually-hidden">Ver {{ archivo.name }}</span>
             </button>
           }
           @if (editando !== archivo.id && archivos.length > 1) {
@@ -71,7 +71,7 @@
           @if (editando !== archivo.id) {
             <button type="button" class="btn btn-sm btn-outline-success flex-shrink-0"
               (click)="descargar(archivo)">
-              <i class="bi bi-download"></i><span class="visually-hidden">Descargar {{ archivo.name }}</span>
+              <i class="bi bi-download" aria-hidden="true"></i><span class="visually-hidden">Descargar {{ archivo.name }}</span>
             </button>
           }
         </li>
@@ -95,7 +95,7 @@
             <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
           }
           @if (!empaquetando) {
-            <i class="bi bi-file-earmark-zip me-1"></i>
+            <i class="bi bi-file-earmark-zip me-1" aria-hidden="true"></i>
           }
           Descargar todo en un ZIP
         </button>
