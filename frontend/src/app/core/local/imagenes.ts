@@ -76,9 +76,12 @@ export async function ejecutarImagen(m: typeof MuPDF, { slug, archivos, opciones
         const recorte = new OffscreenCanvas(giro % 180 ? h : w, giro % 180 ? w : h);
         const ctx = recorte.getContext('2d')!;
         ctx.translate(recorte.width / 2, recorte.height / 2);
-        // El espejo se aplica tras girar, como en la herramienta de escritorio.
-        ctx.scale(o['espejo'] ? -1 : 1, 1);
+        // Primero se voltea y luego se gira, como `editar_imagen.py` y como lo
+        // enseña la vista previa. En un lienzo, la última transformación que
+        // se declara es la primera que se aplica al dibujar: por eso el espejo
+        // va después del giro. Al revés salía la imagen traspuesta.
         ctx.rotate(giro * Math.PI / 180);
+        ctx.scale(o['espejo'] ? -1 : 1, 1);
         ctx.drawImage(canvas, r.x * canvas.width, r.y * canvas.height, w, h, -w / 2, -h / 2, w, h);
         canvas = recorte;
       }
