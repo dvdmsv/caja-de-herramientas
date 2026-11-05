@@ -40,10 +40,16 @@ test('une, descarga y abre documentos en móvil sin ninguna API ni conexión ext
   documento.destroy();
   await page.getByRole('button', { name: /Ver documento-combinado.pdf/ }).click();
   await page.getByRole('button', { name: 'Abrirlo en el visor' }).click();
-  await expect(page.getByText('1 / 2', { exact: true })).toBeVisible();
-  await expect(page.locator('canvas')).toHaveJSProperty('width', (page.viewportSize()!.width - 20) * 2);
-  await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
-  await expect(page.getByText('2 / 2', { exact: true })).toBeVisible();
+  // El visor de la web en modo lectura (`soloLectura`): páginas seguidas,
+  // «Guardar copia» y ninguna herramienta que necesite guardar en el servidor.
+  const actual = page.getByRole('spinbutton', { name: 'Página actual' });
+  await expect(actual).toHaveValue('1');
+  await expect(page.getByText('/ 2', { exact: false }).first()).toBeVisible();
+  await expect(page.locator('app-visor-pagina canvas').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Guardar copia' })).toBeVisible();
+  await expect(page.locator('button[title^="Subrayar"], button[title^="Tachar"], button[title="Imprimir (Ctrl+P)"]')).toHaveCount(0);
+  await actual.fill('2'); await actual.press('Enter');
+  await expect(actual).toHaveValue('2');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(peticionesProhibidas).toEqual([]);
   expect(errores).toEqual([]);
