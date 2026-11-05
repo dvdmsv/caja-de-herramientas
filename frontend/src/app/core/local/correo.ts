@@ -24,8 +24,10 @@ export async function leerCorreo(entrada:EntradaMotor):Promise<{documento:string
       const cabeceras=new TextDecoder().decode(bytes.slice(0,256*1024)).split(/\r?\n\r?\n/,1)[0];
       if(!/^(?:from|to|subject|date|message-id|mime-version|content-type):/im.test(cabeceras))throw new Error('El archivo no contiene cabeceras de correo válidas.');
       const mail=await PostalMime.parse(bytes);
+      // La fecha, tal cual la escribió quien lo mandó y con su zona horaria, como
+      // en el servidor: `mail.date` la pasa a ISO en UTC (10:00 +0200 → 08:00Z).
       const direccion=(a:any):string=>a?.group?a.group.map(direccion).join(', '):[a?.name,a?.address].filter(Boolean).join(' ');
-      asunto=mail.subject??'';de=direccion(mail.from);para=(mail.to??[]).map(direccion).join(', ');cc=(mail.cc??[]).map(direccion).join(', ');fecha=mail.date??'';
+      asunto=mail.subject??'';de=direccion(mail.from);para=(mail.to??[]).map(direccion).join(', ');cc=(mail.cc??[]).map(direccion).join(', ');fecha=mail.headers.find(h=>h.key==='date')?.value?.trim()??mail.date??'';
       html=mail.html??`<pre>${escapar(mail.text??'')}</pre>`;
       for(const a of mail.attachments) {
         const data=typeof a.content==='string'?new TextEncoder().encode(a.content):new Uint8Array(a.content);
