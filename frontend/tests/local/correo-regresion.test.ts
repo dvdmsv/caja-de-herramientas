@@ -17,7 +17,7 @@ it.each(['','Esto es una nota cualquiera.\n'])('rechaza EML invalido %j',async(s
 it('rechaza extension incorrecta',async()=>{await expect(run(eml(),'nota.txt')).rejects.toThrow(/EML o MSG/);});
 it('rechaza entrada ausente',async()=>{await expect(correoPdf(m,{slug:'correo-a-pdf',archivos:[],opciones:{}},()=>{})).rejects.toThrow();});
 it('rechaza MSG invalido con error comprensible',async()=>{await expect(run(new Uint8Array(100),'malo.msg')).rejects.toThrow(/MSG|correo/i);});
-it('MSG real cabeceras cuerpo fecha',async()=>{const bytes=readFileSync('/home/david/Desarrollos/merge-pdf/backend/tests/archivos/outlook.msg');const r=await run(bytes,'outlook.msg');const t=await text(r.archivos[0].blob);for(const s of ['Test Email Message','test.sender@example.com','test.recipient@example.com','This is the body of the test email message'])expect(t).toContain(s);expect(t).toMatch(/Fecha:[^\n]*2024/);});
+it('MSG real cabeceras cuerpo fecha',async()=>{const bytes=readFileSync(new URL('../../../backend/tests/archivos/outlook.msg',import.meta.url));const r=await run(bytes,'outlook.msg');const t=await text(r.archivos[0].blob);for(const s of ['Test Email Message','test.sender@example.com','test.recipient@example.com','This is the body of the test email message'])expect(t).toContain(s);expect(t).toMatch(/Fecha:[^\n]*2024/);});
 it('progreso completo por correo',async()=>{const fn=vi.fn();const r=await correoPdf(m,{slug:'correo-a-pdf',archivos:[{name:'a.eml',blob:new Blob([eml()])},{name:'b.eml',blob:new Blob([eml()])}],opciones:{}},fn);expect(r.archivos).toHaveLength(2);expect(fn.mock.calls).toEqual([[1,2],[2,2]]);});
 });
 // PostalMime pasa la fecha a ISO en UTC; el servidor enseña la cabecera tal cual.
