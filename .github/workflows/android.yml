@@ -36,7 +36,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Preparar NDK
-        run: sdkmanager 'ndk;28.2.13676358' 'cmake;3.22.1'
+        # sdkmanager no está en el PATH de ubuntu-latest: vive en cmdline-tools.
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;28.2.13676358' 'cmake;3.22.1' > /dev/null
       - uses: actions/cache@v4
         with:
           path: |
