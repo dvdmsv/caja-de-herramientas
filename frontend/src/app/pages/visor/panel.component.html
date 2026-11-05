@@ -7,6 +7,7 @@
     </button>
     <button type="button" [class.activa]="pestana === 'buscar'" (click)="pestanaChange.emit('buscar')"
       title="Buscar"><i class="bi bi-search"></i></button>
+    @if (!soloLectura) {
       <button type="button" [class.activa]="pestana === 'marcas'" (click)="pestanaChange.emit('marcas')"
         title="Lo que llevas anotado">
         <i class="bi bi-bookmark"></i>
@@ -14,6 +15,7 @@
           <span class="cuenta">{{ cuantasAnotaciones }}</span>
         }
       </button>
+      }
       <button type="button" [class.activa]="pestana === 'documento'" (click)="pestanaChange.emit('documento')"
         title="Propiedades del documento">
         <i class="bi bi-info-circle"></i>
@@ -41,8 +43,10 @@
             </button>
             <div class="miniatura__pie">
               <span>{{ numero }}</span>
+              @if (!soloLectura) {
               <button type="button" title="Girar" (click)="girar.emit(numero)"><i class="bi bi-arrow-clockwise"></i></button>
-              @if (!eliminadas.has(numero)) {
+              }
+              @if (!soloLectura && !eliminadas.has(numero)) {
                 <button type="button" title="Quitar"
                   (click)="eliminar.emit(numero)"><i class="bi bi-trash"></i></button>
                 }

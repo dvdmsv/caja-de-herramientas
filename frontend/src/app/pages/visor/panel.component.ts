@@ -37,6 +37,8 @@ export class VisorPanelComponent implements AfterViewInit, OnChanges, OnDestroy 
   @Input({ required: true }) totalPaginas = 0;
   @Input() paginaActual = 1;
   @Input() pestana: Pestana = 'paginas';
+  /** En Android: sin girar ni quitar páginas, ni la pestaña de marcas. */
+  @Input() soloLectura = false;
   @Input() indice: EntradaIndice[] = [];
   @Input() marcas: Marca[] = [];
   @Input() textos: Texto[] = [];

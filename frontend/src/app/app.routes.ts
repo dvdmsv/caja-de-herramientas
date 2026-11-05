@@ -265,9 +265,8 @@ const todas: Routes = [
     path: 'visor',
     title: 'Visor de PDF',
     data: { pantallaCompleta: true },
-    loadComponent: () => SIN_SERVIDOR
-      ? import('./pages/visor-android/visor-android.component').then(m => m.VisorAndroidComponent)
-      : import('./pages/visor/visor.component').then(m => m.VisorComponent),
+    // También en Android, en modo lectura (`soloLectura`).
+    loadComponent: () => import('./pages/visor/visor.component').then(m => m.VisorComponent),
   },
   {
     // No es una herramienta: no va en el catálogo (core/tools.ts).
