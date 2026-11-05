@@ -3,6 +3,7 @@ import { HttpErrorResponse, HttpRequest } from '@angular/common/http';
 import { AlmacenLocal, metadatos } from './almacen';
 import { CUOTA_LOCAL, HERRAMIENTAS_LOCALES } from './catalogo';
 import type { EntradaMotor, OpcionesMotor, PeticionMotor, ResultadoMotor } from './tipos';
+import { Turno } from './turno';
 
 @Injectable({ providedIn: 'root' })
 export class LocalService {
@@ -10,7 +11,23 @@ export class LocalService {
   private readonly almacen = new AlmacenLocal();
   private activo?: { id: string; worker: Worker; cancelar: () => void; hechos: number; total: number; desde: number };
 
-  async atender(req: HttpRequest<unknown>, signal: AbortSignal): Promise<unknown> {
+  private readonly turno = new Turno();
+
+  /**
+   * Lo que pone a trabajar un motor espera su turno (`turno.ts`). El progreso,
+   * la cancelación, la sesión y los archivos no: tienen que contestar justo
+   * mientras otro trabaja.
+   */
+  atender(req: HttpRequest<unknown>, signal: AbortSignal): Promise<unknown> {
+    const ruta = req.url.split('?')[0];
+    const usaMotor = (ruta.startsWith('/api/tools/') && !ruta.endsWith('/formatos'))
+      || /^\/api\/files\/[0-9a-f]{32}\/paginas$/.test(ruta);
+    if (!usaMotor) return this.resolver(req, signal);
+    return this.turno.ejecutar(signal, () => this.resolver(req, signal),
+      () => new HttpErrorResponse({ status: 409, error: { error: 'Operación cancelada.' } }));
+  }
+
+  private async resolver(req: HttpRequest<unknown>, signal: AbortSignal): Promise<unknown> {
     const ruta = req.url.split('?')[0];
     const o = (req.body ?? {}) as OpcionesMotor;
     if (ruta.startsWith('/api/progreso/')) {
