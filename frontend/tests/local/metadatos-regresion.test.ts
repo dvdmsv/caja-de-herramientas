@@ -9,3 +9,7 @@ it('borrar todo sin fondo preserva texto visible',async()=>{const d=await open()
 it('edita Unicode y fecha calendario valida',async()=>{const d=await open({seleccion:{id:[]},cambios:{id:{title:'Nuevo año 😀',creationDate:'29/02/2024 14:30'}}});try{expect(d.getMetaData('info:Title')).toBe('Nuevo año 😀');expect(d.getMetaData('info:CreationDate')).toBe('D:20240229143000');}finally{d.destroy();}});
 it.each([{seleccion:{id:['title']},cambios:{id:{title:'Conflicto'}}},{cambios:{id:{creationDate:'31/02/2026'}}},{cambios:{id:{title:'x'.repeat(501)}}},{a_fondo:'si'}])('rechaza ajustes %j',async(o)=>{await expect(run(o)).rejects.toThrow();});
 it('limpieza fondo conserva texto visible (impacto O01 conocido)',async()=>{const d=await open({a_fondo:true});try{const p=d.loadPage(0),s=p.toStructuredText();expect(s.asText()).toContain('Texto visible');s.destroy();p.destroy();}finally{d.destroy();}});
+// La pantalla manda «a fondo» con título y autor ya marcados para borrar (lo
+// de serie). La limpieza a fondo quita el diccionario Info entero, y borrar
+// después cada campo de un Info que ya no existe fallaba con «not a dict (null)».
+it('a fondo con campos marcados y un cambio, como lo manda la pantalla',async()=>{const d=await open({a_fondo:true,seleccion:{id:['title','author']},cambios:{id:{subject:'Nuevo asunto'}}});try{expect(d.getMetaData('info:Title')).toBeUndefined();expect(d.getMetaData('info:Author')).toBeUndefined();expect(d.getMetaData('info:Subject')).toBe('Nuevo asunto');}finally{d.destroy();}});

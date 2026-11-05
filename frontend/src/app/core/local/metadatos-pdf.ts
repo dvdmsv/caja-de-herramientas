@@ -98,8 +98,9 @@ export async function metadatosPdf(m:typeof MuPDF,p:PeticionMotor,avance:(n:numb
         }
         if(borrar===null) {trailer.delete('Info');root.delete('Metadata');}
         else {
+          // Tras la limpieza a fondo ya no hay Info: no queda nada que borrar.
           const info=trailer.get('Info');
-          try {for(const [clave,pdf] of campos)if(borrar.includes(clave))info.delete(pdf);}finally{info.destroy();}
+          try {if(info.isDictionary())for(const [clave,pdf] of campos)if(borrar.includes(clave))info.delete(pdf);}finally{info.destroy();}
           if(borrar.includes('xmp'))root.delete('Metadata');
         }
         for(const [clave,valor] of Object.entries(nuevos)) {
