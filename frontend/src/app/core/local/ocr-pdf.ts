@@ -50,16 +50,29 @@ export function quitarTextoInvisible(m:typeof MuPDF,doc:MuPDF.PDFDocument,n:numb
 }
 
 /**
- * Cuántos Tesseract a la vez. Reconocer es lo lento (4,6 s por página en un
- * OnePlus 6 con uno solo) y cada página es independiente, así que se reparten.
- * Cada uno pide su propia memoria de WebAssembly, unos 100 MB con español e
- * inglés: con poca memoria, menos; y nunca más de cuatro, que a partir de ahí
- * los núcleos lentos de un móvil ya no suman.
+ * Cuántos Tesseract a la vez. Reconocer es lo lento y cada página es
+ * independiente, así que se reparten. Medido en un OnePlus 6 (8 núcleos,
+ * 8 GB) con 40 páginas A4 escaneadas: 186 s con uno, 104 con dos, 80 con tres,
+ * y con cuatro el WebView se queda sin memoria (`pixdata_malloc fail`): todos
+ * reservan la suya de WebAssembly en el mismo proceso. De ahí el tope de tres,
+ * y menos con poca memoria. Lo que de verdad ocupa es el tamaño de cada página:
+ * eso lo limita además `PIXELES_A_LA_VEZ`.
  */
 export function trabajadoresOcr(nucleos: number | undefined, memoriaGb: number | undefined): number {
   const porNucleos = Math.floor((nucleos || 2) / 2);
-  const porMemoria = memoriaGb === undefined ? 4 : memoriaGb < 2 ? 1 : memoriaGb < 4 ? 2 : 4;
-  return Math.max(1, Math.min(4, porNucleos, porMemoria));
+  const porMemoria = memoriaGb === undefined ? 3 : memoriaGb < 2 ? 1 : memoriaGb < 4 ? 2 : 3;
+  return Math.max(1, Math.min(3, porNucleos, porMemoria));
+}
+
+/**
+ * Píxeles reconociéndose a la vez. Tres A4 a 200 ppp son unos 11,7 Mpx y caben;
+ * una página puede llegar a 20 Mpx, y ésa va sola.
+ */
+export const PIXELES_A_LA_VEZ = 12_000_000;
+
+/** Si una página más cabe con las que ya se están reconociendo. La primera cabe siempre. */
+export function cabeOtra(enCurso: number, pixelesEnCurso: number, pixeles: number, maximo: number): boolean {
+  return enCurso === 0 || (enCurso < maximo && pixelesEnCurso + pixeles <= PIXELES_A_LA_VEZ);
 }
 
 export async function ocrPdf(m:typeof MuPDF,p:PeticionMotor,avance:(n:number,total:number)=>void):Promise<ResultadoMotor> {
@@ -78,7 +91,7 @@ export async function ocrPdf(m:typeof MuPDF,p:PeticionMotor,avance:(n:number,tot
   // orden: son PDF de pocos KB y así MuPDF sólo toca el documento desde aquí.
   const capas=new Map<number,Uint8Array>();
   const enCurso=new Set<Promise<void>>();
-  const total=doc.countPages();let hechos=0;
+  const total=doc.countPages();let hechos=0,pixelesEnCurso=0;
   const contar=()=>{hechos++;avance(hechos,total);};
   try {
     for(let n=0;n<total;n++) {
@@ -91,6 +104,7 @@ export async function ocrPdf(m:typeof MuPDF,p:PeticionMotor,avance:(n:number,tot
         if(rehacer){page.destroy();visibles=quitarTextoInvisible(m,doc,n);page=doc.loadPage(n);}
         const box=page.getBounds(),scale=Math.min(200/72,Math.sqrt(20_000_000/((box[2]-box[0])*(box[3]-box[1]))));
         const pix=page.toPixmap(m.Matrix.scale(scale,scale),m.ColorSpace.DeviceRGB,false,false);
+        const ancho=pix.getWidth(),alto=pix.getHeight();
         let png:Uint8Array<ArrayBuffer>;
         try {
           const pixels=pix.getPixels(),stride=pix.getStride();
@@ -101,9 +115,11 @@ export async function ocrPdf(m:typeof MuPDF,p:PeticionMotor,avance:(n:number,tot
           }
           png=pix.asPNG().slice();
         }finally{pix.destroy();}
-        // Hueco: no rasterizar más páginas de las que se pueden reconocer, o
-        // se acumularían imágenes de 20 megapíxeles esperando.
-        while(enCurso.size>=maximo)await Promise.race(enCurso);
+        // Hueco: no reconocer más de lo que cabe en memoria a la vez (ni
+        // acumular imágenes rasterizadas esperando turno).
+        const pixeles=ancho*alto;
+        while(!cabeOtra(enCurso.size,pixelesEnCurso,pixeles,maximo))await Promise.race(enCurso);
+        pixelesEnCurso+=pixeles;
         const pagina=n,dpi=String(Math.round(scale*72));
         const tarea=(async()=>{
           const w=libres.pop()??await crear();
@@ -111,7 +127,7 @@ export async function ocrPdf(m:typeof MuPDF,p:PeticionMotor,avance:(n:number,tot
             await w.setParameters({user_defined_dpi:dpi});
             const result=await w.recognize(new Blob([png]),{pdfTextOnly:true},{pdf:true,text:true});
             if(result.data.pdf&&result.data.text.trim())capas.set(pagina,Uint8Array.from(result.data.pdf));
-          }finally{libres.push(w);}
+          }finally{libres.push(w);pixelesEnCurso-=pixeles;}
           contar();
         })();
         enCurso.add(tarea);

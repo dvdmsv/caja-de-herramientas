@@ -357,7 +357,9 @@ export class LocalService {
         if (data.tipo === 'resultado') resolve(data.resultado);
         else reject(new Error(data.mensaje));
       };
-      worker.onerror = () => { limpiar(); reject(new Error('No se ha podido iniciar el motor local. Actualiza Android System WebView y vuelve a abrir la app.')); };
+      // Un worker que muere sin contestar: casi siempre es memoria (medido con
+      // cuatro Tesseract a la vez), y muy pocas veces un WebView viejo.
+      worker.onerror = () => { limpiar(); reject(new Error('El motor local se ha detenido, probablemente por falta de memoria. Prueba con un documento más pequeño o cierra otras aplicaciones; si se repite, actualiza Android System WebView.')); };
       worker.postMessage(peticion);
     });
   }
