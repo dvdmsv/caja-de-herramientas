@@ -111,7 +111,9 @@ export function compararVersiones(a: string, b: string): number {
  */
 export function novedadesEntre(releases: ReleaseGitHub[], instalada: string, nueva: string): NovedadesDeVersion[] {
   return releases
-    .filter(release => !release.draft && !release.prerelease)
+    // Sólo las de Windows («v0.2.0»): las de Android van como «android-v0.8.0»
+    // en el mismo repositorio y no son versiones de esta aplicación.
+    .filter(release => !release.draft && !release.prerelease && /^v?\d/i.test(release.tag_name))
     .filter(release => compararVersiones(release.tag_name, instalada) > 0
       && compararVersiones(release.tag_name, nueva) <= 0)
     .sort((a, b) => compararVersiones(b.tag_name, a.tag_name))
