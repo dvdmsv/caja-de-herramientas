@@ -38,3 +38,6 @@ el aviso de actualización; la interfaz Angular completa se probó en Chromium,
 no en ese WebView antiguo. No se han probado teléfonos físicos ni claves hardware.
 El visor y las limitaciones anteriores de las otras 26 herramientas no se
 presentan como paridad completa; véase `docs/paridad-android.md`.
+
+> **Después de este ciclo**: el 5 de noviembre de 2026 se probó la APK en un
+> teléfono físico. Ver [`telefono-2026-11-05.md`](telefono-2026-11-05.md).

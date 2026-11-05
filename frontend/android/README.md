@@ -23,7 +23,6 @@ Las diferencias de formatos y visor se documentan abajo y en
   líneas extraídas; Windows utiliza Markdown estructurado. Hasta 100 páginas,
   25 imágenes y 120 cambios de texto mostrados.
 - Pasar PDF a grises con Ghostscript local, conservando texto seleccionable y vectores.
-  La ejecución de esta novedad todavía debe comprobarse en teléfono real.
 - Convertir páginas PDF a JPG/PNG y reunir imágenes en un PDF.
 - Convertir imágenes a JPG/PNG/WebP; comprimir por calidad o tamaño objetivo;
   recortar, girar, reflejar y redimensionar.
@@ -48,8 +47,10 @@ compresión PDF (incluida optimización web), correo EML/MSG, metadatos PDF e
 imágenes, tablas, PDF a EPUB, extracción Markdown, PDF a Word, OCR, PDF/A,
 comprobación de firmas, firma con certificado, marca de tiempo y Office a PDF.
 Los informes y planes de regresión están en `docs/android-ciclo/pruebas/`.
-Se han ejecutado pruebas de motor, navegador, JVM y un emulador Android 30 x86_64.
-No se ha probado esta versión en un teléfono físico.
+Se han ejecutado pruebas de motor, navegador, JVM y un emulador Android 30 x86_64,
+y el 5 de noviembre de 2026 las 39 herramientas en un teléfono físico (OnePlus 6,
+Android 15), sin conexión: qué se probó y qué se arregló, en
+[`docs/android-ciclo/telefono-2026-11-05.md`](../../docs/android-ciclo/telefono-2026-11-05.md).
 
 La unión conserva el texto, el orden y los marcadores. Por ahora **rechaza PDF
 con formularios, anotaciones o enlaces** para no eliminarlos silenciosamente:
@@ -133,9 +134,11 @@ petición a una API o a otro origen. El servidor de pruebas sólo sirve archivos
 estáticos incluidos en la APK. `PLAYWRIGHT_CHROMIUM_EXECUTABLE` permite usar
 un Chromium ya instalado.
 
-Estas pruebas no sustituyen una prueba de la APK en un teléfono: siguen
-pendientes el selector nativo de guardado/cancelación, arranque en modo avión,
-botón Atrás, rotación, pausa/reanudación, poco espacio y documentos grandes.
+Estas pruebas no sustituyen una prueba de la APK en un teléfono. En uno físico
+ya se han probado el selector de guardado y su cancelación, el uso sin red, el
+botón Atrás, el giro y salir y volver a la app; siguen pendientes poco espacio,
+documentos cerca del tope de 50 MB y otros fabricantes y versiones. Cómo manejar
+la app instalada desde el ordenador está en el informe de esa prueba.
 La CI crea APK debug y AAB sin firmar como artefactos; no publica nada.
 
 ## AAB y Google Play
@@ -158,7 +161,7 @@ clave de subida, o configura las cuatro variables que lee `app/build.gradle`:
 es la versión visible (predeterminado: 0.7.0). Conserva el identificador después de
 publicar y protege una copia de la clave de subida.
 
-Antes de publicar faltan las pruebas nativas, decidir el alcance de la primera
+Antes de publicar faltan probar más teléfonos y versiones de Android, decidir el alcance de la primera
 versión pública, firmar el AAB con tu clave y completar Play Console: ficha,
 capturas, contacto, política de privacidad pública, clasificación y declaración
 de seguridad de los datos. La política dentro de «Acerca de» describe este build;

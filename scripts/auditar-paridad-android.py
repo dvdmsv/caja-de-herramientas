@@ -51,7 +51,7 @@ def inventario():
     if set(evidence) - set(slugs):
         raise ValueError('Hay evidencias de herramientas que no existen')
     for entry in evidence.values():
-        for test in entry['pruebas']:
+        for test in entry.get('pruebas', []):
             if not (ROOT / test).is_file():
                 raise ValueError(f'No existe la prueba {test}')
     routes = {}
@@ -62,10 +62,14 @@ def inventario():
     return {'herramientas': [{'slug': slug, 'habilitada': slug in enabled,
         'estado': evidence.get(slug, {}).get('estado', 'parcial; verificar opciones' if slug in enabled else 'pendiente'),
         'pruebas': evidence.get(slug, {}).get('pruebas', []),
+        'telefono': evidence.get(slug, {}).get('telefono', ''),
         'contratos': [route for values in routes.values() for route in values
                       if route['ruta'].startswith('/api/tools/' + slug + '/')
                       or route['ruta'] == '/api/tools/' + slug]}
         for slug in slugs], 'contratos_backend': routes}
+
+
+TELEFONO = 'OnePlus 6, Android 15 con LineageOS 22.2 y WebView 155, el 5 de noviembre de 2026'
 
 
 def markdown(data):
@@ -73,10 +77,12 @@ def markdown(data):
         'Inventario generado con `python3 scripts/auditar-paridad-android.py`.', '',
         'Evidencias persistentes: `docs/paridad-android-evidencias.json` (no se sobrescriben al regenerar).', '',
         'Habilitada no significa paridad: cada opción, formato y operación auxiliar necesita evidencia.', '',
-        '| Herramienta | Estado | Contratos específicos |', '|---|---|---|']
+        f'La columna «Teléfono» es lo que se hizo en un teléfono físico ({TELEFONO}), casi siempre con '
+        'las opciones de serie, y comprobando aparte el archivo que salió. No sustituye a probar cada opción.', '',
+        '| Herramienta | Estado | Teléfono | Contratos específicos |', '|---|---|---|---|']
     for tool in data['herramientas']:
         routes = '<br>'.join(f"`{r['metodo']} {r['ruta']}`" for r in tool['contratos']) or 'Revisar contratos compartidos'
-        rows.append(f"| {tool['slug']} | {tool['estado']} | {routes} |")
+        rows.append(f"| {tool['slug']} | {tool['estado']} | {tool['telefono'] or '—'} | {routes} |")
     rows += ['', '## Contratos compartidos y auxiliares', '',
         'La salida `--json` incluye todas las rutas del backend, también archivos, sesión, visor y bóveda.', '',
         '## Criterios de aceptación', '',
@@ -95,7 +101,8 @@ def markdown(data):
         '- Unión: rechazo de formularios, enlaces y anotaciones; no hay paridad estructural.',
         '- Visor: solo lectura; faltan edición, anotaciones y búsqueda avanzada.',
         '- Imágenes: el adaptador ofrece JPG, PNG y WebP; falta comparar formatos con Windows.',
-        '- Emulador Android 30 probado; faltan dispositivos físicos y cobertura exhaustiva de versiones.',
+        f'- Probado en un emulador Android 30 y en un teléfono físico ({TELEFONO}); faltan otros '
+        'fabricantes y versiones, y claves de hardware en KeyChain.',
         '- Firmas: integridad local sin consulta de revocación; clasificación conservadora de revisiones.',
         '- Tablas: detección de rejillas; documentos complejos requieren comparación con el original.', '']
     return '\n'.join(rows)
