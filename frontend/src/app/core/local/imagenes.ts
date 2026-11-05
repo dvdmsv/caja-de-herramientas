@@ -4,6 +4,9 @@ import type { PeticionMotor, ResultadoMotor } from './tipos';
 import { base, guardarPdf } from './pdf';
 import { MAXIMO_PIXELES } from './catalogo';
 
+/** Los mismos sufijos que pone el servidor, para que un resultado se llame igual en todas partes. */
+const SUFIJOS: Record<string, string> = { 'comprimir-imagen': 'comprimida', 'editar-imagen': 'editada' };
+
 /** Se decodifica con orientación EXIF, igual que las vistas previas del WebView. */
 export async function lienzo(blob: Blob): Promise<OffscreenCanvas> {
   let imagen: ImageBitmap;
@@ -120,7 +123,7 @@ export async function ejecutarImagen(m: typeof MuPDF, { slug, archivos, opciones
         }
         const ext = formato === 'JPEG' ? 'jpg' : formato.toLowerCase();
         const salida = slug === 'comprimir-imagen' && blob.size >= entrada.blob.size ? entrada
-          : { name: `${base(entrada.name)}-${slug === 'editar-imagen' ? 'editada' : 'convertida'}.${ext}`, blob };
+          : { name: `${base(entrada.name)}-${SUFIJOS[slug] ?? 'convertida'}.${ext}`, blob };
         if (objetivo > 0) logrado &&= salida.blob.size <= objetivo;
         resultado.archivos.push(salida);
       }

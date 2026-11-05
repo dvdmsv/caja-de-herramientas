@@ -34,6 +34,11 @@ public class OfficeService extends Service {
             if(!extension.matches("docx|doc|odt|rtf|txt|xlsx|xls|ods|pptx|ppt|odp"))throw new IOException("El formato Office no está admitido.");
             File entrada=new File(dir,"entrada.pdf"),documento=new File(dir,"documento."+extension),salida=new File(dir,"salida.pdf");
             if(!entrada.renameTo(documento))throw new IOException("No se ha podido preparar el documento.");
+            // LibreOffice deja sus temporales (lu*.tmp) en la caché y este proceso
+            // se mata al acabar, sin darle ocasión de borrarlos. Office va de uno
+            // en uno, así que lo que quede de la conversión anterior ya no es de nadie.
+            File[] restos=getCacheDir().listFiles((d,nombre)->nombre.startsWith("lu")&&nombre.endsWith(".tmp"));
+            if(restos!=null)for(File resto:restos)MotorGhostscript.borrar(resto);
             System.loadLibrary("office-aislamiento");
             if(!aislarRed())throw new IOException("No se ha podido aislar el motor Office de la red.");
             File data=new File(getApplicationInfo().dataDir);
