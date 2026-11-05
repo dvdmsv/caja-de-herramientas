@@ -2,6 +2,7 @@ import type * as MuPDF from 'mupdf';
 import {createWorker,OEM,type Worker as WorkerOCR} from 'tesseract.js';
 import {abrirPdf,guardarPdf,base} from './pdf';
 import {estampar} from './marca';
+import {quitarTextoInvisibleDelFlujo, type Transparencias} from './texto-invisible';
 import type {PeticionMotor,ResultadoMotor} from './tipos';
 
 /** Inserta una página PDF como Form, adaptando su sistema de coordenadas. */
@@ -24,29 +25,61 @@ export function incorporar(m:typeof MuPDF,destino:MuPDF.PDFDocument,n:number,ori
   }finally{page.destroy();target.destroy();obj.destroy();map.destroy();}
 }
 
-/** Reescribe sólo los contenidos: conserva anotaciones, enlaces y geometría originales. */
+/** La transparencia de cada estado gráfico con nombre de unos recursos. */
+function transparenciasDe(recursos: MuPDF.PDFObject): Transparencias {
+  return nombre => {
+    const estados = recursos.isDictionary() ? recursos.get('ExtGState') : recursos;
+    const gs = estados.isDictionary() ? estados.get(nombre) : estados;
+    if (!gs.isDictionary()) return {};
+    const ca = gs.get('ca'), CA = gs.get('CA');
+    return { relleno: ca.isNumber() ? ca.asNumber() : undefined, trazo: CA.isNumber() ? CA.asNumber() : undefined };
+  };
+}
+
+/** Lee un flujo o un array de flujos (el `Contents` de una página) como bytes seguidos. */
+function bytesDe(contenido: MuPDF.PDFObject): Uint8Array {
+  const partes = contenido.isArray() ? Array.from({ length: contenido.length }, (_, k) => contenido.get(k)) : [contenido];
+  const trozos = partes.filter(p => p.isStream()).map(p => { const b = p.readStream(); try { return b.asUint8Array().slice(); } finally { b.destroy(); } });
+  const total = trozos.reduce((s, t) => s + t.length + 1, 0), todo = new Uint8Array(total);
+  let pos = 0;
+  for (const t of trozos) { todo.set(t, pos); pos += t.length; todo[pos++] = 10; }   // un salto entre flujos: no pegar dos operadores
+  return todo;
+}
+
+/**
+ * Quita el texto invisible de una página (la capa de un OCR anterior, con
+ * `Tr 3` o transparencia cero) sin redibujarla: se filtran sus flujos de
+ * contenido y los de sus Form XObject (`texto-invisible.ts`), y fuentes,
+ * anotaciones, enlaces y geometría se quedan como estaban. Devuelve las cajas
+ * del texto que sí se ve, para taparlo antes de reconocer y no duplicarlo.
+ */
 export function quitarTextoInvisible(m:typeof MuPDF,doc:MuPDF.PDFDocument,n:number):MuPDF.Rect[] {
-  const page=doc.loadPage(n),buffer=new m.Buffer(),writer=new m.DocumentWriter(buffer,'pdf','compress');
-  const visibles:MuPDF.Rect[]=[];
-  const stroke=new m.StrokeState({lineCap:'Butt',lineJoin:'Miter',lineWidth:0,miterLimit:10});
+  const pagina = doc.findPage(n);
+  const vistos = new Set<number>();
+  const formas = (recursos: MuPDF.PDFObject) => {
+    const xobjetos = recursos.isDictionary() ? recursos.get('XObject') : recursos;
+    if (!xobjetos.isDictionary()) return;
+    xobjetos.forEach(x => {
+      if (!x.isStream() || x.get('Subtype').asName() !== 'Form' || (x.isIndirect() && vistos.has(x.asIndirect()))) return;
+      if (x.isIndirect()) vistos.add(x.asIndirect());
+      const propios = x.get('Resources').isDictionary() ? x.get('Resources') : recursos;
+      const { contenido, quitados } = quitarTextoInvisibleDelFlujo(bytesDe(x), transparenciasDe(propios));
+      if (quitados) x.writeStream(contenido);
+      formas(propios);
+    });
+  };
+  const recursos = pagina.getInheritable('Resources');
+  const contenido = pagina.get('Contents');
+  if (!contenido.isNull()) {
+    const r = quitarTextoInvisibleDelFlujo(bytesDe(contenido), transparenciasDe(recursos));
+    if (r.quitados) pagina.put('Contents', doc.addStream(r.contenido, {}));
+  }
+  formas(recursos);
+  const page = doc.loadPage(n), texto = page.toStructuredText('preserve-whitespace');
   try {
-    const output=writer.beginPage(page.getBounds());
-    const callbacks:Record<string,(...args:any[])=>any>={};
-    for(const name of ['fillPath','strokePath','clipPath','clipStrokePath','clipText','clipStrokeText','fillShade','fillImage','fillImageMask','clipImageMask','popClip','beginMask','endMask','beginGroup','endGroup','beginTile','endTile','beginLayer','endLayer'])callbacks[name]=(...args:any[])=>(output as any)[name](...args);
-    callbacks['ignoreText']=()=>{};
-    callbacks['fillText']=(text:MuPDF.Text,ctm:MuPDF.Matrix,cs:MuPDF.ColorSpace,color:number[],alpha:number)=>{
-      if(alpha>0){visibles.push(text.getBounds(stroke,ctm));output.fillText(text,ctm,cs,color,alpha);}
-    };
-    callbacks['strokeText']=(text:MuPDF.Text,s:MuPDF.StrokeState,ctm:MuPDF.Matrix,cs:MuPDF.ColorSpace,color:number[],alpha:number)=>{
-      if(alpha>0){visibles.push(text.getBounds(s,ctm));output.strokeText(text,s,ctm,cs,color,alpha);}
-    };
-    const device=new m.Device(callbacks);
-    try {page.runPageContents(device,m.Matrix.identity);device.close();}finally{device.destroy();output.destroy();}
-    writer.endPage();writer.close();
-    const limpio=new m.PDFDocument(buffer),obj=doc.findPage(n);
-    try {obj.delete('Contents');incorporar(m,doc,n,limpio);}finally{obj.destroy();limpio.destroy();}
-    return visibles;
-  }finally{stroke.destroy();writer.destroy();buffer.destroy();page.destroy();}
+    const bloques = JSON.parse(texto.asJSON()).blocks as { type: string; lines?: { bbox: { x: number; y: number; w: number; h: number } }[] }[];
+    return bloques.flatMap(b => (b.lines ?? []).map(({ bbox: c }) => [c.x, c.y, c.x + c.w, c.y + c.h] as MuPDF.Rect));
+  } finally { texto.destroy(); page.destroy(); }
 }
 
 /**
