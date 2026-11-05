@@ -98,7 +98,6 @@ def markdown(data):
         '- OCR: Tesseract 6.0.1 WebAssembly y modelos locales español/inglés.',
         '- Optimización web: qpdf 12.4.2. Metadatos de imagen: Exiv2 0.28.9.', '',
         '## Limitaciones conocidas de las herramientas habilitadas', '',
-        '- Unión: rechazo de formularios, enlaces y anotaciones; no hay paridad estructural.',
         '- Visor: solo lectura; faltan edición, anotaciones y búsqueda avanzada.',
         '- Imágenes: el adaptador ofrece JPG, PNG y WebP; falta comparar formatos con Windows.',
         f'- Probado en un emulador Android 30 y en un teléfono físico ({TELEFONO}); faltan otros '

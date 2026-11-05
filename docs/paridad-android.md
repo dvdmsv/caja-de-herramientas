@@ -10,7 +10,7 @@ La columna «Teléfono» es lo que se hizo en un teléfono físico (OnePlus 6, A
 
 | Herramienta | Estado | Teléfono | Contratos específicos |
 |---|---|---|---|
-| unir-pdf | parcial; verificar opciones | Dos PDF sin formularios; uno con formulario se rechaza (limitación conocida). | `POST /api/tools/unir-pdf` |
+| unir-pdf | Conserva texto, orden, índice, enlaces internos (también con nombre), anotaciones y formularios; los campos con el mismo nombre se renombran. | Dos PDF sin formularios; uno con formulario se rechaza (limitación conocida). | `POST /api/tools/unir-pdf` |
 | pdf-a-imagen | parcial; verificar opciones | JPG a 150 ppp, cuatro páginas. | `GET /api/tools/pdf-a-imagen/formatos`<br>`POST /api/tools/pdf-a-imagen` |
 | firmar | Implementada para PDF e imágenes compatibles con WebView. Firma sobre PDF probada; pendientes formatos restantes. | Rúbrica en imagen sobre un PDF. | `POST /api/tools/firmar/preparar`<br>`POST /api/tools/firmar` |
 | firmar-certificado | PKCS12 y puente KeyChain, firma incremental, sello visible y TSA opcional. P12, apariencia 4 giros y KeyChain software probados en emulador; hardware no probado. | Con un .p12 creado en el propio teléfono: válida e incremental según pyHanko. KeyChain sin probar en teléfono. | `POST /api/tools/firmar-certificado/certificado`<br>`POST /api/tools/firmar-certificado/apariencia`<br>`POST /api/tools/firmar-certificado/autofirma`<br>`POST /api/tools/firmar-certificado` |
@@ -72,7 +72,6 @@ La salida `--json` incluye todas las rutas del backend, también archivos, sesi�
 
 ## Limitaciones conocidas de las herramientas habilitadas
 
-- Unión: rechazo de formularios, enlaces y anotaciones; no hay paridad estructural.
 - Visor: solo lectura; faltan edición, anotaciones y búsqueda avanzada.
 - Imágenes: el adaptador ofrece JPG, PNG y WebP; falta comparar formatos con Windows.
 - Probado en un emulador Android 30 y en un teléfono físico (OnePlus 6, Android 15 con LineageOS 22.2 y WebView 155, el 5 de noviembre de 2026); faltan otros fabricantes y versiones, y claves de hardware en KeyChain.

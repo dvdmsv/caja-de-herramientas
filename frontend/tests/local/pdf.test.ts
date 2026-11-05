@@ -95,13 +95,55 @@ describe('PDF reales con el motor que se incluye en Android', () => {
       expect(indice[1].down?.[0].page).toBe(5);
     } finally { unido.destroy(); }
   });
-  it('no borra silenciosamente anotaciones al unir', async () => {
-    const doc = documento(1), pagina = doc.loadPage(0);
-    const nota = pagina.createAnnotation('Text'); nota.setRect([10, 10, 35, 35]); nota.setContents('Conservar'); nota.update();
-    const blob = guardarPdf(doc); pagina.destroy(); doc.destroy();
-    await expect(ejecutar('unir-pdf', {}, [entrada(), { name: 'anotado.pdf', blob }])).rejects.toThrow('anotaciones');
+  it('al unir conserva formularios, enlaces y anotaciones', async () => {
+    const blob = conFormularioYEnlaces();
+    const r = await ejecutar('unir-pdf', {}, [{ name: 'a.pdf', blob }, { name: 'b.pdf', blob }]);
+    // Guardado y reabierto: lo que importa es el archivo, no el documento en memoria.
+    const unido = await abrirPdf(m, r.archivos[0]);
+    try {
+      expect(unido.countPages()).toBe(6);
+      const campos = unido.getTrailer().get('Root', 'AcroForm', 'Fields');
+      const nombres: string[] = [], valores: string[] = [];
+      campos.forEach(c => { nombres.push(c.get('T').asString()); valores.push(c.get('V').asString()); });
+      // El mismo impreso dos veces: dos campos, no uno compartido.
+      expect(nombres).toEqual(['firmante', 'firmante_2']);
+      expect(valores).toEqual(['Ana Ejemplo', 'Ana Ejemplo']);
+      expect(unido.getTrailer().get('Root', 'AcroForm', 'DA').asString()).toContain('Helv');
+      // Cada widget sigue siendo el campo del formulario, no una copia suelta.
+      const widget = unido.findPage(3).get('Annots').get(0);
+      expect(widget.get('T').asString()).toBe('firmante_2');
+      for (const [pagina, destino] of [[0, 2], [3, 5]]) {
+        const enlaces = unido.loadPage(pagina).getLinks();
+        expect(enlaces).toHaveLength(2);   // el explícito y el que iba a un nombre
+        for (const enlace of enlaces) expect(unido.resolveLink(enlace)).toBe(destino);
+      }
+      expect(unido.loadPage(4).getAnnotations().map(a => a.getContents())).toContain('Conservar');
+    } finally { unido.destroy(); }
   });
 });
+
+/** Tres páginas: en la 1, un campo relleno y dos enlaces a la 3 (uno explícito y otro por nombre); en la 2, una nota. */
+function conFormularioYEnlaces(): Blob {
+  const doc = documento(3);
+  const pagina = (n: number) => doc.findPage(n);
+  const widget = doc.addObject({ Type: 'Annot', Subtype: 'Widget', FT: 'Tx', Rect: [20, 200, 180, 220],
+    F: 4, P: pagina(0) });
+  widget.put('DA', doc.newString('/Helv 10 Tf 0 g'));
+  widget.put('T', doc.newString('firmante')); widget.put('V', doc.newString('Ana Ejemplo'));
+  const explicito = doc.addObject({ Type: 'Annot', Subtype: 'Link', Rect: [20, 150, 180, 170], Border: [0, 0, 0] });
+  explicito.put('Dest', [pagina(2), 'Fit']);
+  const conNombre = doc.addObject({ Type: 'Annot', Subtype: 'Link', Rect: [20, 120, 180, 140], Border: [0, 0, 0] });
+  conNombre.put('Dest', doc.newString('final'));
+  pagina(0).put('Annots', [widget, explicito, conNombre]);
+  const nombres = doc.newArray(); nombres.push(doc.newString('final')); nombres.push([pagina(2), 'XYZ', 0, 280, null]);
+  const raiz = doc.getTrailer().get('Root');
+  raiz.put('Names', { Dests: { Names: nombres } });
+  const formulario = doc.newDictionary(); formulario.put('Fields', [widget]); formulario.put('DA', doc.newString('/Helv 0 Tf 0 g'));
+  raiz.put('AcroForm', formulario);
+  const segunda = doc.loadPage(1);
+  const nota = segunda.createAnnotation('Text'); nota.setRect([10, 10, 35, 35]); nota.setContents('Conservar'); nota.update();
+  try { return guardarPdf(doc); } finally { segunda.destroy(); doc.destroy(); }
+}
 
 describe('QR sin servicios externos', () => {
   it('escapa los separadores de una red wifi', () => {

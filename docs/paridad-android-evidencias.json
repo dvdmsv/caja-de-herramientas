@@ -206,7 +206,10 @@
   },
   "unir-pdf": {
     "telefono": "Dos PDF sin formularios; uno con formulario se rechaza (limitación conocida).",
-    "pruebas": []
+    "pruebas": [
+      "frontend/tests/local/pdf.test.ts"
+    ],
+    "estado": "Conserva texto, orden, índice, enlaces internos (también con nombre), anotaciones y formularios; los campos con el mismo nombre se renombran."
   },
   "dividir-pdf": {
     "telefono": "Opciones de serie; conserva índice, enlace y campo.",

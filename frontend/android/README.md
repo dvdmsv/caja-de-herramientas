@@ -52,10 +52,10 @@ y el 5 de noviembre de 2026 las 39 herramientas en un teléfono físico (OnePlus
 Android 15), sin conexión: qué se probó y qué se arregló, en
 [`docs/android-ciclo/telefono-2026-11-05.md`](../../docs/android-ciclo/telefono-2026-11-05.md).
 
-La unión conserva el texto, el orden y los marcadores. Por ahora **rechaza PDF
-con formularios, anotaciones o enlaces** para no eliminarlos silenciosamente:
-se puede aplanar primero cuando baste conservar la apariencia. Para conservar
-enlaces o formularios editables al unir, sigue haciendo falta Windows.
+La unión conserva el texto, el orden, el índice, los enlaces internos (también
+los que van a un destino con nombre), las anotaciones y los formularios con sus
+valores. Si dos documentos traen un campo con el mismo nombre, el segundo se
+renombra («firmante_2»): con el mismo nombre compartirían valor.
 
 El visor Android es de lectura: las anotaciones, la búsqueda avanzada y la
 edición del visor de Windows no están portadas. La extracción de tablas reconoce rejillas; la reconstrucción editable de PDF
