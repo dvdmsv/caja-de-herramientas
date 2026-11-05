@@ -160,7 +160,8 @@ ya se han probado el selector de guardado y su cancelación, el uso sin red, el
 botón Atrás, el giro y salir y volver a la app; siguen pendientes poco espacio,
 documentos cerca del tope de 50 MB y otros fabricantes y versiones. Cómo manejar
 la app instalada desde el ordenador está en el informe de esa prueba.
-La CI crea APK debug y AAB sin firmar como artefactos; no publica nada.
+En cada cambio, la CI compila todo y guarda la APK de prueba de arm64 durante
+14 días; no publica nada salvo con una etiqueta (ver «Firma y versiones publicadas»).
 
 ## Firma y versiones publicadas
 

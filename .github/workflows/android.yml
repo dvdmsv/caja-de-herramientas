@@ -72,13 +72,16 @@ jobs:
       - name: APK de prueba y AAB sin firmar
         working-directory: frontend/android
         run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease --no-daemon
+      # Sólo la APK de arm64, la de casi todos los teléfonos: las cuatro más el
+      # AAB eran 898 MB por ejecución. Las x86 son de emuladores y el AAB sin
+      # firmar no sirve para Google Play; compilarlo arriba ya comprueba que
+      # sale. Lo que se publica lo genera aparte el trabajo `publicar`.
       - uses: actions/upload-artifact@v7
         with:
           name: caja-android-pruebas
-          path: |
-            frontend/android/app/build/outputs/apk/debug/*.apk
-            frontend/android/app/build/outputs/bundle/release/app-release.aab
+          path: frontend/android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: error
+          retention-days: 14
 
   publicar:
     # Después de que todo lo anterior haya pasado, y sólo con una etiqueta.
