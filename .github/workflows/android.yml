@@ -1,0 +1,73 @@
+name: Android sin servidor
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ['frontend/**', 'backend/api/patrones.py', 'scripts/android/**', '.github/workflows/android.yml']
+  pull_request:
+    paths: ['frontend/**', 'backend/api/patrones.py', 'scripts/android/**', '.github/workflows/android.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Preparar NDK
+        run: sdkmanager 'ndk;28.2.13676358' 'cmake;3.22.1'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            frontend/android/app/src/main/jniLibs
+            frontend/android/app/src/main/assets/program
+            frontend/android/app/src/main/assets/share
+            frontend/android/app/src/main/assets/unpack
+          key: motores-android-v7-${{ hashFiles('scripts/android/**', 'frontend/android/native/**') }}
+      - name: Compilar motores locales
+        run: |
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            if [ ! -f "android/app/src/main/jniLibs/$abi/libgsrun.so" ]; then
+              python3 ../scripts/android/compilar-ghostscript.py --ndk "$ANDROID_HOME/ndk/28.2.13676358" --directorio "$RUNNER_TEMP/ghostscript" --abi "$abi" --instalar
+            fi
+            if [ ! -f "android/app/src/main/jniLibs/$abi/libqpdfrun.so" ]; then
+              python3 ../scripts/android/compilar-qpdf.py --ndk "$ANDROID_HOME/ndk/28.2.13676358" --cmake "$ANDROID_HOME/cmake/3.22.1/bin/cmake" --directorio "$RUNNER_TEMP/qpdf" --abi "$abi" --instalar
+            fi
+            if [ ! -f "android/app/src/main/jniLibs/$abi/libmetadatosrun.so" ]; then
+              python3 ../scripts/android/compilar-metadatos.py --ndk "$ANDROID_HOME/ndk/28.2.13676358" --cmake "$ANDROID_HOME/cmake/3.22.1/bin/cmake" --directorio "$RUNNER_TEMP/metadatos" --abi "$abi" --instalar
+            fi
+          done
+          if [ ! -f android/app/src/main/assets/unpack/user/fonts/LiberationSans-Regular.ttf ]; then
+            python3 ../scripts/android/preparar-libreoffice.py --ndk "$ANDROID_HOME/ndk/28.2.13676358" --directorio "$RUNNER_TEMP/libreoffice"
+          fi
+      - run: python3 ../scripts/android/verificar-motores.py
+      - run: npm ci
+      - run: python3 ../scripts/android/generar-patrones.py --check
+      - run: npm run test:local
+      - run: npm run android:sync
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:android
+      - name: APK de prueba y AAB sin firmar
+        working-directory: frontend/android
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease --no-daemon
+      - uses: actions/upload-artifact@v7
+        with:
+          name: caja-android-pruebas
+          path: |
+            frontend/android/app/build/outputs/apk/debug/app-debug.apk
+            frontend/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
