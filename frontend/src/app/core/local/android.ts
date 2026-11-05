@@ -174,6 +174,13 @@ export interface Arranque {
 export async function iniciarAndroid({ router, zona, entregar, favoritas, cambianFavoritas }: Arranque): Promise<void> {
   document.documentElement.classList.add('android-local');
   if (Capacitor.getPlatform() !== 'android') return;
+  // En la app, pellizcar no amplía la interfaz entera: medido en el visor, el
+  // WebView llegaba a ×5 con la barra de herramientas fuera de la pantalla y
+  // sin forma de volver. Las páginas las amplía el visor por su cuenta
+  // (`gesto-zoom.ts`) y la letra sigue el tamaño de fuente del sistema. En la
+  // web no se toca: ahí el zoom del navegador es de quien lee.
+  document.querySelector('meta[name=viewport]')?.setAttribute('content',
+    'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
   // Lo que llega del lado nativo no pasa por zone.js: sin volver a la zona,
   // la página no se repintaría.
   const enZona = <T>(f: () => Promise<T>) => zona.run(f);
@@ -194,8 +201,15 @@ export async function iniciarAndroid({ router, zona, entregar, favoritas, cambia
     if (ruta) void enZona(() => router.navigateByUrl(ruta));
   };
   await App.addListener('appUrlOpen', ({ url }) => irA(url));
+  // `getLaunchUrl` devuelve la URL con que se abrió la actividad cada vez que
+  // se le pregunta, y la página se recarga si el sistema mata el WebView: sin
+  // recordarla, cada recarga volvía a saltar a la herramienta del atajo.
+  // `sessionStorage` vive lo que el proceso, igual que esa URL.
   const lanzada = await App.getLaunchUrl().catch(() => undefined);
-  if (lanzada?.url) irA(lanzada.url);
+  if (lanzada?.url && sessionStorage.getItem('caja-arranque') !== lanzada.url) {
+    sessionStorage.setItem('caja-arranque', lanzada.url);
+    irA(lanzada.url);
+  }
   const fijarAtajos = () => void Atajos.fijar({ atajos: favoritas() }).catch(() => undefined);
   fijarAtajos();
   cambianFavoritas.subscribe(fijarAtajos);
