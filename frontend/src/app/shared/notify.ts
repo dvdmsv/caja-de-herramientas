@@ -47,11 +47,17 @@ export function aviso(texto: string): void {
   Swal.fire({ icon: 'info', text: texto, confirmButtonText: 'Vale' });
 }
 
-/** Pregunta antes de algo que no se puede deshacer del todo. */
+/**
+ * Pregunta antes de algo que no se puede deshacer del todo.
+ *
+ * Con `titleText` y no con `title`, que SweetAlert pinta como HTML: el título
+ * puede llevar un nombre que venga de fuera, como el titular de un certificado,
+ * y la página no tiene CSP que lo frene.
+ */
 export function confirmar(titulo: string, texto: string, aceptar: string): Promise<boolean> {
   return Swal.fire({
     icon: 'question',
-    title: titulo,
+    titleText: titulo,
     text: texto,
     showCancelButton: true,
     confirmButtonText: aceptar,
