@@ -564,13 +564,15 @@ jobs:
           # aplicación vive en `master` entran también los de documentación, CI
           # y despliegue de la web, que no le dicen nada. Sin prefijo ni ámbito:
           # «feat(escritorio): varias ventanas» sale como «Varias ventanas».
+          # Los de ámbito `android` tampoco: son de otra aplicación, que se
+          # publica con sus propias etiquetas (`android-v*`).
           #
           # Es lo que lee la gente: en la página de la release y en el aviso de
           # actualización de la aplicación, que las pide a GitHub
           # (`frontend/src/app/core/novedades.ts` entiende este formato).
           $anterior = git describe --tags --abbrev=0 --match 'v*' "$etiqueta^" 2>$null
           $rango = if ($anterior) { "$anterior..$etiqueta" } else { $etiqueta }
-          $patron = '^(feat|fix)(\([^)]*\))?!?:\s*(.+)$'
+          $patron = '^(feat|fix)(\((?!android\))[^)]*\))?!?:\s*(.+)$'
           $novedades = @(); $arreglos = @()
           foreach ($asunto in git log --no-merges --format='%s' $rango) {
             if ($asunto -match $patron) {

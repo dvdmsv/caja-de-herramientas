@@ -172,7 +172,8 @@ preguntar la próxima vez) y «Saltar esta versión» (no vuelve a avisar de ell
 se guarda en `ajustes.json`, `version_saltada`). Las novedades son **las notas de
 cada release**, que la página pide a la API de GitHub (`core/novedades.ts`); si
 no contesta, las de la última, que van en el `notes` de `latest.json`. O sea: el
-tipo de cada commit (`feat`, `fix`) decide lo que lee la gente.
+tipo de cada commit (`feat`, `fix`) decide lo que lee la gente, salvo los de ámbito
+`android`, que son de la otra aplicación y no salen aquí.
 
 Para probar el aviso sin publicar dos versiones seguidas, `CAJA_ACTUALIZACIONES`
 cambia de dónde se lee `latest.json`: basta uno que anuncie un número mayor con
