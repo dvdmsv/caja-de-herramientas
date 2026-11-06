@@ -64,7 +64,7 @@ documentos no salen de tu ordenador. Trae dentro todo lo que necesita
 - **Bóveda cifrada** para tus certificados digitales y tus firmas a mano: se
   guardan en tu equipo, cifrados con una contraseña que sólo sabes tú, y los
   usas al firmar sin buscar el archivo. Si olvidas la contraseña no hay forma
-  de recuperarlos.
+  de recuperarlos, y al desinstalar la aplicación se borra.
 - **Los archivos de trabajo se borran al cerrarla**, o antes si lo eliges en
   *Ajustes → Espacio* (tras 2 horas o tras 1 día sin usarlos).
 - Aparece en **«Abrir con…»** del Explorador para PDF, imágenes y documentos, sin

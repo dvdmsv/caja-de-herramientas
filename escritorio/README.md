@@ -284,8 +284,14 @@ no cambia nunca:
     relee el archivo antes de escribir: dos ventanas no se pisan, y si otra
     cambió la contraseña ésta se cierra y lo dice (`core/boveda.service.ts`).
   - **Si se olvida la contraseña no hay recuperación**, y se dice al crearla:
-    sólo se puede borrar la bóveda. **Desinstalar no la borra**, como los
-    ajustes: `ganchos.nsh` sólo quita lo temporal de la carpeta de datos.
+    sólo se puede borrar la bóveda.
+  - **Desinstalar la borra**, y la pantalla lo avisa al crearla y al usarla. Los
+    ajustes y los registros se quedan. **Actualizar no la toca**, tampoco
+    abriendo a mano el instalador de otra versión, aunque se elija «desinstalar
+    antes de instalar»: esa opción lanza el desinstalador sin `/UPDATE`, y lo que
+    lo distingue de desinstalar de verdad es `$EXEDIR != $INSTDIR` (ver
+    `ganchos.nsh`). Quien la haya guardado sólo aquí pierde sus certificados al
+    desinstalar, así que conviene conservar el `.p12` original.
   - Desde las herramientas se abre con un diálogo (`shared/boveda/dialogos.ts`)
     y no mandando a `/boveda`: se perdería el documento que se tenía colocado.
 - **Ajustes** (`pages/ajustes/`, con la disposición de la Configuración de

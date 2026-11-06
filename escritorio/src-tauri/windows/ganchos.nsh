@@ -133,5 +133,16 @@
     ; dejado una actualización. Los ajustes y los registros se quedan.
     RMDir /r "$LOCALAPPDATA\merge-pdf\actualizacion"
     RMDir /r "$LOCALAPPDATA\merge-pdf\uploads"
+    ; La bóveda se va con la aplicación, pero sólo al desinstalar de verdad.
+    ; Abrir a mano el instalador de otra versión, con «desinstalar antes de
+    ; instalar», también llega aquí sin /UPDATE: la plantilla de Tauri lanza este
+    ; desinstalador con `_?=`, que lo hace correr en su carpeta. Desde
+    ; Configuración, NSIS se copia antes a una temporal y corre desde allí, y eso
+    ; es lo que los distingue. Si fuera al revés, instalar una versión nueva
+    ; borraría los certificados de quien sólo quería actualizar.
+    ${If} $EXEDIR != $INSTDIR
+      Delete "$LOCALAPPDATA\merge-pdf\boveda.json"
+      Delete "$LOCALAPPDATA\merge-pdf\boveda.json.tmp"
+    ${EndIf}
   ${EndIf}
 !macroend

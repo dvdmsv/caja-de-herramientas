@@ -58,7 +58,7 @@ export async function crearConDialogo(boveda: BovedaService): Promise<boolean> {
     titulo: 'Crea tu bóveda',
     explicacion: 'Tus certificados y tus firmas se guardan cifrados en este equipo, y sólo se abren con esta '
       + 'contraseña. <strong>Si la olvidas, no hay forma de recuperarla</strong>: sólo se podrá borrar la bóveda '
-      + 'y empezar otra.',
+      + 'y empezar otra. Al desinstalar la aplicación también se borra: guarda aparte tus archivos <code>.p12</code>.',
     boton: 'Crear la bóveda',
     usar: contrasena => boveda.crear(contrasena),
   });

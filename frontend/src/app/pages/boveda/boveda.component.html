@@ -36,6 +36,10 @@
             <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
             <strong>Si la olvidas, no hay forma de recuperarla.</strong> Sólo se podrá borrar la bóveda y empezar otra.
           </p>
+          <p>
+            Al desinstalar la aplicación también se borra, así que guarda aparte tus archivos
+            <code>.p12</code>.
+          </p>
           <button type="button" class="btn btn-primary" (click)="crear()">
             <i class="bi bi-safe2 me-1" aria-hidden="true"></i>Crear la bóveda
           </button>
@@ -189,7 +193,8 @@
       <section class="peligro">
         <h2 class="h6">Borrar la bóveda</h2>
         <p class="small text-body-secondary">
-          Quita todo lo guardado de este equipo. Desinstalar la aplicación no lo borra.
+          Quita todo lo guardado de este equipo. Desinstalar la aplicación también lo borra;
+          actualizarla, no. Guarda aparte tus archivos <code>.p12</code>.
         </p>
         <button type="button" class="btn btn-sm btn-outline-danger" (click)="borrar()">Borrar la bóveda</button>
       </section>
