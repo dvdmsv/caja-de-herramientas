@@ -2,19 +2,26 @@
   <nav aria-label="Ruta de navegación">
     <ol class="breadcrumb small">
       <li class="breadcrumb-item"><a routerLink="/">Inicio</a></li>
-      <li class="breadcrumb-item active" aria-current="page">Bóveda</li>
+      @if (tituloDeSeccion) {
+        <li class="breadcrumb-item"><a routerLink="/boveda">Bóveda</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ tituloDeSeccion }}</li>
+      } @else {
+        <li class="breadcrumb-item active" aria-current="page">Bóveda</li>
+      }
     </ol>
   </nav>
 
   <header class="mb-4">
     <h1 class="h3 d-flex align-items-center gap-3">
       <span class="pastilla pastilla--lg" aria-hidden="true"><i class="bi bi-safe2"></i></span>
-      Bóveda
+      {{ tituloDeSeccion || 'Bóveda' }}
     </h1>
-    <p class="text-body-secondary mb-0">
-      Tus certificados y tus firmas a mano, cifrados en este equipo con una contraseña que sólo sabes
-      tú. Desde «Firmar documento», «Firmar con certificado» y el visor los usas sin buscar el archivo.
-    </p>
+    @if (!seccion) {
+      <p class="text-body-secondary mb-0">
+        Tus certificados, tus firmas a mano y tus contraseñas, cifrados en este equipo con una
+        contraseña que sólo sabes tú.
+      </p>
+    }
   </header>
 
   @switch (boveda.estado) {
@@ -76,128 +83,43 @@
         </button>
       </div>
 
-      <!-- Certificados -->
-      <section class="mb-5">
-        <h2 class="h5">Certificados</h2>
-        @if (boveda.contenido.certificados.length === 0 && !anadiendoCertificado) {
-          <p class="text-body-secondary">Aún no hay ninguno.</p>
+      @switch (seccion) {
+        @case ('firmas') {
+          <app-firmas-boveda></app-firmas-boveda>
         }
-        <ul class="list-group mb-3">
-          @for (certificado of boveda.contenido.certificados; track certificado.id) {
-            <li class="list-group-item elemento">
-              <i class="bi bi-file-earmark-lock2 elemento__icono" aria-hidden="true"></i>
-              <div class="elemento__texto">
-                <div class="fw-semibold">{{ certificado.nombre }}</div>
-                <div class="small text-body-secondary">
-                  {{ certificado.titular }} · {{ certificado.emisor }}
-                  @if (certificado.hasta) {
-                    · <span [class.text-danger-emphasis]="caducado(certificado)">
-                      {{ caducado(certificado) ? 'caducó el' : 'válido hasta' }} {{ fecha(certificado.hasta) }}
-                    </span>
-                  }
-                </div>
-                <div class="small text-body-secondary">
-                  {{ certificado.contrasena ? 'Con su contraseña guardada' : 'Pide su contraseña al usarlo' }}
-                </div>
+        @case ('secretos') {
+          <app-secretos-boveda></app-secretos-boveda>
+        }
+        @default {
+          <div class="opciones mb-5">
+            <a class="opcion card text-decoration-none" routerLink="/boveda" fragment="firmas">
+              <div class="card-body">
+                <span class="pastilla" aria-hidden="true"><i class="bi bi-pen"></i></span>
+                <h2 class="h5 mt-3 mb-1">Firmas</h2>
+                <p class="text-body-secondary mb-3">Certificados y firmas a mano</p>
+                <p class="small text-body-secondary mb-0">{{ recuentoDeFirmas }}</p>
               </div>
-              <div class="elemento__acciones">
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="renombrar(certificado.id, certificado.nombre)">
-                  Renombrar
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-danger" (click)="quitar(certificado.id, certificado.nombre)">
-                  Quitar
-                </button>
+            </a>
+            <a class="opcion card text-decoration-none" routerLink="/boveda" fragment="secretos">
+              <div class="card-body">
+                <span class="pastilla" aria-hidden="true"><i class="bi bi-key"></i></span>
+                <h2 class="h5 mt-3 mb-1">Secretos</h2>
+                <p class="text-body-secondary mb-3">Contraseñas, claves y notas</p>
+                <p class="small text-body-secondary mb-0">{{ recuentoDeSecretos }}</p>
               </div>
-            </li>
-          }
-        </ul>
-
-        @if (anadiendoCertificado) {
-          <div class="card">
-            <div class="card-body">
-              <div class="row g-3">
-                <div class="col-12 col-md-6">
-                  <label for="p12" class="form-label mb-1">Archivo del certificado</label>
-                  <input type="file" class="form-control" id="p12" accept=".p12,.pfx" (change)="alElegirP12($event)">
-                </div>
-                <div class="col-12 col-md-6">
-                  <label for="contrasena-p12" class="form-label mb-1">Contraseña del certificado</label>
-                  <input type="password" class="form-control" id="contrasena-p12" autocomplete="off"
-                    [(ngModel)]="contrasena">
-                </div>
-              </div>
-              <div class="form-check mt-3">
-                <input class="form-check-input" type="checkbox" id="recordar" [(ngModel)]="recordarContrasena">
-                <label class="form-check-label" for="recordar">Recordar también la contraseña</label>
-                <p class="form-text mt-0">Así se firma sin escribirla. Va cifrada con todo lo demás.</p>
-              </div>
-              <div class="d-flex flex-wrap gap-2">
-                <button type="button" class="btn btn-primary" [disabled]="!p12 || !contrasena || comprobando"
-                  (click)="guardarCertificado()">
-                  @if (comprobando) {
-                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-                  }
-                  Comprobar y guardar
-                </button>
-                <button type="button" class="btn btn-outline-secondary" (click)="cancelarCertificado()">Cancelar</button>
-              </div>
-            </div>
+            </a>
           </div>
-        } @else {
-          <button type="button" class="btn btn-outline-primary" (click)="anadiendoCertificado = true">
-            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Añadir un certificado
-          </button>
-        }
-      </section>
 
-      <!-- Firmas -->
-      <section class="mb-5">
-        <h2 class="h5">Firmas a mano</h2>
-        @if (boveda.contenido.firmas.length === 0 && !anadiendoFirma) {
-          <p class="text-body-secondary">Aún no hay ninguna.</p>
+          <section class="peligro">
+            <h2 class="h6">Borrar la bóveda</h2>
+            <p class="small text-body-secondary">
+              Quita todo lo guardado de este equipo. Desinstalar la aplicación también lo borra;
+              actualizarla, no. Guarda aparte tus archivos <code>.p12</code>.
+            </p>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="borrar()">Borrar la bóveda</button>
+          </section>
         }
-        <div class="firmas mb-3">
-          @for (firma of boveda.contenido.firmas; track firma.id) {
-            <figure class="firma">
-              <img [src]="boveda.miniatura(firma)" alt="">
-              <figcaption class="firma__nombre">{{ firma.nombre }}</figcaption>
-              <div class="d-flex gap-1 justify-content-center">
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="renombrar(firma.id, firma.nombre)">
-                  Renombrar
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-danger" (click)="quitar(firma.id, firma.nombre)"
-                  [attr.aria-label]="'Quitar «' + firma.nombre + '»'">
-                  Quitar
-                </button>
-              </div>
-            </figure>
-          }
-        </div>
-
-        @if (anadiendoFirma === 'dibujar') {
-          <app-pizarra (firmada)="guardarFirma($event)"></app-pizarra>
-          <button type="button" class="btn btn-outline-secondary mt-2" (click)="anadiendoFirma = null">Cancelar</button>
-        } @else {
-          <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-outline-primary" (click)="anadiendoFirma = 'dibujar'">
-              <i class="bi bi-pencil me-1" aria-hidden="true"></i>Dibujar una
-            </button>
-            <label class="btn btn-outline-primary mb-0">
-              <i class="bi bi-upload me-1" aria-hidden="true"></i>Subir una imagen
-              <input type="file" accept="image/png,image/jpeg" hidden (change)="alSubirFirma($event)">
-            </label>
-          </div>
-        }
-      </section>
-
-      <section class="peligro">
-        <h2 class="h6">Borrar la bóveda</h2>
-        <p class="small text-body-secondary">
-          Quita todo lo guardado de este equipo. Desinstalar la aplicación también lo borra;
-          actualizarla, no. Guarda aparte tus archivos <code>.p12</code>.
-        </p>
-        <button type="button" class="btn btn-sm btn-outline-danger" (click)="borrar()">Borrar la bóveda</button>
-      </section>
+      }
     }
   }
 </div>

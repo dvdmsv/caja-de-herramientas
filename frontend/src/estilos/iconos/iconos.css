@@ -1,5 +1,5 @@
 /* GENERADO por scripts/generar-iconos.py — no editar a mano.
-   133 iconos de los 2078 que trae bootstrap-icons.
+   136 iconos de los 2078 que trae bootstrap-icons.
    Para añadir uno: úsalo en el código y vuelve a ejecutar el script. */
 
 @font-face {
@@ -100,6 +100,7 @@
 .bi-info-circle::before { content: "\f431"; }
 .bi-info-circle-fill::before { content: "\f430"; }
 .bi-journal-arrow-down::before { content: "\f43a"; }
+.bi-key::before { content: "\f44f"; }
 .bi-keyboard::before { content: "\f451"; }
 .bi-layers::before { content: "\f45b"; }
 .bi-layout-sidebar::before { content: "\f45f"; }
@@ -132,6 +133,7 @@
 .bi-shield-check::before { content: "\f52f"; }
 .bi-shield-exclamation::before { content: "\f530"; }
 .bi-shield-x::before { content: "\f53e"; }
+.bi-shuffle::before { content: "\f544"; }
 .bi-slash-lg::before { content: "\f657"; }
 .bi-sliders::before { content: "\f56b"; }
 .bi-square::before { content: "\f584"; }
@@ -142,6 +144,7 @@
 .bi-symmetry-vertical::before { content: "\f5a9"; }
 .bi-table::before { content: "\f5aa"; }
 .bi-telephone::before { content: "\f5c1"; }
+.bi-three-dots::before { content: "\f5d4"; }
 .bi-trash::before { content: "\f5de"; }
 .bi-ui-checks::before { content: "\f5f9"; }
 .bi-unlock::before { content: "\f600"; }
