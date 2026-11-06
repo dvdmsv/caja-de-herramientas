@@ -228,6 +228,11 @@ export async function borrarBoveda(tauri: PuenteTauri): Promise<void> {
   await tauri.invoke('borrar_boveda');
 }
 
+/** Fuera del historial de Windows y de la nube, y se borra solo (`portapapeles.rs`). */
+export async function copiarSecreto(tauri: PuenteTauri, texto: string): Promise<void> {
+  await tauri.invoke('copiar_secreto', { texto });
+}
+
 /** Vuelve a abrir la aplicación, para que valgan los cambios de «Avanzado». */
 export async function reiniciar(tauri: PuenteTauri): Promise<void> {
   await tauri.invoke('reiniciar');

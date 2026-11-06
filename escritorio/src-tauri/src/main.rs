@@ -40,6 +40,8 @@ mod boveda_disco;
 mod menu;
 mod parche;
 mod parche_plan;
+#[cfg(windows)]
+mod portapapeles;
 mod soporte;
 #[cfg(windows)]
 mod trabajo;
@@ -274,6 +276,7 @@ fn main() {
             leer_boveda,
             guardar_boveda,
             borrar_boveda,
+            copiar_secreto,
         ])
         .setup(|app| {
             *app.state::<Servidor>().token.lock().unwrap() = token_aleatorio()?;
@@ -315,6 +318,8 @@ fn main() {
             app.state::<Destinos>().0.lock().unwrap().remove(&label);
         }
         RunEvent::Exit => {
+            #[cfg(windows)]
+            portapapeles::vaciar_si_sigue();
             // El job ya lo mataría al salir; esto es por no depender sólo de él.
             if let Some(backend) = app.try_state::<Backend>() {
                 if let Some(mut hijo) = backend.hijo.lock().unwrap().take() {
@@ -917,6 +922,21 @@ fn guardar_boveda(app: AppHandle, contenido: String) -> Result<(), String> {
 #[tauri::command]
 fn borrar_boveda(app: AppHandle) -> Result<(), String> {
     boveda_disco::borrar(&ruta_de_la_boveda(&app)?)
+}
+
+/// Lo único de la bóveda que pasa por aquí ya descifrado (ver `portapapeles.rs`).
+#[tauri::command]
+fn copiar_secreto(ventana: WebviewWindow, texto: String) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let dueno = ventana.hwnd().map_err(|error| error.to_string())?.0;
+        portapapeles::copiar_protegido(dueno, &texto)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (ventana, texto);
+        Err("Copiar con protección sólo existe en Windows.".into())
+    }
 }
 
 /// «Siempre en esta carpeta»: la elige la persona con el diálogo de Windows. Es

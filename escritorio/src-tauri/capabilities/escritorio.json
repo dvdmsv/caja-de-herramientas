@@ -36,6 +36,7 @@
     "allow-guardar-en-destino",
     "allow-leer-boveda",
     "allow-guardar-boveda",
-    "allow-borrar-boveda"
+    "allow-borrar-boveda",
+    "allow-copiar-secreto"
   ]
 }

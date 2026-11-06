@@ -32,6 +32,7 @@ const COMANDOS: &[&str] = &[
     "leer_boveda",
     "guardar_boveda",
     "borrar_boveda",
+    "copiar_secreto",
 ];
 
 fn main() {

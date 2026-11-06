@@ -1,10 +1,11 @@
 //! La bóveda en el disco: `%LOCALAPPDATA%\merge-pdf\boveda.json`.
 //!
 //! Aquí sólo se lee, se escribe y se borra un texto que **ya llega cifrado**:
-//! cifra y descifra la página (`frontend/src/app/core/boveda/`), y ni la
-//! contraseña ni el contenido pasan por Rust. El certificado y su contraseña
-//! tienen que estar de todos modos en la página para viajar al backend, así
-//! que cifrar aquí no protegería más.
+//! cifra y descifra la página (`frontend/src/app/core/boveda/`), y aquí no llegan
+//! ni la contraseña maestra ni el contenido (lo único que pasa por Rust ya
+//! descifrado es el secreto que se copia, en `portapapeles.rs`, sólo en memoria). El
+//! certificado y su contraseña tienen que estar de todos modos en la página para
+//! viajar al backend, así que cifrar aquí no protegería más.
 //!
 //! Aparte de `main.rs` y **sólo con `std`**, como `parche_plan.rs`, para
 //! probarlo con `rustc --test` suelto en la CI, sin compilar Tauri.

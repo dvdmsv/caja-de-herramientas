@@ -3,7 +3,7 @@ import {
   versionDeLaAplicacion, leerMenuContextual, aplicarMenuContextual, textoDelAviso, progresoTarea,
   describirGuardado, nuevaVentana, elegirCarpeta, elegirDestino, guardarEnDestino, acortarCarpeta,
   leerAjustes, guardarAjustes, elegirCarpetaDeGuardado, buscarActualizacionAhora, vaAlVisor,
-  leerBoveda, guardarBoveda, borrarBoveda,
+  leerBoveda, guardarBoveda, borrarBoveda, copiarSecreto,
 } from './escritorio';
 
 /** Un Tauri de mentira que apunta lo que le piden. */
@@ -200,6 +200,12 @@ describe('vaAlVisor', () => {
 });
 
 describe('la bóveda en el disco', () => {
+  it('copiar un secreto va por su comando, no por el portapapeles de la página', async () => {
+    const { falso, llamadas } = tauriFalso({ copiar_secreto: () => null });
+    await copiarSecreto(falso, 'hunter2');
+    expect(llamadas[0]).toEqual({ comando: 'copiar_secreto', argumentos: { texto: 'hunter2' }, opciones: undefined });
+  });
+
   it('se lee, se guarda y se borra con sus comandos, y sin bóveda se lee null', async () => {
     let guardada: unknown = null;
     const { falso, llamadas } = tauriFalso({

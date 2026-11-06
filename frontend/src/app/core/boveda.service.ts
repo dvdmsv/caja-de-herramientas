@@ -8,7 +8,7 @@ import {
   BOVEDA_VACIA, CertificadoGuardado, ContenidoBoveda, DatosSecreto, FirmaGuardada, SecretoGuardado, anadirCertificado,
   anadirFirma, anadirSecreto, cambiarSecreto, leerContenido, limpiarDatos, quitar, renombrar,
 } from './boveda/contenido';
-import { borrarBoveda, guardarBoveda, leerBoveda, puente } from './escritorio';
+import { borrarBoveda, copiarSecreto, guardarBoveda, leerBoveda, puente } from './escritorio';
 import { nuevoId } from './ids';
 
 /** Sin usarla este rato, se cierra sola y hay que volver a dar la contraseña. */
@@ -183,6 +183,12 @@ export class BovedaService {
   usarCertificado(certificado: CertificadoGuardado): CertificadoElegido {
     this.tocar();
     return { nombre: certificado.nombre, p12: certificado.p12, contrasena: certificado.contrasena };
+  }
+
+  /** Al portapapeles con protección: fuera del historial, y se borra a los 30 s. */
+  async copiar(secreto: SecretoGuardado): Promise<void> {
+    await copiarSecreto(this.tauri!, secreto.secreto);
+    this.tocar();
   }
 
   /** Ver, copiar o escribir en una ficha también es usarla: aplaza el cierre automático. */
