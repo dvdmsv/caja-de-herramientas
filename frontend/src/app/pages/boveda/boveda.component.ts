@@ -3,12 +3,18 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { BovedaService, CIERRE_TRAS_MS } from '../../core/boveda.service';
-import { abrirConDialogo, cambiarContrasenaConDialogo, crearConDialogo } from '../../shared/boveda/dialogos';
+import { leerBovedaCifrada } from '../../core/boveda/cifrado';
+import {
+  abrirConDialogo, cambiarContrasenaConDialogo, crearConDialogo, restaurarConDialogo,
+} from '../../shared/boveda/dialogos';
 import { avisoError, avisoExito, confirmar } from '../../shared/notify';
 import { FirmasBovedaComponent } from './firmas-boveda.component';
 import { SecretosBovedaComponent } from './secretos-boveda.component';
 
 type Seccion = 'firmas' | 'secretos';
+
+/** Lo mismo que admite `boveda_disco::TOPE`: lo que no cabe allí no merece leerse. */
+const COPIA_MAXIMA = 32 * 1024 * 1024;
 
 const TITULOS: Record<Seccion, string> = { firmas: 'Firmas', secretos: 'Secretos' };
 
@@ -77,6 +83,46 @@ export class BovedaComponent implements OnInit {
   async cambiarContrasena(): Promise<void> {
     if (await cambiarContrasenaConDialogo(this.boveda)) {
       avisoExito('Contraseña cambiada');
+    }
+  }
+
+  async exportar(): Promise<void> {
+    try {
+      if (await this.boveda.guardarCopia()) {
+        avisoExito('Copia guardada. Se abre con la contraseña que tiene ahora la bóveda.');
+      }
+    } catch (error) {
+      avisoError(String((error as Error)?.message ?? error));
+    }
+  }
+
+  /**
+   * Primero se mira que sea una copia, y sólo entonces se pregunta si se reemplaza
+   * lo que hay: importar comprueba la contraseña antes de tocar nada.
+   */
+  async alElegirCopia(evento: Event): Promise<void> {
+    const entrada = evento.target as HTMLInputElement;
+    const archivo = entrada.files?.[0];
+    entrada.value = '';
+    if (!archivo) {
+      return;
+    }
+    try {
+      if (archivo.size > COPIA_MAXIMA) {
+        throw new Error('Ese archivo es demasiado grande para ser una copia de la bóveda.');
+      }
+      const copia = await archivo.text();
+      leerBovedaCifrada(copia);
+      const hayBoveda = this.boveda.estado !== 'sin-crear';
+      if (hayBoveda && !await confirmar('¿Reemplazar la bóveda?',
+        'Lo que hay ahora se sustituye por la copia. No se mezcla.', 'Reemplazar')) {
+        return;
+      }
+      if (await restaurarConDialogo(this.boveda, copia)) {
+        avisoExito('Copia restaurada');
+      }
+    } catch (error) {
+      avisoError((error as Error).message);
     }
   }
 

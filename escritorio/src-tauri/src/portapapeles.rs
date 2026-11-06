@@ -5,7 +5,9 @@
 //! después tampoco, porque pide que la ventana tenga el foco, y al pegar la
 //! contraseña en otro programa no lo tiene.
 //!
-//! Es lo único de la bóveda que pasa por Rust ya descifrado, y sólo en memoria.
+//! Es lo único de la bóveda que pasa por Rust ya descifrado, y sólo en memoria. Y por
+//! la misma razón no lleva tests sueltos, como `boveda_disco.rs`: necesita Windows, y
+//! se prueba en la VM (ver «Lo que falta por comprobar a mano» en el README).
 
 use std::ffi::c_void;
 use std::ptr;

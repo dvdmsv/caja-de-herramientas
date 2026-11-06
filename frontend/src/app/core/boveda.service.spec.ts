@@ -24,6 +24,7 @@ describe('la bóveda', () => {
         if (comando === 'leer_boveda') return disco;
         if (comando === 'guardar_boveda') disco = argumentos!.contenido!;
         if (comando === 'borrar_boveda') disco = null;
+        if (comando === 'guardar_como') return 'C:\\copias\\boveda.json';
         return null;
       },
     };
@@ -243,6 +244,12 @@ describe('la bóveda', () => {
 
       expect(disco).toBe(antes);
       expect(boveda.contenido.secretos.map(s => s.nombre)).toEqual(['La que hay']);
+    });
+
+    it('se guarda con el diálogo de Windows', async () => {
+      const boveda = ventana();
+      await boveda.crear('contraseña maestra');
+      expect(await boveda.guardarCopia()).toBe('C:\\copias\\boveda.json');
     });
 
     it('sin bóveda no hay nada que exportar', async () => {

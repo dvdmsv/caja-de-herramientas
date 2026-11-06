@@ -8,7 +8,7 @@ import {
   BOVEDA_VACIA, CertificadoGuardado, ContenidoBoveda, DatosSecreto, FirmaGuardada, SecretoGuardado, anadirCertificado,
   anadirFirma, anadirSecreto, cambiarSecreto, leerContenido, limpiarDatos, quitar, renombrar,
 } from './boveda/contenido';
-import { borrarBoveda, copiarSecreto, guardarBoveda, leerBoveda, puente } from './escritorio';
+import { borrarBoveda, copiarSecreto, guardarBoveda, guardarConDialogo, leerBoveda, puente } from './escritorio';
 import { nuevoId } from './ids';
 
 /** Sin usarla este rato, se cierra sola y hay que volver a dar la contraseña. */
@@ -210,6 +210,13 @@ export class BovedaService {
       throw new Error('No hay ninguna bóveda que exportar.');
     }
     return guardada;
+  }
+
+  /** Guarda la copia donde diga Windows. La ruta, o `null` si se cierra el diálogo. */
+  async guardarCopia(): Promise<string | null> {
+    const fecha = new Date().toISOString().slice(0, 10);
+    const copia = new Blob([await this.exportar()], { type: 'application/json' });
+    return guardarConDialogo(this.tauri!, copia, `boveda-${fecha}.json`);
   }
 
   /**

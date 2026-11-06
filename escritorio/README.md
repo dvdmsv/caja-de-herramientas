@@ -265,9 +265,11 @@ no cambia nunca:
 
 ## Lo que la aplicación hace y la web no
 
-- **Bóveda** (`/boveda`, el candado de la barra): certificados `.p12`, con su
-  contraseña si se quiere, y firmas a mano, para usarlos desde «Firmar
-  documento», «Firmar con certificado» y el visor sin buscar el archivo.
+- **Bóveda** (`/boveda`, el candado de la barra). Al abrirla, dos opciones:
+  **Firmas** (certificados `.p12`, con su contraseña si se quiere, y firmas a mano,
+  para usarlos desde «Firmar documento», «Firmar con certificado» y el visor sin
+  buscar el archivo) y **Secretos** (contraseñas, PIN, claves de API: nombre y
+  secreto, y si se quiere usuario, web y notas, con buscador y generador).
   - **Cifra la página, no Rust**, con WebCrypto: PBKDF2-SHA256 de 600 000
     iteraciones para sacar la clave de la contraseña maestra y AES-GCM de 256
     bits, **todo el contenido en un solo bloque** para que no se sepa ni cuántas
@@ -279,6 +281,27 @@ no cambia nunca:
     pasar por la página de todos modos para viajar al backend.
   - **Sólo en la aplicación** porque WebCrypto sólo existe en contexto seguro:
     127.0.0.1 lo es, y la web servida por HTTP en una red local no.
+  - **El formato es el 2 desde los secretos.** La 0.3.0 sólo conoce certificados y
+    firmas y reescribe lo que lee, así que se habría llevado los secretos sin avisar;
+    como exige el formato 1, rechaza el archivo y no lo pisa. Los de formato 1 se
+    siguen abriendo y pasan al 2 en el primer guardado (el test usa uno sacado de la
+    0.3.0, `boveda-de-prueba.ts`). `leerContenido` ya no descarta lo que no conoce,
+    para que lo que añada una versión futura sobreviva a pasar por ésta.
+  - **Copiar un secreto va por Rust** (`src/portapapeles.rs`), y es lo único de la
+    bóveda que pasa por allí ya descifrado, sólo en memoria. Desde la página no se
+    puede: lo copiado entraría en el historial de Win+V y en la nube, y no se podría
+    borrar con la ventana sin foco, que es lo normal al pegarlo en otro programa.
+    Lleva los formatos que lo excluyen, y se vacía a los 30 s y al salir de la
+    aplicación, **sólo si sigue siendo lo nuestro**. Un cierre forzado no llega a
+    vaciarlo. El usuario sí va por el portapapeles normal: no es un secreto.
+  - **En la lista, el secreto sólo entra en el DOM mientras se ve**, con una máscara
+    de longitud fija. Las notas se ocultan con él, y lo revelado se oculta a los 30 s.
+    Al cerrarse la bóveda el componente muere, y con él lo escrito y lo revelado.
+  - **El buscador nunca mira el secreto ni las notas**, y sólo se enlaza una web si
+    es `http` o `https`.
+  - **La copia de seguridad es el propio archivo, cifrado**: se abre con la
+    contraseña de cuando se hizo. Restaurar comprueba esa contraseña antes de tocar
+    nada, sustituye lo que haya y no mezcla.
   - La clave vive en memoria, no extraíble, y la bóveda **se cierra sola a los
     15 minutos sin usarla**. Cada ventana la abre por su cuenta, y cada cambio
     relee el archivo antes de escribir: dos ventanas no se pisan, y si otra
@@ -290,8 +313,8 @@ no cambia nunca:
     abriendo a mano el instalador de otra versión, aunque se elija «desinstalar
     antes de instalar»: esa opción lanza el desinstalador sin `/UPDATE`, y lo que
     lo distingue de desinstalar de verdad es `$EXEDIR != $INSTDIR` (ver
-    `ganchos.nsh`). Quien la haya guardado sólo aquí pierde sus certificados al
-    desinstalar, así que conviene conservar el `.p12` original.
+    `ganchos.nsh`). Para no perderlo todo al desinstalar está la copia de seguridad,
+    y la pantalla lo recuerda.
   - Desde las herramientas se abre con un diálogo (`shared/boveda/dialogos.ts`)
     y no mandando a `/boveda`: se perdería el documento que se tenía colocado.
 - **Ajustes** (`pages/ajustes/`, con la disposición de la Configuración de
@@ -559,6 +582,8 @@ si falta el runtime de Visual C++):
 - abrir un PDF con «Abrir con…», con la aplicación cerrada y con ella abierta;
 - firmar con AutoFirma: el protocolo `afirma://` tiene que salir de la ventana y
   lanzar AutoFirma;
+- copiar un secreto: que no salga en Win+V. Por SSH sólo se ven los formatos de
+  exclusión y el borrado, no lo que hace el historial con ellos;
 - la ventana junto al reloj: que la X la esconda con el backend vivo, que el
   icono la devuelva, el aviso de la primera vez y «Salir»;
 - una actualización por paquete de verdad, desde GitHub y con la firma de la

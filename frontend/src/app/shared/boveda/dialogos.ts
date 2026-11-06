@@ -58,10 +58,42 @@ export async function crearConDialogo(boveda: BovedaService): Promise<boolean> {
     titulo: 'Crea tu bóveda',
     explicacion: 'Tus certificados y tus firmas se guardan cifrados en este equipo, y sólo se abren con esta '
       + 'contraseña. <strong>Si la olvidas, no hay forma de recuperarla</strong>: sólo se podrá borrar la bóveda '
-      + 'y empezar otra. Al desinstalar la aplicación también se borra: guarda aparte tus archivos <code>.p12</code>.',
+      + 'y empezar otra. Al desinstalar la aplicación también se borra: haz una copia de seguridad desde la bóveda.',
     boton: 'Crear la bóveda',
     usar: contrasena => boveda.crear(contrasena),
   });
+}
+
+/** Pide la contraseña de una copia y la restaura. `false` si se cancela. */
+export async function restaurarConDialogo(boveda: BovedaService, copia: string): Promise<boolean> {
+  const respuesta = await Swal.fire({
+    icon: 'question',
+    title: 'Abre la copia',
+    text: 'Escribe la contraseña que tenía la bóveda cuando se hizo.',
+    input: 'password',
+    inputLabel: 'Contraseña de la copia',
+    inputAttributes: { autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' },
+    showCancelButton: true,
+    confirmButtonText: 'Restaurar',
+    cancelButtonText: 'Cancelar',
+    showLoaderOnConfirm: true,
+    allowOutsideClick: () => !Swal.isLoading(),
+    preConfirm: async (contrasena: string) => {
+      if (!contrasena) {
+        Swal.showValidationMessage('Escribe la contraseña.');
+        return false;
+      }
+      try {
+        await boveda.importar(copia, contrasena);
+        return true;
+      } catch (error) {
+        Swal.showValidationMessage(error instanceof ContrasenaIncorrecta
+          ? 'La contraseña no es correcta.' : (error as Error).message);
+        return false;
+      }
+    },
+  });
+  return respuesta.isConfirmed;
 }
 
 export async function cambiarContrasenaConDialogo(boveda: BovedaService): Promise<boolean> {

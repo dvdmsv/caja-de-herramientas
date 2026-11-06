@@ -36,20 +36,26 @@
         <div class="card-body">
           <h2 class="h5">Aún no tienes bóveda</h2>
           <p>
-            Guarda en ella tus certificados <code>.p12</code>, con su contraseña si quieres, y tus firmas.
-            Todo va cifrado con una contraseña maestra.
+            Guarda en ella tus certificados <code>.p12</code>, tus firmas y tus contraseñas. Todo va
+            cifrado con una contraseña maestra.
           </p>
           <p class="text-warning-emphasis">
             <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
             <strong>Si la olvidas, no hay forma de recuperarla.</strong> Sólo se podrá borrar la bóveda y empezar otra.
           </p>
           <p>
-            Al desinstalar la aplicación también se borra, así que guarda aparte tus archivos
-            <code>.p12</code>.
+            Al desinstalar la aplicación también se borra, así que haz una copia de seguridad de vez
+            en cuando: te lo ofrece al abrirla.
           </p>
-          <button type="button" class="btn btn-primary" (click)="crear()">
-            <i class="bi bi-safe2 me-1" aria-hidden="true"></i>Crear la bóveda
-          </button>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary" (click)="crear()">
+              <i class="bi bi-safe2 me-1" aria-hidden="true"></i>Crear la bóveda
+            </button>
+            <label class="btn btn-outline-secondary mb-0">
+              <i class="bi bi-upload me-1" aria-hidden="true"></i>Restaurar una copia
+              <input type="file" accept=".json,application/json" hidden (change)="alElegirCopia($event)">
+            </label>
+          </div>
         </div>
       </div>
     }
@@ -62,6 +68,10 @@
           <button type="button" class="btn btn-primary" (click)="abrir()">Abrir la bóveda</button>
           <p class="small text-body-secondary mt-3 mb-0">
             ¿Has olvidado la contraseña? No se puede recuperar, pero puedes
+            <label class="btn btn-link btn-sm p-0 align-baseline mb-0">restaurar una copia
+              <input type="file" accept=".json,application/json" hidden (change)="alElegirCopia($event)">
+            </label>
+            o
             <button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="borrar()">borrar la bóveda</button>
             y crear otra.
           </p>
@@ -110,11 +120,28 @@
             </a>
           </div>
 
-          <section class="peligro">
+          <section class="peligro mb-4">
+            <h2 class="h6">Copia de seguridad</h2>
+            <p class="small text-body-secondary">
+              Un archivo cifrado para no perderla si desinstalas la aplicación o cambias de equipo. Se abre
+              con la contraseña que tenga la bóveda al hacerla. Restaurar sustituye lo que haya; no mezcla.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="exportar()">
+                <i class="bi bi-download me-1" aria-hidden="true"></i>Exportar
+              </button>
+              <label class="btn btn-sm btn-outline-secondary mb-0">
+                <i class="bi bi-upload me-1" aria-hidden="true"></i>Restaurar
+                <input type="file" accept=".json,application/json" hidden (change)="alElegirCopia($event)">
+              </label>
+            </div>
+          </section>
+
+          <section>
             <h2 class="h6">Borrar la bóveda</h2>
             <p class="small text-body-secondary">
               Quita todo lo guardado de este equipo. Desinstalar la aplicación también lo borra;
-              actualizarla, no. Guarda aparte tus archivos <code>.p12</code>.
+              actualizarla, no.
             </p>
             <button type="button" class="btn btn-sm btn-outline-danger" (click)="borrar()">Borrar la bóveda</button>
           </section>

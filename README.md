@@ -61,10 +61,13 @@ documentos no salen de tu ordenador. Trae dentro todo lo que necesita
 - **Se actualiza sola**: al abrirla mira si hay una versión nueva, enseña qué
   trae y pregunta antes de instalarla. Sólo baja lo que ha cambiado desde tu
   versión, no el instalador entero.
-- **Bóveda cifrada** para tus certificados digitales y tus firmas a mano: se
-  guardan en tu equipo, cifrados con una contraseña que sólo sabes tú, y los
-  usas al firmar sin buscar el archivo. Si olvidas la contraseña no hay forma
-  de recuperarlos, y al desinstalar la aplicación se borra.
+- **Bóveda cifrada** para tus certificados digitales, tus firmas a mano y tus
+  contraseñas: se guardan en tu equipo, cifrados con una contraseña que sólo sabes
+  tú. Los certificados y las firmas los usas al firmar sin buscar el archivo, y una
+  contraseña copiada no se queda en el historial del portapapeles y se borra a los
+  30 segundos. Si olvidas la contraseña no hay forma de recuperarlos, y al
+  desinstalar la aplicación se borra: haz una copia de seguridad desde la propia
+  bóveda.
 - **Los archivos de trabajo se borran al cerrarla**, o antes si lo eliges en
   *Ajustes → Espacio* (tras 2 horas o tras 1 día sin usarlos).
 - Aparece en **«Abrir con…»** del Explorador para PDF, imágenes y documentos, sin
