@@ -1,5 +1,6 @@
 import { BovedaService } from './boveda.service';
-import { ContrasenaIncorrecta } from './boveda/cifrado';
+import { BovedaIlegible, ContrasenaIncorrecta } from './boveda/cifrado';
+import { BOVEDA_DE_LA_0_3_0 } from './boveda/boveda-de-prueba';
 
 /** Un disco de mentira detrás de un Tauri de mentira: lo comparten las «ventanas». */
 let disco: string | null;
@@ -136,6 +137,117 @@ describe('la bóveda', () => {
 
     await boveda.quitar(id);
     expect(boveda.contenido.firmas).toEqual([]);
+  });
+
+  describe('secretos', () => {
+    const ficha = { nombre: 'GitHub', secreto: 'hunter2', usuario: 'pepa', web: 'github.com', notas: 'códigos: 998877' };
+
+    it('se guardan, se cambian y se quitan, y nada se lee en el disco', async () => {
+      const boveda = ventana();
+      await boveda.crear('contraseña maestra');
+
+      await boveda.guardarSecreto(ficha);
+      for (const legible of ['GitHub', 'hunter2', 'pepa', 'github', '998877']) {
+        expect(disco).not.toContain(legible);
+      }
+
+      const { id, anadido } = boveda.contenido.secretos[0];
+      await boveda.actualizarSecreto(id, { nombre: 'GitHub', secreto: 'otra' });
+      boveda.cerrar();
+      expect(boveda.contenido.secretos).toEqual([]);
+
+      await boveda.abrir('contraseña maestra');
+      expect(boveda.contenido.secretos[0]).toMatchObject({ id, anadido, secreto: 'otra' });
+      expect(boveda.contenido.secretos[0].usuario).toBeUndefined();
+
+      await boveda.quitar(id);
+      expect(boveda.contenido.secretos).toEqual([]);
+    });
+
+    it('dos ventanas no se pisan los secretos', async () => {
+      const una = ventana();
+      const otra = ventana();
+      await una.crear('contraseña maestra');
+      await otra.abrir('contraseña maestra');
+
+      await una.guardarSecreto(ficha);
+      await otra.guardarFirma(firma(), 'Firma');
+
+      expect(otra.contenido.secretos.map(s => s.nombre)).toEqual(['GitHub']);
+    });
+
+    it('ver una ficha aplaza el cierre', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        const boveda = ventana();
+        await boveda.crear('contraseña maestra');
+        vi.advanceTimersByTime(14 * 60 * 1000);
+        boveda.seguirUsando();
+        vi.advanceTimersByTime(14 * 60 * 1000);
+        expect(boveda.abierta).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('una bóveda de la 0.3.0', () => {
+    it('se abre con lo que tenía, y al guardar pasa a formato 2 sin perder nada', async () => {
+      disco = BOVEDA_DE_LA_0_3_0;
+      const boveda = ventana();
+
+      await boveda.abrir('contraseña de la 0.3.0');
+      expect(boveda.contenido.certificados.map(c => c.titular)).toEqual(['PEPA PÉREZ']);
+      expect(boveda.contenido.secretos).toEqual([]);
+      expect(JSON.parse(disco!).formato).toBe(1);
+
+      await boveda.guardarSecreto({ nombre: 'GitHub', secreto: 'hunter2' });
+      expect(JSON.parse(disco!).formato).toBe(2);
+      boveda.cerrar();
+
+      await boveda.abrir('contraseña de la 0.3.0');
+      expect(boveda.contenido.certificados.map(c => c.titular)).toEqual(['PEPA PÉREZ']);
+      expect(boveda.contenido.firmas.map(f => f.nombre)).toEqual(['La de siempre']);
+      expect(boveda.contenido.secretos.map(s => s.nombre)).toEqual(['GitHub']);
+    });
+  });
+
+  describe('la copia de seguridad', () => {
+    it('sale cifrada, y restaurarla deja la bóveda abierta con su contraseña', async () => {
+      const boveda = ventana();
+      await boveda.crear('contraseña maestra');
+      await boveda.guardarSecreto({ nombre: 'GitHub', secreto: 'hunter2' });
+
+      const copia = await boveda.exportar();
+      expect(copia).toBe(disco);
+      expect(copia).not.toContain('hunter2');
+
+      await boveda.borrar();
+      expect(boveda.estado).toBe('sin-crear');
+
+      await boveda.importar(copia, 'contraseña maestra');
+      expect(boveda.abierta).toBe(true);
+      expect(boveda.contenido.secretos.map(s => s.nombre)).toEqual(['GitHub']);
+      expect(disco).toBe(copia);
+    });
+
+    it('con otra contraseña, o si no es una copia, no toca la bóveda que hay', async () => {
+      const boveda = ventana();
+      await boveda.crear('contraseña maestra');
+      const copia = await boveda.exportar();
+      await boveda.guardarSecreto({ nombre: 'La que hay', secreto: 'x' });
+      const antes = disco;
+
+      await expect(boveda.importar(copia, 'otra cualquiera')).rejects.toBeInstanceOf(ContrasenaIncorrecta);
+      await expect(boveda.importar('no es una copia', 'contraseña maestra')).rejects.toBeInstanceOf(BovedaIlegible);
+
+      expect(disco).toBe(antes);
+      expect(boveda.contenido.secretos.map(s => s.nombre)).toEqual(['La que hay']);
+    });
+
+    it('sin bóveda no hay nada que exportar', async () => {
+      await expect(ventana().exportar()).rejects.toThrow(/No hay ninguna/);
+    });
   });
 
   it('se cierra sola tras un rato sin usarla', async () => {

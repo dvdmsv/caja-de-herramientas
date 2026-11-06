@@ -1,3 +1,4 @@
+import { BOVEDA_DE_LA_0_3_0 } from './boveda-de-prueba';
 import {
   BovedaIlegible, ContrasenaIncorrecta, aBase64, cifrar, deBase64, derivarClave, descifrar, leerBovedaCifrada,
   parametrosNuevos,
@@ -7,6 +8,7 @@ import {
 const subtle = globalThis.crypto.subtle;
 const aleatorio = (bytes: number) => globalThis.crypto.getRandomValues(new Uint8Array(bytes));
 const parametros = () => parametrosNuevos(aleatorio, 1000);
+
 
 describe('cifrado de la bóveda', () => {
   it('lo cifrado con una contraseña se descifra con ella', async () => {
@@ -62,8 +64,33 @@ describe('cifrado de la bóveda', () => {
   it('un archivo que no es una bóveda, o de un formato que no se conoce, se dice como tal', () => {
     expect(() => leerBovedaCifrada('no es json')).toThrow(BovedaIlegible);
     expect(() => leerBovedaCifrada('{}')).toThrow(BovedaIlegible);
+    const clave = { nombre: 'PBKDF2-SHA256', iteraciones: 1000, sal: 'AAAA' };
     expect(() => leerBovedaCifrada(JSON.stringify({ formato: 2, clave: {}, iv: '', datos: '' })))
       .toThrow(BovedaIlegible);
+    expect(() => leerBovedaCifrada(JSON.stringify({ formato: 3, clave, iv: '', datos: '' })))
+      .toThrow(BovedaIlegible);
+  });
+
+  it('una copia que pide iteraciones sin fin no llega a colgar la página', () => {
+    const clave = { nombre: 'PBKDF2-SHA256', iteraciones: 1e12, sal: 'AAAA' };
+    expect(() => leerBovedaCifrada(JSON.stringify({ formato: 2, clave, iv: '', datos: '' })))
+      .toThrow(BovedaIlegible);
+  });
+
+  it('lo nuevo se escribe en formato 2, que la 0.3.0 rechaza en vez de pisarlo', async () => {
+    const p = parametros();
+    const boveda = await cifrar(subtle, await derivarClave(subtle, 'x', p), p, { a: 1 }, aleatorio);
+    expect(boveda.formato).toBe(2);
+  });
+
+  it('una bóveda de formato 1, escrita por la 0.3.0, se sigue abriendo', async () => {
+    const boveda = leerBovedaCifrada(BOVEDA_DE_LA_0_3_0);
+    const clave = await derivarClave(subtle, 'contraseña de la 0.3.0', boveda.clave);
+
+    const contenido = await descifrar(subtle, clave, boveda) as { certificados: { titular: string }[]; firmas: unknown[] };
+    expect(boveda.formato).toBe(1);
+    expect(contenido.certificados[0].titular).toBe('PEPA PÉREZ');
+    expect(contenido.firmas).toHaveLength(1);
   });
 
   it('el base64 va y vuelve también con algo grande', () => {

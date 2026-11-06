@@ -5,8 +5,8 @@ import {
   descifrar, leerBovedaCifrada, parametrosNuevos,
 } from './boveda/cifrado';
 import {
-  BOVEDA_VACIA, CertificadoGuardado, ContenidoBoveda, FirmaGuardada, anadirCertificado, anadirFirma, leerContenido,
-  quitar, renombrar,
+  BOVEDA_VACIA, CertificadoGuardado, ContenidoBoveda, DatosSecreto, FirmaGuardada, SecretoGuardado, anadirCertificado,
+  anadirFirma, anadirSecreto, cambiarSecreto, leerContenido, limpiarDatos, quitar, renombrar,
 } from './boveda/contenido';
 import { borrarBoveda, guardarBoveda, leerBoveda, puente } from './escritorio';
 import { nuevoId } from './ids';
@@ -151,6 +151,17 @@ export class BovedaService {
     await this.modificar(contenido => anadirFirma(contenido, firma));
   }
 
+  async guardarSecreto(datos: DatosSecreto): Promise<void> {
+    const ahora = new Date().toISOString();
+    const secreto: SecretoGuardado = { ...limpiarDatos(datos), id: nuevoId(), anadido: ahora, cambiado: ahora };
+    await this.modificar(contenido => anadirSecreto(contenido, secreto));
+  }
+
+  async actualizarSecreto(id: string, datos: DatosSecreto): Promise<void> {
+    const ahora = new Date().toISOString();
+    await this.modificar(contenido => cambiarSecreto(contenido, id, datos, ahora));
+  }
+
   async quitar(id: string): Promise<void> {
     await this.modificar(contenido => quitar(contenido, id));
   }
@@ -174,9 +185,38 @@ export class BovedaService {
     return { nombre: certificado.nombre, p12: certificado.p12, contrasena: certificado.contrasena };
   }
 
+  /** Ver, copiar o escribir en una ficha también es usarla: aplaza el cierre automático. */
+  seguirUsando(): void {
+    this.tocar();
+  }
+
   /** Una imagen guardada como `data:`, para enseñarla en miniatura. */
   miniatura(firma: FirmaGuardada): string {
     return `data:${firma.tipo};base64,${firma.imagen}`;
+  }
+
+  // --- copia de seguridad ---------------------------------------------------
+
+  /** El archivo tal cual, cifrado: se abre con la contraseña que tenga ahora. */
+  async exportar(): Promise<string> {
+    const guardada = await leerBoveda(this.tauri!);
+    if (guardada === null) {
+      throw new Error('No hay ninguna bóveda que exportar.');
+    }
+    return guardada;
+  }
+
+  /**
+   * Sustituye la bóveda por una copia, y queda abierta con la clave de ésa. No
+   * mezcla. Lanza `ContrasenaIncorrecta` o `BovedaIlegible` **antes** de tocar nada:
+   * una copia que no se puede abrir no se lleva por delante la que hay.
+   */
+  async importar(texto: string, contrasena: string): Promise<void> {
+    const cifrada = leerBovedaCifrada(texto);
+    const clave = await derivarClave(this.subtle!, contrasena, cifrada.clave);
+    const contenido = leerContenido(await descifrar(this.subtle!, clave, cifrada));
+    await guardarBoveda(this.tauri!, texto);
+    this.abrirCon(clave, contenido);
   }
 
   // --- por dentro ---------------------------------------------------------

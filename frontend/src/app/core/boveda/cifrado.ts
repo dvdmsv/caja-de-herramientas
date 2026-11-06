@@ -11,14 +11,22 @@
  *   da un error, que es `ContrasenaIncorrecta`.
  * - La cabecera (formato y parámetros de la clave) va como **datos asociados**:
  *   no está cifrada, pero cambiarla hace fallar el descifrado.
+ * - **El formato 2 es el de los secretos.** Por dentro cambia poco, pero la 0.3.0
+ *   sólo conoce certificados y firmas, y al guardar reescribía lo que había leído:
+ *   se habría llevado los secretos sin avisar. Como exige el formato 1, rechaza
+ *   este archivo y no puede pisarlo. Se siguen leyendo los de formato 1, y pasan al
+ *   2 en el primer guardado.
  *
  * Recibe el `SubtleCrypto` para poder probarlo sin navegador. Sólo existe en
  * contexto seguro: la página de la aplicación lo es (127.0.0.1), y la web por
  * HTTP no, que es una de las razones de que la bóveda sea sólo de la aplicación.
  */
 
-export const FORMATO = 1;
+export const FORMATO = 2;
+const FORMATOS_QUE_SE_LEEN: readonly number[] = [1, 2];
 export const ITERACIONES = 600_000;
+/** Un archivo que pidiera más colgaría la página: viene de fuera al restaurar una copia. */
+const ITERACIONES_MAXIMAS = 10_000_000;
 
 /** Bytes al azar: `crypto.getRandomValues` en la aplicación, otra cosa en los tests. */
 export type Aleatorio = (bytes: number) => Uint8Array<ArrayBuffer>;
@@ -34,7 +42,7 @@ export interface ParametrosClave {
 
 /** Lo que se guarda en `boveda.json`. */
 export interface BovedaCifrada {
-  formato: typeof FORMATO;
+  formato: number;
   clave: ParametrosClave;
   /** En base64. */
   iv: string;
@@ -77,7 +85,7 @@ export async function cifrar(
 ): Promise<BovedaCifrada> {
   const iv = aleatorio(12);
   const datos = await subtle.encrypt(
-    { name: 'AES-GCM', iv, additionalData: cabecera(parametros) }, clave, texto(JSON.stringify(contenido)));
+    { name: 'AES-GCM', iv, additionalData: cabecera(FORMATO, parametros) }, clave, texto(JSON.stringify(contenido)));
   return { formato: FORMATO, clave: parametros, iv: aBase64(iv), datos: aBase64(new Uint8Array(datos)) };
 }
 
@@ -85,7 +93,7 @@ export async function descifrar(subtle: SubtleCrypto, clave: CryptoKey, boveda: 
   let claro: ArrayBuffer;
   try {
     claro = await subtle.decrypt(
-      { name: 'AES-GCM', iv: deBase64(boveda.iv), additionalData: cabecera(boveda.clave) },
+      { name: 'AES-GCM', iv: deBase64(boveda.iv), additionalData: cabecera(boveda.formato, boveda.clave) },
       clave, deBase64(boveda.datos));
   } catch {
     // GCM no distingue una contraseña equivocada de un archivo tocado: las dos
@@ -104,9 +112,9 @@ export function leerBovedaCifrada(guardado: string): BovedaCifrada {
     throw new BovedaIlegible();
   }
   const clave = valor?.clave;
-  const valida = valor?.formato === FORMATO
+  const valida = FORMATOS_QUE_SE_LEEN.includes(valor?.formato as number)
     && clave?.nombre === 'PBKDF2-SHA256'
-    && Number.isInteger(clave.iteraciones) && clave.iteraciones > 0
+    && Number.isInteger(clave.iteraciones) && clave.iteraciones > 0 && clave.iteraciones <= ITERACIONES_MAXIMAS
     && typeof clave.sal === 'string' && typeof valor.iv === 'string' && typeof valor.datos === 'string';
   if (!valida) {
     throw new BovedaIlegible();
@@ -114,9 +122,13 @@ export function leerBovedaCifrada(guardado: string): BovedaCifrada {
   return valor as BovedaCifrada;
 }
 
-/** Lo que autentica GCM junto al contenido: el formato y cómo se sacó la clave. */
-function cabecera(parametros: ParametrosClave): Uint8Array<ArrayBuffer> {
-  return texto(`boveda:${FORMATO}:${parametros.nombre}:${parametros.iteraciones}:${parametros.sal}`);
+/**
+ * Lo que autentica GCM junto al contenido: el formato y cómo se sacó la clave. Al
+ * descifrar va el formato **del archivo**, no el actual: con el actual, ninguna
+ * bóveda de formato 1 se abriría.
+ */
+function cabecera(formato: number, parametros: ParametrosClave): Uint8Array<ArrayBuffer> {
+  return texto(`boveda:${formato}:${parametros.nombre}:${parametros.iteraciones}:${parametros.sal}`);
 }
 
 function texto(cadena: string): Uint8Array<ArrayBuffer> {
