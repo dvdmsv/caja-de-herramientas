@@ -15,10 +15,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::thread;
 use std::time::Duration;
 
+use windows_sys::Win32::Foundation::GlobalFree;
 use windows_sys::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, GetClipboardSequenceNumber, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
 };
-use windows_sys::Win32::System::Memory::{GlobalAlloc, GlobalFree, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+use windows_sys::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
 use windows_sys::Win32::System::Ole::CF_UNICODETEXT;
 
 /// Lo que dura en el portapapeles. La página lo dice en su aviso.
