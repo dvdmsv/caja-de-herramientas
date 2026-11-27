@@ -85,9 +85,7 @@ aplicación. Sólo merece la pena si se va a seguir tocando el visor.
 
 ---
 
-## 4. Cabos sueltos del progreso
-
-Dos, los dos conocidos y acotados:
+## 4. Progreso de los programas externos
 
 - **Progreso real por página en los tres programas externos.** Hoy el OCR,
   LibreOffice y pdf2docx enseñan un porcentaje **estimado** por tiempo. Los dos
@@ -97,30 +95,16 @@ Dos, los dos conocidos y acotados:
   están documentados y cambian entre versiones. **Coste:** una tarde, con una
   prueba por programa. **Compra:** que la barra del OCR —el trabajo más largo—
   diga la verdad en vez de una estimación.
-- **Lo que deja un trabajo cancelado.** Una herramienta que confirma resultados
-  dentro del bucle (`pdf-a-imagen`, `dividir-pdf`) deja en la sesión las páginas
-  que ya había escrito: no se devuelven, pero ocupan cuota hasta que la sesión
-  caduca o se pulsa «Empezar de cero». Borrarlas exigiría que el almacén supiera
-  de trabajos —hoy no se conocen— o que `progreso` apuntara los identificadores
-  confirmados. **Coste:** poco, pero es acoplar dos módulos que hoy no se
-  hablan. **Compra:** que cancelar no deje nada detrás.
 
 ## Pendiente fuera del repositorio
 
-`COMPOSE_REMOVE_ORPHANS=true` en el `.env` de la máquina de despliegue. Sin él,
-el día que se quite o se renombre un servicio, su contenedor viejo sigue
-corriendo hasta que alguien lo note —pasó al separar el backend en tres—. No
-puede ir versionado (`.env` está en `.gitignore`, y versionarlo rompería el
-`git pull` de cualquier máquina que ya tenga uno). La orden:
+En el script de despliegue de la máquina, levantar los servicios desde la
+carpeta del proyecto con la siguiente orden. Compose retira los contenedores de
+servicios eliminados del proyecto y conserva el archivo de configuración local.
 
 ```bash
-sudo tee /opt/apps/merge-pdf/.env <<'EOF'
-COMPOSE_REMOVE_ORPHANS=true
-EOF
+docker compose up -d --remove-orphans
 ```
-
-Mejor todavía: añadir `--remove-orphans` al `docker compose up -d` del script de
-despliegue de la máquina, que lo arregla para todos los proyectos a la vez.
 
 ---
 

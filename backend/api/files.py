@@ -49,12 +49,12 @@ def upload_files():
                                                  DESCRIPCION_ADMITIDOS))
         except ApiError as fallo:
             rechazados.append({'indice': indice, 'name': archivo.filename,
-                               'error': fallo.message})
+                               'error': fallo.message, 'status': fallo.status})
 
     # Si no se ha salvado ninguno, esto es un error de la petición y se responde
     # como tal, con el motivo del primero.
     if not registros:
-        raise ApiError(rechazados[0]['error'], 400)
+        raise ApiError(rechazados[0]['error'], rechazados[0]['status'])
 
     respuesta = {'files': [r.to_json() for r in registros]}
     if rechazados:
@@ -137,14 +137,7 @@ def rename_file(file_id: str):
 
 @bp.delete('/files/<file_id>')
 def delete_file(file_id: str):
-    session_id = current_session()
-    record = storage.record_of(session_id, file_id)
-    carpeta = storage.session_dir(session_id, create=False)
-    for nombre in (record.stored_name, f'{record.id}.json'):
-        try:
-            os.remove(os.path.join(carpeta, nombre))
-        except OSError:
-            pass
+    storage.delete_file(current_session(), file_id)
     return '', 204
 
 

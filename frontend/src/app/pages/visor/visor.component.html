@@ -280,13 +280,13 @@
           (click)="rehacer()" title="Rehacer (Ctrl+Y)" aria-label="Rehacer">
           <i class="bi bi-arrow-clockwise"></i>
         </button>
-        @if (resultado) {
+        @if (resultado || descargaOriginal) {
           <button type="button" class="btn btn-sm btn-outline-success"
             (click)="descargar()" aria-label="Descargar">
             <i class="bi bi-download"></i><span class="d-none d-sm-inline ms-1">Descargar</span>
           </button>
         }
-        <button type="button" class="btn btn-sm btn-primary" [disabled]="!hayCambios || guardando"
+        <button type="button" class="btn btn-sm btn-primary" [disabled]="!puedeGuardar || guardando"
           (click)="guardar()">
           @if (guardando) {
             <span class="spinner-border spinner-border-sm me-1"></span>
@@ -353,7 +353,8 @@
             <input type="file" accept=".pdf,application/pdf" hidden (change)="alElegirArchivo($event)">
           </label>
           <p class="pista">
-            Todo ocurre en tu navegador: el documento sólo sube al servidor si guardas cambios.
+            @if (soloLectura) { El documento se lee en este dispositivo. }
+            @else { Al abrirlo, se prepara una copia en tu sesión para guardar los cambios. }
           </p>
         </div>
       }

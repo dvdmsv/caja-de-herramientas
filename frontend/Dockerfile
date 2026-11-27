@@ -6,14 +6,16 @@ FROM node:22 AS builder
 # Establece el directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos de Angular
-COPY . /app
+# El lockfile determina cuándo hay que reinstalar las dependencias.
+COPY package.json package-lock.json ./
 
 # `npm ci` y no `npm install`: instala exactamente lo que dice el
 # package-lock.json y falla si los dos no concuerdan. Es lo que hace que la
 # imagen se construya igual hoy que dentro de un año, y lo que evita que una
 # dependencia se cuele con otra versión sin que nadie lo note.
 RUN npm ci
+
+COPY . /app
 
 # Compila la aplicación Angular
 RUN npm run build

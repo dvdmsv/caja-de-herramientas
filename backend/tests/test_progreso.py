@@ -245,6 +245,34 @@ def test_una_herramienta_cancelada_no_devuelve_archivos(pesados, web, tmp_path):
     assert respuesta.get_json()['error'] == 'Trabajo cancelado.'
 
 
+@pytest.mark.parametrize(('ruta', 'opciones'), [
+    ('dividir-pdf', {'modo': 'por-pagina', 'paginas': '1-3'}),
+    ('pdf-a-imagen', {'formato': 'JPEG'}),
+])
+def test_cancelar_despues_de_una_pagina_recupera_la_cuota(pesados, tmp_path, monkeypatch, ruta, opciones):
+    from api import progreso
+    from storage import storage
+
+    original = subir(documento(tmp_path / 'entrada.pdf', paginas=3))
+    otro = subir(documento(tmp_path / 'otro.pdf', paginas=1))
+    cuota = storage.tamano_sesion(SESION)
+    confirmar = storage.commit_output
+
+    def cancelar_tras_confirmar(sesion, registro):
+        resultado = confirmar(sesion, registro)
+        progreso.marcar_cancelacion(sesion, TRABAJO)
+        return resultado
+
+    monkeypatch.setattr(storage, 'commit_output', cancelar_tras_confirmar)
+    respuesta = pesados.post('/api/tools/' + ruta,
+                             headers={'X-Session-Id': SESION, 'X-Trabajo-Id': TRABAJO},
+                             json={'file_ids': [original], **opciones})
+
+    assert respuesta.status_code == 409
+    assert storage.tamano_sesion(SESION) == cuota
+    assert all(os.path.isfile(storage.path_of(SESION, id_)) for id_ in (original, otro))
+
+
 def test_web_no_registra_las_herramientas_pero_si_el_progreso(entorno):
     """Es el reparto que hace que esto sirva: la consulta la atiende `web`,
     que está libre, y no `pesados`, que está ocupado justo con lo que se

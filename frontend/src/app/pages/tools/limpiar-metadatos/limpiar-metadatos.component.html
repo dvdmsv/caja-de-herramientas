@@ -8,6 +8,11 @@
     (itemsChange)="alQuitar()">
   </app-file-queue>
 
+  @if (conHeicLocal) {
+    <p class="small text-body-secondary mt-3">En HEIC y HEIF se inspecciona la foto original.
+      Para exportar una copia JPG sin metadatos, marca todos sus campos. La edición selectiva requiere otro formato.</p>
+  }
+
   @if (inspeccionando) {
     <p class="text-body-secondary small mt-3 mb-0">
       <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>

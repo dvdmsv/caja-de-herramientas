@@ -151,11 +151,11 @@ def _firmar_pdf(origen: str, destino: str, firma: Image.Image, x: float, y: floa
             centro_x, centro_y = caja.x0 + x * caja.width, caja.y0 + y * caja.height
             rect = fitz.Rect(centro_x - medio_ancho, centro_y - medio_alto,
                              centro_x + medio_ancho, centro_y + medio_alto)
-            if xref:
-                pagina.insert_image(rect, xref=xref, overlay=True)
-            else:
-                xref = pagina.insert_image(rect, stream=estampa, overlay=True,
-                                           keep_proportion=True) or 0
+            # insert_image usa coordenadas de la página sin girar. El giro
+            # antihorario de la imagen compensa el giro horario del visor.
+            rect = rect * pagina.derotation_matrix
+            xref = pagina.insert_image(rect, xref=xref, stream=None if xref else estampa,
+                                       rotate=pagina.rotation, overlay=True)
 
         documento.save(destino, deflate=True, garbage=3)
 

@@ -34,13 +34,14 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 
 use base64::Engine;
 use sha2::{Digest, Sha256};
 use tauri::AppHandle;
 
-use crate::parche_plan::{self as plan, Operacion, EJECUTABLE, FORMATO};
+use crate::parche_plan::{self as plan, EJECUTABLE, FORMATO};
+use crate::{guardado, transaccion_parche as transaccion};
 
 /// Lo que dice `latest.json` del paquete para una versión.
 #[derive(Clone, serde::Deserialize)]
@@ -108,8 +109,11 @@ pub async fn preparar(
     let carpeta = carpeta_de_actualizacion(app)
         .ok_or("no se encuentra la carpeta de datos")?
         .join(format!("{nueva}-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&carpeta);
-    fs::create_dir_all(&carpeta).map_err(|error| error.to_string())?;
+    let padre = carpeta.parent().ok_or("sin carpeta de actualización")?;
+    fs::create_dir_all(padre).map_err(|error| error.to_string())?;
+    // Un PID puede reutilizarse después de reiniciar Windows. Una carpeta que
+    // ya existe podría contener respaldos de una aplicación interrumpida.
+    fs::create_dir(&carpeta).map_err(|error| error.to_string())?;
     let resultado = bajar_y_abrir(paquete, &carpeta, &clave, &firma, instalada, nueva, &mut progreso).await;
     if resultado.is_err() {
         // Lo que se haya bajado no sirve: no se queda ocupando sitio hasta el
@@ -258,8 +262,9 @@ pub fn lanzar(preparada: &Preparada) -> Result<(), String> {
     if actual.file_name().and_then(|nombre| nombre.to_str()) != Some(EJECUTABLE) {
         return Err("esto no es una instalación".into());
     }
-    let prueba = instalacion.join(".se-puede-escribir");
-    File::create(&prueba).map_err(|_| "no se puede escribir en la carpeta de la instalación".to_string())?;
+    let prueba = instalacion.join(format!(".prueba-actualizacion-{}", std::process::id()));
+    fs::OpenOptions::new().write(true).create_new(true).open(&prueba)
+        .map_err(|_| "no se puede escribir en la carpeta de la instalación".to_string())?;
     let _ = fs::remove_file(&prueba);
 
     let aplicador = preparada.carpeta.join("aplicador.exe");
@@ -315,23 +320,29 @@ pub fn aplicar_si_se_pide() -> Option<i32> {
         esperar_a(pid);
     }
     let raiz = carpeta.parent().unwrap_or(&carpeta).to_path_buf();
-    let cerrojo = cerrojo(&raiz.join(APLICANDO));
+    let Some(cerrojo) = cerrojo(&raiz.join(APLICANDO)) else { return Some(2) };
 
     let resultado = aplicar(&carpeta, &instalacion);
     let (version, error) = match resultado {
         Ok(version) => (version, None),
         Err((version, error)) => (version, Some(error)),
     };
-    let _ = fs::write(raiz.join(RESULTADO), serde_json::to_vec(&Resultado { version, error: error.clone() }).unwrap_or_default());
+    let estado = Resultado { version, error: error.clone() };
+    let publicado = guardado::reemplazar(&raiz.join(RESULTADO), |archivo| {
+        serde_json::to_writer(archivo, &estado).map_err(io::Error::other)
+    }).is_ok();
+    // Un fallo al restaurar deja el diario y el respaldo para otro intento.
+    // Sólo se arranca el backend cuando toda la instalación está confirmada.
+    let recuperable = carpeta.join(transaccion::DIARIO).exists();
     // Soltado antes de abrir la aplicación: si no, su limpieza lo encontraría
     // cogido, creería que aún se está aplicando y no borraría nada.
     drop(cerrojo);
     let _ = fs::remove_file(raiz.join(APLICANDO));
-    if abrir {
+    if abrir && !recuperable {
         // La nueva, o la de antes si se ha devuelto todo a su sitio.
         let _ = lanzar_suelto(&instalacion.join(EJECUTABLE), &[]);
     }
-    Some(if error.is_some() { 1 } else { 0 })
+    Some(if error.is_some() || !publicado { 1 } else { 0 })
 }
 
 /// Aplica `cambios.json` de `carpeta` sobre la instalación. Devuelve la versión
@@ -341,90 +352,29 @@ fn aplicar(carpeta: &Path, instalacion: &Path) -> Result<String, (String, String
     let cambios: Cambios = serde_json::from_str(&texto).map_err(|error| (String::new(), error.to_string()))?;
     let fallo = |error: String| (cambios.desde.clone(), error);
 
+    let diario = carpeta.join(transaccion::DIARIO);
+    let revertir = |motivo: String| {
+        transaccion::recuperar(carpeta, instalacion).map_err(|e| fallo(format!("{motivo}. Se conserva el respaldo: {e}")))?;
+        anotar_version(instalacion, &cambios.desde);
+        fs::remove_file(&diario).map_err(|e| fallo(e.to_string()))?;
+        Err(fallo(motivo))
+    };
+    if diario.try_exists().map_err(|e| fallo(e.to_string()))? {
+        return revertir("La actualización se interrumpió. Se ha recuperado la versión anterior".into());
+    }
+
     let nuevos: Vec<String> = cambios.archivos.keys().cloned().collect();
     let operaciones = plan::plan(&nuevos, &cambios.todos, &existentes(instalacion)).map_err(fallo)?;
-
-    let respaldo = carpeta.join("respaldo");
-    let nuevos = carpeta.join("nuevos");
-    // El proceso anterior acaba de salir, pero su backend (y lo que lanzara)
-    // muere con el job un momento después: hasta entonces sus archivos siguen
-    // abiertos. Se reintenta un rato; un archivo que siga bloqueado después ya
-    // es otra cosa, y se deshace todo.
-    let hasta = Instant::now() + Duration::from_secs(20);
-    let mut hechas: Vec<&Operacion> = Vec::new();
+    transaccion::preparar(carpeta, instalacion, &operaciones).map_err(|e| fallo(e.to_string()))?;
     for operacion in &operaciones {
-        let hecho = match operacion {
-            Operacion::Poner(ruta) => {
-                let destino = en(instalacion, ruta);
-                let guardado = if destino.exists() { mover(&destino, &en(&respaldo, ruta), hasta) } else { Ok(()) };
-                guardado.and_then(|()| mover(&en(&nuevos, ruta), &destino, hasta))
-            }
-            Operacion::Quitar(ruta) => mover(&en(instalacion, ruta), &en(&respaldo, ruta), hasta),
-        };
-        if let Err(error) = hecho {
-            let ruta = match operacion {
-                Operacion::Poner(ruta) | Operacion::Quitar(ruta) => ruta,
-            };
-            // Lo que quedó a medias de la operación que falló también se deshace:
-            // `mover` no deja nada por el camino, pero un Poner puede haber
-            // guardado ya el viejo.
-            hechas.push(operacion);
-            deshacer(&hechas, instalacion, &respaldo, &nuevos);
-            return Err(fallo(format!("{ruta}: {error}")));
+        if let Err(error) = transaccion::instalar(carpeta, instalacion, operacion) {
+            return revertir(error.to_string());
         }
-        hechas.push(operacion);
     }
-
     quitar_carpetas_vacias(instalacion);
     anotar_version(instalacion, &cambios.hasta);
+    fs::remove_file(diario).map_err(|e| fallo(e.to_string()))?;
     Ok(cambios.hasta)
-}
-
-/// Devuelve cada archivo a su sitio, en orden inverso. Mejor esfuerzo: si algo
-/// no vuelve, lo arreglará el instalador completo que se ofrece después.
-fn deshacer(hechas: &[&Operacion], instalacion: &Path, respaldo: &Path, nuevos: &Path) {
-    let ahora = Instant::now() + Duration::from_secs(5);
-    for operacion in hechas.iter().rev() {
-        match operacion {
-            Operacion::Poner(ruta) => {
-                let destino = en(instalacion, ruta);
-                let guardado = en(respaldo, ruta);
-                if destino.exists() && !en(nuevos, ruta).exists() {
-                    let _ = mover(&destino, &en(nuevos, ruta), ahora);
-                }
-                if guardado.exists() {
-                    let _ = mover(&guardado, &destino, ahora);
-                }
-            }
-            Operacion::Quitar(ruta) => {
-                let _ = mover(&en(respaldo, ruta), &en(instalacion, ruta), ahora);
-            }
-        }
-    }
-}
-
-/// Mueve un archivo creando lo que haga falta. Renombrar y no copiar: es
-/// instantáneo y no puede dejar un archivo a medio escribir. Si están en discos
-/// distintos, copia y borra.
-fn mover(de: &Path, a: &Path, hasta: Instant) -> io::Result<()> {
-    if let Some(padre) = a.parent() {
-        fs::create_dir_all(padre)?;
-    }
-    loop {
-        match fs::rename(de, a) {
-            Ok(()) => return Ok(()),
-            // ERROR_NOT_SAME_DEVICE
-            Err(error) if error.raw_os_error() == Some(17) => {
-                fs::copy(de, a)?;
-                return fs::remove_file(de);
-            }
-            // ERROR_ACCESS_DENIED, ERROR_SHARING_VIOLATION: aún abierto.
-            Err(error) if matches!(error.raw_os_error(), Some(5 | 32)) && Instant::now() < hasta => {
-                thread::sleep(Duration::from_millis(300));
-            }
-            Err(error) => return Err(error),
-        }
-    }
 }
 
 /// El ejecutable y lo que haya en las carpetas gestionadas, con `/`.
@@ -531,13 +481,37 @@ fn cerrojo(ruta: &Path) -> Option<File> {
 
 // --- Limpieza -----------------------------------------------------------------
 
+/// Ante un diario pendiente, el mismo aplicador vuelve a poner los archivos
+/// respaldados. El ejecutable instalado siempre se reemplaza atómicamente y
+/// puede iniciar esta recuperación aunque se interrumpa la copia auxiliar.
+pub fn reanudar_si_pendiente(app: &AppHandle) -> Result<bool, String> {
+    let Some(raiz) = carpeta_de_actualizacion(app) else { return Ok(false) };
+    let entradas = match fs::read_dir(&raiz) {
+        Ok(entradas) => entradas,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(e.to_string()),
+    };
+    let candado = raiz.join(APLICANDO);
+    if candado.exists() && File::open(&candado).is_err() {
+        // El aplicador sigue trabajando y abrirá la versión íntegra al terminar.
+        return Ok(true);
+    }
+    for entrada in entradas {
+        let carpeta = entrada.map_err(|e| e.to_string())?.path();
+        if carpeta.is_dir() && carpeta.join(transaccion::DIARIO).try_exists().map_err(|e| e.to_string())? {
+            lanzar(&Preparada { carpeta })?;
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// Al arrancar: borra la carpeta de la actualización y los restos del
 /// actualizador de Tauri. Devuelve por qué falló la última actualización por
 /// paquete, si falló (la ha devuelto a su sitio y ha abierto esta versión).
 ///
-/// Nada de lo que hay en esa carpeta sirve de un arranque a otro: la versión
-/// que traía ya está puesta, o se falló y se ofrecerá el instalador, o se quedó
-/// a medias y se volverá a bajar. Así que se borra entera.
+/// Se llama después de comprobar los diarios. Los respaldos pendientes de
+/// recuperación se conservan para el siguiente intento.
 pub fn limpiar_restos(app: &AppHandle) -> Option<String> {
     limpiar_temporales(&app.package_info().name);
 
@@ -552,7 +526,11 @@ pub fn limpiar_restos(app: &AppHandle) -> Option<String> {
         .and_then(|datos| serde_json::from_slice::<Resultado>(&datos).ok())
         .and_then(|resultado| resultado.error);
 
-    let restos: Vec<PathBuf> = fs::read_dir(&carpeta).ok()?.flatten().map(|entrada| entrada.path()).collect();
+    // También se respetan respaldos de un aplicador anterior que no llegara
+    // a dejar resultado: carece de diario y puede requerir reparación manual.
+    let confirmar = carpeta.join(RESULTADO).is_file();
+    let restos: Vec<PathBuf> = fs::read_dir(&carpeta).ok()?.flatten().map(|entrada| entrada.path())
+        .filter(|p| !p.join(transaccion::DIARIO).exists() && (confirmar || !p.join("respaldo").exists())).collect();
     thread::spawn(move || {
         // La copia que aplicó puede estar saliendo todavía: lo que no se deje
         // borrar ahora, dentro de un momento.

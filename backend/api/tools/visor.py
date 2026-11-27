@@ -12,7 +12,6 @@ el tamaño de la página; y como son proporciones, dan igual el zoom y la
 resolución con que se estuviera viendo.
 """
 import os
-import re
 
 import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
@@ -22,6 +21,7 @@ from api import current_session, params, visor_anotaciones
 from api.tipografia import (COLORES_TEXTO, CONTROLES, FAMILIAS, FUENTES, INTERLINEADO,
                             TAMANO_MAXIMO, TAMANO_MINIMO)
 from api import limites
+from api.formularios import seleccionar_paginas
 from errors import ApiError
 from storage import storage, nombre_seguro
 
@@ -126,13 +126,11 @@ def guardar():
         # formulario recién rellenado dejaría de ser un formulario. Al rellenar
         # sin tocar páginas, que es lo corriente, no hay por qué pasar por ahí.
         if _hay_cambios_de_paginas(paginas, total):
-            formulario = documento.xref_get_key(documento.pdf_catalog(), 'AcroForm')
-            documento.select([numero - 1 for numero, _ in paginas])
+            seleccionar_paginas(documento, [numero - 1 for numero, _ in paginas])
             for indice, (_, giro) in enumerate(paginas):
                 if giro:
                     pagina = documento[indice]
                     pagina.set_rotation((pagina.rotation + giro) % 360)
-            _rehacer_formulario(documento, formulario)
 
         base = os.path.splitext(nombre_seguro(record.name))[0]
         destino, salida = storage.reserve_output(session_id, f'{base}-editado.pdf')
@@ -260,41 +258,6 @@ def _rellenar(documento, campos: dict) -> None:
 
     if not alguno:
         raise ApiError('El documento no tiene los campos que se han rellenado.', 409)
-
-
-def _rehacer_formulario(documento, antes: tuple) -> None:
-    """Devuelve el `/AcroForm` que `select` le quita al catálogo.
-
-    Sin esto, quitar una página de un formulario relleno lo convierte en un PDF
-    corriente: los recuadros siguen dibujados, pero ningún lector los reconoce
-    ya como campos.
-
-    La lista de campos se rehace con los que han sobrevivido —`select` renumera
-    los objetos y las referencias viejas ya no valen—, y el resto del diccionario
-    (la tipografía por defecto y sus recursos) se conserva tal cual venía.
-    """
-    tipo, valor = antes
-    if tipo != 'dict':
-        return
-
-    raices = []
-    for pagina in documento:
-        for widget in pagina.widgets():
-            tipo_padre, padre = documento.xref_get_key(widget.xref, 'Parent')
-            # Las opciones de un grupo cuelgan de un campo padre; las demás son
-            # el campo en sí.
-            raiz = int(padre.split()[0]) if tipo_padre == 'xref' else widget.xref
-            if raiz not in raices:
-                raices.append(raiz)
-    if not raices:
-        return
-
-    campos = f'/Fields[{" ".join(f"{x} 0 R" for x in raices)}]'
-    if '/Fields' in valor:
-        nuevo = re.sub(r'/Fields\s*\[[^\]]*\]', campos, valor, count=1)
-    else:
-        nuevo = valor.rstrip()[:-2] + campos + '>>'
-    documento.xref_set_key(documento.pdf_catalog(), 'AcroForm', nuevo)
 
 
 def _widget_de(pagina, xref: int):

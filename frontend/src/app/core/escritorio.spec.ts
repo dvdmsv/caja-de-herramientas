@@ -207,21 +207,21 @@ describe('la bóveda en el disco', () => {
   });
 
   it('se lee, se guarda y se borra con sus comandos, y sin bóveda se lee null', async () => {
-    let guardada: unknown = null;
+    let guardada: string | null = null;
     const { falso, llamadas } = tauriFalso({
       leer_boveda: () => guardada,
-      guardar_boveda: argumentos => (guardada = (argumentos as { contenido: string }).contenido),
-      borrar_boveda: () => (guardada = null),
+      guardar_boveda: argumentos => { guardada = (argumentos as { contenido: string }).contenido; return true; },
+      borrar_boveda: () => { guardada = null; return true; },
     });
 
     expect(await leerBoveda(falso)).toBeNull();
-    await guardarBoveda(falso, '{"formato":1}');
+    await guardarBoveda(falso, '{"formato":1}', null);
     expect(await leerBoveda(falso)).toBe('{"formato":1}');
-    await borrarBoveda(falso);
+    await borrarBoveda(falso, guardada);
     expect(await leerBoveda(falso)).toBeNull();
 
     expect(llamadas.map(l => l.comando)).toEqual(
       ['leer_boveda', 'guardar_boveda', 'leer_boveda', 'borrar_boveda', 'leer_boveda']);
-    expect(llamadas[1].argumentos).toEqual({ contenido: '{"formato":1}' });
+    expect(llamadas[1].argumentos).toEqual({ contenido: '{"formato":1}', anterior: null });
   });
 });

@@ -61,18 +61,62 @@ jobs:
       - name: Construir backend y frontend
         run: docker compose build
 
+      - name: La capa de npm se reutiliza al cambiar HTML y se renueva al cambiar el lockfile
+        run: bash scripts/comprobar-cache-docker.sh
+
       # Y levantarla es lo único que prueba lo que los tests no pueden: OCR,
       # LibreOffice, WeasyPrint y los tres servicios repartiéndose el trabajo.
       - name: Levantar la pila completa
         run: |
-          docker compose up -d
-          for i in $(seq 1 60); do
-            sanos=$(docker compose ps --format '{{.Service}} {{.Health}}' | grep -c healthy || true)
-            [ "$sanos" = "3" ] && break
-            sleep 5
+          cat > "$RUNNER_TEMP/compose.env" <<'EOF'
+          COMPARE_TIMEOUT_SECONDS=181
+          SESSION_PROTECTED_MINUTES=11
+          EOF
+          huella=$(sha256sum "$RUNNER_TEMP/compose.env")
+          for intento in 1 2; do
+            docker compose --env-file "$RUNNER_TEMP/compose.env" up -d --remove-orphans --wait --wait-timeout 300 web ligeros pesados frontend || { docker compose logs --tail 40; exit 1; }
           done
-          docker compose ps --format '  {{.Service}}: {{.Status}}'
-          [ "$sanos" = "3" ] || { docker compose logs --tail 40; exit 1; }
+          test "$(sha256sum "$RUNNER_TEMP/compose.env")" = "$huella"
+          docker compose exec -T web python -c 'import config; assert config.SESION_PROTEGIDA_SEGUNDOS == 660'
+          docker compose exec -T pesados python -c 'from api.tools.comparar_pdf import PLAZO_EN_PROCESO; assert PLAZO_EN_PROCESO == 181'
+          docker compose ps
+
+      - name: Las sondas de los pools siguen respondiendo con los workers ocupados
+        run: |
+          for servicio in ligeros pesados; do
+            contenedor=$(docker compose ps -q "$servicio")
+            sonda=$(docker inspect --format '{{json .Config.Healthcheck.Test}}' "$contenedor")
+            docker compose exec -T "$servicio" python - "$sonda" <<'PY'
+          import json, os, pathlib, signal, subprocess, sys
+          tipo, *sonda = json.loads(sys.argv[1])
+          assert tipo == "CMD"
+          hijos = pathlib.Path("/proc/1/task/1/children")
+          def workers_del_maestro():
+              return set(map(int, hijos.read_text().split())) - {os.getpid()}
+          workers = workers_del_maestro()
+          assert workers, "Gunicorn no ha arrancado sus workers"
+          pausados = []
+          try:
+              for pid in workers:
+                  os.kill(pid, signal.SIGSTOP)
+                  pausados.append(pid)
+              subprocess.run(sonda, check=True, timeout=5)
+          finally:
+              for pid in pausados:
+                  os.kill(pid, signal.SIGCONT)
+          assert workers == workers_del_maestro()
+          PY
+          done
+
+      - name: nginx revalida AutoFirma y conserva el JavaScript versionado
+        shell: bash
+        run: |
+          base=http://localhost:8081
+          portada=$(curl -fsS --retry 5 --retry-connrefused "$base/")
+          principal=$(grep -oE 'src="main-[A-Za-z0-9_-]+\.js"' <<< "$portada" | cut -d'"' -f2)
+          test -n "$principal"
+          curl -fsSI "$base/assets/autofirma/autoscript.js" | grep -i '^cache-control: no-cache'
+          curl -fsSI "$base/$principal" | grep -i '^cache-control: .*immutable'
 
       - name: Pasada por todas las herramientas
         run: python3 scripts/barrido.py

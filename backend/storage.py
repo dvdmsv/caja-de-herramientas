@@ -12,10 +12,13 @@ import json
 import os
 import re
 import shutil
+import tempfile
 import threading
 import time
 import uuid
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, asdict
+from pathlib import Path
 
 import config
 import contenido
@@ -69,7 +72,7 @@ def new_id() -> str:
 
 
 def validate_session_id(session_id: str | None) -> str:
-    if not session_id or not ID_RE.match(session_id):
+    if not session_id or not ID_RE.fullmatch(session_id):
         raise ApiError('Sesión no válida. Recarga la página e inténtalo de nuevo.', 400)
     return session_id
 
@@ -99,17 +102,21 @@ class Storage:
         return self._require(session_id, file_id)[0]
 
     def _require(self, session_id: str, file_id: str) -> tuple[FileRecord, str]:
-        if not ID_RE.match(file_id or ''):
-            raise ApiError('Identificador de archivo no válido.', 400)
-        meta_path = os.path.join(self.session_dir(session_id, create=False), f'{file_id}.json')
-        if not os.path.isfile(meta_path):
-            raise ApiError('El archivo ya no está disponible. Vuelve a subirlo.', 404)
-        with open(meta_path, 'r', encoding='utf-8') as fh:
-            record = FileRecord(**json.load(fh))
-        binary_path = os.path.join(os.path.dirname(meta_path), record.stored_name)
+        record = self._leer_meta(session_id, file_id)
+        binary_path = os.path.join(self.session_dir(session_id, create=False), record.stored_name)
         if not os.path.isfile(binary_path):
             raise ApiError('El archivo ya no está disponible. Vuelve a subirlo.', 404)
         return record, binary_path
+
+    def _leer_meta(self, session_id: str, file_id: str) -> FileRecord:
+        if not ID_RE.fullmatch(file_id or ''):
+            raise ApiError('Identificador de archivo no válido.', 400)
+        carpeta = self.session_dir(session_id, create=False)
+        try:
+            with open(os.path.join(carpeta, f'{file_id}.json'), encoding='utf-8') as fichero:
+                return FileRecord(**json.load(fichero))
+        except FileNotFoundError:
+            raise ApiError('El archivo ya no está disponible. Vuelve a subirlo.', 404) from None
 
     # --- espacio ----------------------------------------------------------
 
@@ -120,8 +127,12 @@ class Storage:
         try:
             with os.scandir(path) as entradas:
                 for entrada in entradas:
-                    if entrada.is_file():
-                        total += entrada.stat().st_size
+                    try:
+                        if entrada.is_file():
+                            total += entrada.stat().st_size
+                    except FileNotFoundError:
+                        # Puede publicarse un temporal o borrarse un archivo durante el recuento.
+                        continue
         except FileNotFoundError:
             return 0
         return total
@@ -152,7 +163,7 @@ class Storage:
                 f'y el máximo son {config.SESSION_QUOTA_MB} MB. Borra lo que no '
                 'necesites con "Empezar de cero" y vuelve a intentarlo.', 413)
 
-    def _comprobar_disco(self, necesarios: int) -> None:
+    def _comprobar_disco(self, session_id: str, necesarios: int) -> None:
         """Que quede sitio en el disco, desalojando sesiones viejas si hace falta.
 
         La reserva no es para esta aplicación: el volumen comparte disco con
@@ -162,17 +173,23 @@ class Storage:
         reserva = config.DISK_RESERVE_MB * 1024 * 1024
         if self.espacio_libre() - necesarios >= reserva:
             return
-        self.liberar_espacio(reserva + necesarios - self.espacio_libre())
+        self.liberar_espacio(reserva + necesarios - self.espacio_libre(), excepto=session_id)
         if self.espacio_libre() - necesarios < reserva:
             raise ApiError('El servidor se ha quedado sin espacio. Inténtalo más tarde.', 507)
 
     def resumen(self) -> tuple[int, int]:
         """Lo que ocupan todas las sesiones juntas, y cuántas hay."""
+        sesiones = list(self._directorios_sesion())
+        return sum(_tamano_arbol(path) for path in sesiones), len(sesiones)
+
+    def _directorios_sesion(self):
         try:
-            nombres = [nombre for nombre in os.listdir(self.root) if ID_RE.match(nombre)]
+            with os.scandir(self.root) as entradas:
+                for entrada in entradas:
+                    if ID_RE.fullmatch(entrada.name) and entrada.is_dir(follow_symlinks=False):
+                        yield entrada.path
         except FileNotFoundError:
-            return 0, 0
-        return sum(_tamano_arbol(os.path.join(self.root, nombre)) for nombre in nombres), len(nombres)
+            return
 
     def liberar_espacio(self, necesarios: float, excepto: str | None = None) -> int:
         """Desaloja sesiones, de la más vieja a la más nueva, hasta tener sitio.
@@ -184,13 +201,8 @@ class Storage:
         """
         protegidas = time.time() - config.SESION_PROTEGIDA_SEGUNDOS
         candidatas = []
-        try:
-            nombres = os.listdir(self.root)
-        except FileNotFoundError:
-            return 0
-        for nombre in nombres:
-            path = os.path.join(self.root, nombre)
-            if not os.path.isdir(path) or nombre == excepto:
+        for path in self._directorios_sesion():
+            if os.path.basename(path) == excepto:
                 continue
             try:
                 visto = os.path.getmtime(path)
@@ -203,8 +215,12 @@ class Storage:
         for _, path in sorted(candidatas):
             if liberados >= necesarios:
                 break
-            liberados += _tamano_arbol(path)
-            shutil.rmtree(path, ignore_errors=True)
+            tamano = _tamano_arbol(path)
+            try:
+                self._vaciar_carpeta(path)
+            except OSError:
+                continue
+            liberados += tamano
         return liberados
 
     # --- escritura --------------------------------------------------------
@@ -227,7 +243,7 @@ class Storage:
         # llegar a escribirse antes de la comprobación de verdad, la de abajo.
         anunciado = getattr(file_storage, 'content_length', 0) or 0
         self._comprobar_cuota(session_id, anunciado)
-        self._comprobar_disco(anunciado or 1)
+        self._comprobar_disco(session_id, anunciado or 1)
 
         file_id = new_id()
         stored_name = f'{file_id}.contenido.json' if ext == '.json' else f'{file_id}{ext}'
@@ -272,7 +288,7 @@ class Storage:
         # No se sabe lo que va a pesar el resultado, así que lo que se comprueba
         # aquí es que quede sitio; la cuota se comprueba al confirmarlo, cuando
         # ya tiene tamaño.
-        self._comprobar_disco(1)
+        self._comprobar_disco(session_id, 1)
 
         file_id = new_id()
         name = nombre_seguro(name)
@@ -281,6 +297,18 @@ class Storage:
         path = os.path.join(self.session_dir(session_id), stored_name)
         record = FileRecord(id=file_id, name=name, stored_name=stored_name, size=0, ext=ext, generated=True)
         return path, record
+
+    @contextmanager
+    def lote_salidas(self, session_id: str):
+        """Descarta las salidas reservadas por este lote si falla antes de terminar."""
+        with ExitStack() as pendientes:
+            def reservar(nombre: str):
+                ruta, registro = self.reserve_output(session_id, nombre)
+                pendientes.callback(self.descartar, session_id, registro)
+                return ruta, registro
+
+            yield reservar
+            pendientes.pop_all()
 
     def commit_output(self, session_id: str, record: FileRecord) -> FileRecord:
         path = os.path.join(self.session_dir(session_id), record.stored_name)
@@ -325,9 +353,17 @@ class Storage:
         return self._write_meta(session_id, record)
 
     def _write_meta(self, session_id: str, record: FileRecord) -> FileRecord:
-        meta_path = os.path.join(self.session_dir(session_id), f'{record.id}.json')
-        with open(meta_path, 'w', encoding='utf-8') as fh:
-            json.dump(asdict(record), fh)
+        carpeta = self.session_dir(session_id, create=False)
+        temporal = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', dir=carpeta, suffix='.tmp',
+                                             encoding='utf-8', delete=False) as fichero:
+                temporal = Path(fichero.name)
+                json.dump(asdict(record), fichero)
+            os.replace(temporal, os.path.join(carpeta, f'{record.id}.json'))
+        finally:
+            if temporal is not None:
+                temporal.unlink(missing_ok=True)
         return record
 
     # --- borrado ----------------------------------------------------------
@@ -342,25 +378,46 @@ class Storage:
         path = self.session_dir(session_id, create=True)
         os.utime(path, None)
 
+    def delete_file(self, session_id: str, file_id: str) -> None:
+        # Si sólo queda el sidecar tras un borrado parcial, permite reintentarlo.
+        record = self._leer_meta(session_id, file_id)
+        self.descartar(session_id, record)
+
+    @staticmethod
+    def _vaciar_carpeta(path: str) -> None:
+        carpeta = Path(path)
+        if carpeta.is_symlink():
+            raise OSError('La carpeta de sesión es un enlace.')
+        try:
+            entradas = list(carpeta.iterdir())
+        except FileNotFoundError:
+            return
+        # Un binario ocupado debe conservar el metadato que permite localizarlo.
+        # Los archivos .contenido.json de los usuarios también van primero.
+        def es_metadato(entrada):
+            return entrada.suffix == '.json' and ID_RE.fullmatch(entrada.stem) is not None
+
+        for entrada in sorted(entradas, key=es_metadato):
+            if not entrada.is_symlink() and entrada.is_dir():
+                shutil.rmtree(entrada)
+            else:
+                entrada.unlink(missing_ok=True)
+        try:
+            carpeta.rmdir()
+        except FileNotFoundError:
+            pass
+
     def clear_session(self, session_id: str) -> None:
-        path = self.session_dir(session_id, create=False)
-        shutil.rmtree(path, ignore_errors=True)
+        self._vaciar_carpeta(self.session_dir(session_id, create=False))
 
     def purge_expired(self) -> int:
-        """Borra las sesiones sin actividad desde hace más de ``ttl_seconds``."""
+        """Borra las sesiones sin actividad desde hace más de su tiempo de vida."""
         limite = time.time() - self.ttl_seconds
         borradas = 0
-        try:
-            nombres = os.listdir(self.root)
-        except FileNotFoundError:
-            return 0
-        for nombre in nombres:
-            path = os.path.join(self.root, nombre)
-            if not os.path.isdir(path):
-                continue
+        for path in self._directorios_sesion():
             try:
                 if os.path.getmtime(path) < limite:
-                    shutil.rmtree(path, ignore_errors=True)
+                    self._vaciar_carpeta(path)
                     borradas += 1
             except OSError:
                 continue

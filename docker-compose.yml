@@ -27,6 +27,7 @@ x-backend: &backend
     # defecto del código, que se calcula mirando el contenedor. Lo que quieras
     # fijar, en el `.env`; está explicado en `.env.example`.
     MAX_CONTENT_LENGTH_MB: ${MAX_CONTENT_LENGTH_MB:-}
+    SESSION_PROTECTED_MINUTES: ${SESSION_PROTECTED_MINUTES:-}
     SESSION_TTL_MINUTES: ${SESSION_TTL_MINUTES:-}
     CLEANUP_INTERVAL_MINUTES: ${CLEANUP_INTERVAL_MINUTES:-}
     SESSION_QUOTA_MB: ${SESSION_QUOTA_MB:-}
@@ -34,6 +35,7 @@ x-backend: &backend
     MAX_IMAGE_MEGAPIXELS: ${MAX_IMAGE_MEGAPIXELS:-}
     MAX_UNZIPPED_MB: ${MAX_UNZIPPED_MB:-}
     REQUEST_MAX_AGE_SECONDS: ${REQUEST_MAX_AGE_SECONDS:-}
+    COMPARE_TIMEOUT_SECONDS: ${COMPARE_TIMEOUT_SECONDS:-}
     OCR_TIMEOUT_SECONDS: ${OCR_TIMEOUT_SECONDS:-}
     PDFA_TIMEOUT_SECONDS: ${PDFA_TIMEOUT_SECONDS:-}
     OCR_JOBS: ${OCR_JOBS:-}
@@ -61,6 +63,16 @@ x-backend: &backend
     retries: 3
     start_period: 20s
 
+# Los pools reciclan un proceso por petición. Consultar el socket en escucha
+# permite comprobar que Gunicorn sigue disponible incluso con el pool ocupado.
+x-salud-trabajos: &salud-trabajos
+  # /proc/net/tcp representa 0.0.0.0:5000 como 00000000:1388 y LISTEN como 0A.
+  test: ["CMD", "grep", "-Eq", " 00000000:1388 +00000000:0000 +0A ", "/proc/net/tcp"]
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 20s
+
 services:
   # Subidas, descargas, ZIP, renombrado y sesión. Barre las sesiones caducadas.
   # No registra las herramientas: sin PyMuPDF ni pyHanko se queda en unos pocos MB.
@@ -79,6 +91,7 @@ services:
   # Vistas previas, inspecciones, formatos y QR: baratas y muy seguidas.
   ligeros:
     <<: *backend
+    healthcheck: *salud-trabajos
     environment:
       <<: *ajustes
       SERVICIO: ligeros
@@ -94,6 +107,7 @@ services:
   # Cada petición, un proceso desechable con sus límites de memoria y CPU.
   pesados:
     <<: *backend
+    healthcheck: *salud-trabajos
     environment:
       <<: *ajustes
       SERVICIO: pesados

@@ -40,11 +40,11 @@ export class CompararPdfComponent extends PaginaHerramienta {
   }
 
   get antes(): string | null {
-    return this.archivos[0]?.file.name ?? null;
+    return this.archivos[0]?.name ?? null;
   }
 
   get despues(): string | null {
-    return this.archivos[1]?.file.name ?? null;
+    return this.archivos[1]?.name ?? null;
   }
 
   protected override opciones(): Record<string, unknown> {

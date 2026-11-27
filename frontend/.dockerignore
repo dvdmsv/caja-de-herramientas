@@ -11,6 +11,9 @@ dist/
 # build para no usarse: dentro del contenedor se compila desde cero.
 .angular/
 
+# La imagen web no empaqueta el proyecto Gradle ni los motores de la APK.
+android/
+
 # Residuo de pruebas, vacío y sin versionar.
 uploads/
 

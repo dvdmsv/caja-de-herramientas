@@ -263,16 +263,12 @@ jobs:
       # Lo que decide qué se pone y qué se quita al aplicar un paquete de
       # actualización. Sólo usa std, así que se prueba con rustc suelto, sin
       # compilar Tauri para los tests.
-      - name: Tests del plan de actualización y de la bóveda
+      - name: Pruebas de archivos, ventanas, bóveda y recuperación de parches
         run: |
-          rustc --edition 2021 --test escritorio\src-tauri\src\parche_plan.rs -o "$env:RUNNER_TEMP\parche_plan.exe"
-          if ($LASTEXITCODE) { throw 'No compila.' }
-          & "$env:RUNNER_TEMP\parche_plan.exe"
-          if ($LASTEXITCODE) { throw 'Fallan los tests del plan de actualización.' }
-          rustc --edition 2021 --test escritorio\src-tauri\src\boveda_disco.rs -o "$env:RUNNER_TEMP\boveda_disco.exe"
-          if ($LASTEXITCODE) { throw 'No compila la bóveda.' }
-          & "$env:RUNNER_TEMP\boveda_disco.exe"
-          if ($LASTEXITCODE) { throw 'Fallan los tests de la bóveda en el disco.' }
+          rustc --edition 2021 --test escritorio/src-tauri/tests/archivos.rs -o "$env:RUNNER_TEMP/archivos.exe"
+          if ($LASTEXITCODE) { throw 'No compilan las pruebas de escritorio.' }
+          & "$env:RUNNER_TEMP/archivos.exe"
+          if ($LASTEXITCODE) { throw 'Fallan las pruebas de escritorio.' }
 
       - name: Compilar el instalador
         id: instalador
@@ -421,6 +417,35 @@ jobs:
           $vivo = Get-Process merge-pdf-backend -ErrorAction SilentlyContinue
           if ($vivo) { throw 'El backend sigue vivo después de matar la aplicación.' }
           'El backend ha muerto con la aplicación.'
+
+          # El próximo inicio debe detectar el diario antes de abrir el backend.
+          # Se conserva el index original y se deja instalado uno incompleto,
+          # como después de interrumpir la aplicación del parche.
+          $recuperacion = "$env:LOCALAPPDATA\merge-pdf\actualizacion\interrumpida"
+          $relativa = 'backend/_internal/frontend/index.html'
+          $original = Join-Path $exe.DirectoryName $relativa
+          $shaOriginal = (Get-FileHash $original).Hash
+          $respaldo = Join-Path "$recuperacion\respaldo" $relativa
+          New-Item -ItemType Directory (Split-Path $respaldo) -Force | Out-Null
+          Copy-Item $original $respaldo
+          @{ formato = 1; desde = $version; hasta = '9.9.9'; archivos = @{}; todos = @() } |
+            ConvertTo-Json | Set-Content "$recuperacion\cambios.json" -Encoding utf8NoBOM
+          @('1', "+$relativa") | Set-Content "$recuperacion\recuperar.txt" -Encoding utf8NoBOM
+          Set-Content $original 'interrumpida' -Encoding utf8NoBOM
+          $env:CAJA_AUTOPRUEBA = "$env:RUNNER_TEMP\autoprueba-recuperada.json"
+          Start-Process $exe.FullName
+          foreach ($i in 1..120) {
+            if (Test-Path $env:CAJA_AUTOPRUEBA) { break }
+            Start-Sleep -Seconds 1
+          }
+          if ((Get-FileHash $original).Hash -ne $shaOriginal) { throw 'No se ha restaurado el index.' }
+          $reabierta = Get-Content $env:CAJA_AUTOPRUEBA -Raw -ErrorAction Stop | ConvertFrom-Json
+          if ($reabierta.version.ok -ne $version) { throw 'La aplicación recuperada no ha abierto el puente.' }
+          Get-Process caja-de-herramientas -ErrorAction Stop | Stop-Process -Force
+          foreach ($i in 1..30) {
+            if (-not (Get-Process merge-pdf-backend -ErrorAction SilentlyContinue)) { break }
+            Start-Sleep -Seconds 1
+          }
 
           # «Abrir con…»: en la lista de los PDF, pero sin ser el predeterminado.
           $lista = Get-ItemProperty 'HKCU:\Software\Classes\.pdf\OpenWithProgids' -ErrorAction SilentlyContinue

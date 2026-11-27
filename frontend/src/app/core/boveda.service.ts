@@ -99,13 +99,13 @@ export class BovedaService {
     }
     const parametros = parametrosNuevos(alAzar, this.iteraciones);
     const clave = await derivarClave(this.subtle!, contrasena, parametros);
-    await this.escribir(clave, parametros, BOVEDA_VACIA);
+    this.exigirGuardado(await this.escribir(clave, parametros, BOVEDA_VACIA, null));
     this.abrirCon(clave, BOVEDA_VACIA);
   }
 
   /** Lanza `ContrasenaIncorrecta` si no es la suya. */
   async abrir(contrasena: string): Promise<void> {
-    const cifrada = await this.leerCifrada();
+    const cifrada = leerBovedaCifrada(await this.leerExistente());
     const clave = await derivarClave(this.subtle!, contrasena, cifrada.clave);
     const contenido = leerContenido(await descifrar(this.subtle!, clave, cifrada));
     this.abrirCon(clave, contenido);
@@ -120,16 +120,18 @@ export class BovedaService {
     if (nueva.length < CONTRASENA_MINIMA) {
       throw new Error(`La contraseña tiene que tener al menos ${CONTRASENA_MINIMA} caracteres.`);
     }
-    const actual = await this.releer();
+    const anterior = await this.exportar();
+    const actual = await this.descifrarConLaMia(leerBovedaCifrada(anterior));
     const parametros = parametrosNuevos(alAzar, this.iteraciones);
     const clave = await derivarClave(this.subtle!, nueva, parametros);
-    await this.escribir(clave, parametros, actual);
+    this.exigirGuardado(await this.escribir(clave, parametros, actual, anterior));
     this.abrirCon(clave, actual);
   }
 
   /** Borra el archivo. Sin la contraseña es lo único que se puede hacer con ella. */
   async borrar(): Promise<void> {
-    await borrarBoveda(this.tauri!);
+    const anterior = await leerBoveda(this.tauri!);
+    this.exigirGuardado(await borrarBoveda(this.tauri!, anterior));
     this.olvidar('sin-crear');
   }
 
@@ -225,27 +227,37 @@ export class BovedaService {
    * una copia que no se puede abrir no se lleva por delante la que hay.
    */
   async importar(texto: string, contrasena: string): Promise<void> {
+    const anterior = await leerBoveda(this.tauri!);
     const cifrada = leerBovedaCifrada(texto);
     const clave = await derivarClave(this.subtle!, contrasena, cifrada.clave);
     const contenido = leerContenido(await descifrar(this.subtle!, clave, cifrada));
-    await guardarBoveda(this.tauri!, texto);
+    this.exigirGuardado(await guardarBoveda(this.tauri!, texto, anterior));
     this.abrirCon(clave, contenido);
   }
 
   // --- por dentro ---------------------------------------------------------
 
   private async modificar(cambio: (contenido: ContenidoBoveda) => ContenidoBoveda): Promise<void> {
-    const cifrada = await this.leerCifrada();
-    const actual = await this.descifrarConLaMia(cifrada);
-    const nuevo = cambio(actual);
-    await this.escribir(this.clave!, cifrada.clave, nuevo);
-    this.contenido = nuevo;
-    this.tocar();
+    // Un conflicto vuelve a aplicar la operación sobre la última revisión.
+    // Si ha cambiado la clave o alguien la ha borrado se informa al usuario.
+    for (let intento = 0; intento < 8; intento++) {
+      const anterior = await this.leerExistente();
+      const cifrada = leerBovedaCifrada(anterior);
+      const actual = await this.descifrarConLaMia(cifrada);
+      const nuevo = cambio(actual);
+      if (await this.escribir(this.clave!, cifrada.clave, nuevo, anterior)) {
+        this.contenido = nuevo;
+        this.tocar();
+        return;
+      }
+    }
+    this.exigirGuardado(false);
   }
 
-  /** Lo que hay ahora en el disco, con la clave de esta ventana. */
-  private async releer(): Promise<ContenidoBoveda> {
-    return this.descifrarConLaMia(await this.leerCifrada());
+  private exigirGuardado(guardado: boolean): void {
+    if (!guardado) {
+      throw new Error('La bóveda ha cambiado en otra ventana. Revisa los cambios y vuelve a intentarlo.');
+    }
   }
 
   private async descifrarConLaMia(cifrada: BovedaCifrada): Promise<ContenidoBoveda> {
@@ -263,18 +275,18 @@ export class BovedaService {
     }
   }
 
-  private async leerCifrada(): Promise<BovedaCifrada> {
+  private async leerExistente(): Promise<string> {
     const guardada = await leerBoveda(this.tauri!);
     if (guardada === null) {
       this.olvidar('sin-crear');
       throw new Error('No hay bóveda: se ha borrado, quizá desde otra ventana.');
     }
-    return leerBovedaCifrada(guardada);
+    return guardada;
   }
 
-  private async escribir(clave: CryptoKey, parametros: ParametrosClave, contenido: ContenidoBoveda): Promise<void> {
+  private async escribir(clave: CryptoKey, parametros: ParametrosClave, contenido: ContenidoBoveda, anterior: string | null): Promise<boolean> {
     const cifrada = await cifrar(this.subtle!, clave, parametros, contenido, alAzar);
-    await guardarBoveda(this.tauri!, JSON.stringify(cifrada));
+    return guardarBoveda(this.tauri!, JSON.stringify(cifrada), anterior);
   }
 
   private abrirCon(clave: CryptoKey, contenido: ContenidoBoveda): void {

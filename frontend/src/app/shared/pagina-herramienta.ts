@@ -270,7 +270,7 @@ export abstract class PaginaHerramienta {
           cancelado = true;
           break;
         }
-        fallos.push({ nombre: archivo.file.name, mensaje: mensajeDeError(err, 'No se ha podido completar.') });
+        fallos.push({ nombre: archivo.name, mensaje: mensajeDeError(err, 'No se ha podido completar.') });
       }
     }
 
@@ -380,7 +380,7 @@ export abstract class PaginaHerramienta {
   /** En la aplicación de Windows; en la web no hace nada. `null` es cancelado. */
   private avisarAlTerminar(bien: boolean | null, mensaje = ''): void {
     this.escritorio.terminado(buscarPorSlug(this.slug)?.nombre ?? 'Caja de herramientas', bien,
-      Date.now() - this.inicioTrabajo, this.archivos.map(archivo => archivo.file.name), mensaje);
+      Date.now() - this.inicioTrabajo, this.archivos.map(archivo => archivo.name), mensaje);
   }
 
   protected pararSondeo(): void {
@@ -417,10 +417,16 @@ export abstract class PaginaHerramienta {
    * una de ellas termina.
    */
   protected subir(items: ArchivoEnCola[], alTerminar?: () => void): void {
+    items = items.filter(item => item.estado !== 'subido');
+    if (!items.length) {
+      this.alTerminarSubida();
+      alTerminar?.();
+      return;
+    }
     items.forEach(item => (item.estado = 'subiendo'));
     this.progreso = 0;
 
-    this.api.subir(items.map(item => item.file)).subscribe({
+    this.api.subir(items.map(item => item.file!)).subscribe({
       next: estado => {
         if (estado.tipo === 'progreso') {
           this.progreso = estado.porcentaje;

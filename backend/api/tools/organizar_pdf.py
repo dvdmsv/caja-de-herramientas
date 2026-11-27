@@ -9,6 +9,7 @@ import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
 
 from api import current_session, params
+from api.formularios import seleccionar_paginas
 from errors import ApiError
 from storage import storage, nombre_seguro
 
@@ -40,7 +41,7 @@ def organizar_pdf():
         paginas = _leer_paginas(datos.get('paginas'), documento.page_count)
 
         # `select` reordena, repite y elimina de una vez, en el orden dado.
-        documento.select([numero - 1 for numero, _ in paginas])
+        seleccionar_paginas(documento, [numero - 1 for numero, _ in paginas])
         for indice, (_, giro) in enumerate(paginas):
             if giro:
                 pagina = documento[indice]

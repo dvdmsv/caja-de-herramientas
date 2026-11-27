@@ -58,8 +58,8 @@
           <i class="bi bi-grip-vertical text-body-secondary asa cola__asa"
           aria-hidden="true" cdkDragHandle></i>
         }
-        <span class="text-truncate flex-grow-1 cola__nombre" [title]="item.file.name">{{ item.file.name }}</span>
-        <span class="small text-body-secondary flex-shrink-0 cola__peso">{{ item.file.size | peso }}</span>
+        <span class="text-truncate flex-grow-1 cola__nombre" [title]="item.name">{{ item.name }}</span>
+        <span class="small text-body-secondary flex-shrink-0 cola__peso">{{ item.size | peso }}</span>
         <span class="badge flex-shrink-0 cola__estado"
           [class.text-bg-secondary]="item.estado === 'local'"
           [class.text-bg-info]="item.estado === 'subiendo'"
@@ -80,9 +80,17 @@
             }
           }
         </span>
+        @if (ordenable && items.length > 1) {
+          <button #subir type="button" class="btn btn-sm btn-outline-secondary" [disabled]="deshabilitado"
+            [attr.aria-disabled]="i === 0 || deshabilitado" [attr.aria-label]="'Subir ' + item.name"
+            (click)="mover(i, -1, subir)"><i class="bi bi-chevron-up" aria-hidden="true"></i></button>
+          <button #bajar type="button" class="btn btn-sm btn-outline-secondary" [disabled]="deshabilitado"
+            [attr.aria-disabled]="i === items.length - 1 || deshabilitado" [attr.aria-label]="'Bajar ' + item.name"
+            (click)="mover(i, 1, bajar)"><i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+        }
         <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 flex-shrink-0 boton-tactil"
           [disabled]="deshabilitado" (click)="quitar(i)"
-          [attr.aria-label]="'Quitar ' + item.file.name">
+          [attr.aria-label]="'Quitar ' + item.name">
           <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
         <div class="hueco" *cdkDragPlaceholder></div>

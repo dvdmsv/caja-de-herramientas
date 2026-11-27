@@ -10,6 +10,7 @@ import fitz  # PyMuPDF
 from flask import Blueprint, jsonify
 
 from api import current_session, params, progreso
+from api.formularios import seleccionar_paginas
 from errors import ApiError
 from storage import storage, nombre_seguro
 
@@ -57,11 +58,12 @@ def dividir_pdf():
     base = os.path.splitext(nombre_seguro(record.name))[0]
     ancho = len(str(total))
 
-    if modo == 'unico':
-        resultados = [_escribir(session_id, f'{base}-paginas.pdf', origen, numeros)]
-    else:
-        resultados = [_escribir(session_id, f'{base}-pagina-{n:0{ancho}d}.pdf', origen, [n])
-                      for n in progreso.contando(numeros, len(numeros), 'Escribiendo archivos')]
+    with storage.lote_salidas(session_id) as reservar:
+        if modo == 'unico':
+            resultados = [_escribir(session_id, reservar, f'{base}-paginas.pdf', origen, numeros)]
+        else:
+            resultados = [_escribir(session_id, reservar, f'{base}-pagina-{n:0{ancho}d}.pdf', origen, [n])
+                          for n in progreso.contando(numeros, len(numeros), 'Escribiendo archivos')]
 
     return jsonify({'files': [r.to_json() for r in resultados]}), 201
 
@@ -103,7 +105,7 @@ def expandir_paginas(texto: str, total: int) -> list[int]:
     return unicas
 
 
-def _escribir(session_id: str, nombre: str, origen: str, numeros: list[int]):
+def _escribir(session_id: str, reservar, nombre: str, origen: str, numeros: list[int]):
     """Escribe un PDF con las páginas pedidas, en el orden pedido.
 
     Se usa `select`, que se queda con esas páginas y **reajusta el índice y los
@@ -115,8 +117,8 @@ def _escribir(session_id: str, nombre: str, origen: str, numeros: list[int]):
     documento en memoria: reutilizarlo dejaría el segundo recorte sobre el
     primero.
     """
-    destino, salida = storage.reserve_output(session_id, nombre)
+    destino, salida = reservar(nombre)
     with fitz.open(origen) as documento:
-        documento.select([n - 1 for n in numeros])
+        seleccionar_paginas(documento, [n - 1 for n in numeros])
         documento.save(destino, deflate=True, garbage=3)
     return storage.commit_output(session_id, salida)

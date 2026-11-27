@@ -2,6 +2,7 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { SIN_SERVIDOR } from '../../../core/plataforma';
 import { CampoMetadato, MetadatosArchivo } from '../../../core/api.service';
 import { FileQueueComponent } from '../../../shared/file-queue/file-queue.component';
 import { PaginaHerramienta } from '../../../shared/pagina-herramienta';
@@ -34,6 +35,11 @@ export class LimpiarMetadatosComponent extends PaginaHerramienta {
 
   aFondo = false;
 
+  get conHeicLocal(): boolean {
+    return SIN_SERVIDOR && this.archivos.some(({ file, name }) =>
+      /\.hei[cf]$/i.test(name) || /^image\/hei[cf]$/i.test(file?.type ?? ''));
+  }
+
   /**
    * Hasta que no se sabe qué lleva cada archivo no hay nada que decidir, y sin
    * nada marcado ni nada escrito no hay nada que hacer.
@@ -61,7 +67,9 @@ export class LimpiarMetadatosComponent extends PaginaHerramienta {
 
   /** Si no se ha encontrado nada en ninguno: también es una respuesta. */
   get sinRastro(): boolean {
-    return this.informe.length > 0 && this.informe.every(archivo => this.vacio(archivo));
+    return this.informe.length > 0
+      && this.archivos.every(entrada => this.informe.some(informe => informe.id === entrada.id))
+      && this.informe.every(archivo => this.vacio(archivo));
   }
 
   /**

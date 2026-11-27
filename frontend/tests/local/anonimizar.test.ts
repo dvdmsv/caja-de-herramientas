@@ -97,3 +97,17 @@ it('no aplica marcas de tachado previas que el usuario no haya seleccionado',asy
   const blob=guardarPdf(doc);annot.destroy();page.destroy();doc.destroy();
   await expect(anonimizar(m,{slug:'anonimizar-pdf',archivos:[{name:'con-marcas.pdf',blob}],opciones:{tipos:['dni']}},()=>{})).rejects.toThrow('tachado pendientes');
 });
+
+it('avisa de las páginas con imágenes sin texto en la inspección y el resultado', async () => {
+  const doc = await abrirPdf(m, entrada());
+  const pagina = doc.addPage([0, 0, 80, 80], 0, {},
+    'q 60 0 0 60 10 10 cm BI /W 1 /H 1 /CS /RGB /BPC 8 /F /ASCIIHexDecode ID FFFFFF> EI Q');
+  doc.insertPage(-1, pagina);
+  const archivo = { name: 'mixto.pdf', blob: guardarPdf(doc) };
+  pagina.destroy();
+  doc.destroy();
+  for (const slug of ['anonimizar-pdf/inspeccionar', 'anonimizar-pdf']) {
+    const r = await anonimizar(m, {slug, archivos: [archivo], opciones: {tipos: ['dni']}}, () => {});
+    expect(r.datos?.['paginas_sin_capa']).toEqual([2]);
+  }
+});

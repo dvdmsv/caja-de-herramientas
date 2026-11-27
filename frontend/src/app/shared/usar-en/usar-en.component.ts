@@ -2,13 +2,12 @@ import {
   ChangeDetectionStrategy, Component, ElementRef, HostListener, Input, ViewChild, inject,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
 
 import { ApiService, ArchivoServidor } from '../../core/api.service';
 import {
   CATEGORIAS, Categoria, ClaveCategoria, Herramienta, claveDeCategoria, destinosPara, rutaDe,
 } from '../../core/tools';
-import { TraspasoService } from '../../core/traspaso.service';
+import { prepararTraspaso, TraspasoService } from '../../core/traspaso.service';
 import { MARCO_HERRAMIENTA } from '../marco-herramienta';
 import { avisoError, mensajeDeError } from '../notify';
 
@@ -23,11 +22,7 @@ interface GrupoDestinos {
  * y volverlos a subir a mano.
  *
  * Sólo ofrece las herramientas que admiten esos archivos (por su `acepta` en el
- * catálogo) y, si son varios, las que trabajan con varios. Al elegir una, baja
- * los archivos, los deja en `TraspasoService` y navega; allí los recoge el marco
- * de la herramienta. Se vuelven a subir en vez de reutilizar su id del servidor
- * porque varias herramientas necesitan el archivo en el navegador (pdf.js), y
- * así todas lo reciben igual que si el usuario lo hubiera soltado.
+ * catálogo). Los destinos que trabajan en el servidor reciben directamente los ID.
  */
 @Component({
   selector: 'app-usar-en',
@@ -80,21 +75,18 @@ export class UsarEnComponent {
     }
   }
 
-  usarEn(herramienta: Herramienta): void {
+  async usarEn(herramienta: Herramienta): Promise<void> {
     this.cargando = true;
-    forkJoin(this.archivos.map(archivo => this.api.contenido(archivo))).subscribe({
-      next: blobs => {
-        const archivos = blobs.map((blob, i) => new File([blob], this.archivos[i].name, { type: blob.type }));
-        this.traspaso.dejar(archivos);
-        this.cargando = false;
-        this.abierto = false;
-        this.router.navigateByUrl(rutaDe(herramienta));
-      },
-      error: err => {
-        this.cargando = false;
-        avisoError(mensajeDeError(err, 'No se ha podido pasar el archivo a la otra herramienta.'));
-      },
-    });
+    try {
+      const entradas = await prepararTraspaso(this.archivos, herramienta.slug, this.api);
+      this.traspaso.dejarEntradas(entradas);
+      this.abierto = false;
+      await this.router.navigateByUrl(rutaDe(herramienta));
+    } catch (err) {
+      avisoError(mensajeDeError(err, 'No se ha podido pasar el archivo a la otra herramienta.'));
+    } finally {
+      this.cargando = false;
+    }
   }
 
   @HostListener('document:click', ['$event'])

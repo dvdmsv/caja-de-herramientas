@@ -278,3 +278,28 @@ def test_un_programa_que_termina_bien_devuelve_su_salida(conversion):
     assert resultado.returncode == 0
     assert resultado.stdout.strip() == 'hola'
     assert resultado.stderr.strip() == 'ay'
+
+
+@pytest.mark.skipif(sys.platform != 'linux', reason='el estado del grupo se consulta en /proc')
+@pytest.mark.parametrize('cancelar', [True, False])
+def test_terminar_conversor_libera_hijos_y_turno(conversion, tmp_path, cancelar):
+    from pathlib import Path
+
+    from api.progreso import Cancelado
+    from errors import ApiError
+
+    registro = tmp_path / 'procesos'
+    programa = ('import subprocess, os, sys, time; from pathlib import Path; '
+                'hijo = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(8)"]); '
+                'Path(sys.argv[1]).write_text(f"{os.getpid()} {hijo.pid}"); time.sleep(8)')
+    with conversion() as modulo:
+        with pytest.raises(Cancelado if cancelar else ApiError) as error:
+            modulo.ejecutar([sys.executable, '-c', programa, str(registro)], 2, 'prueba', 'falta',
+                            vigilante=lambda: cancelar and registro.exists())
+        if not cancelar:
+            assert error.value.status == 504
+        for pid in registro.read_text().split():
+            estado = Path('/proc') / pid / 'stat'
+            # Un nieto puede estar pendiente de recogida por el init del host.
+            assert not estado.exists() or estado.read_text().split()[2] == 'Z'
+        assert modulo.ejecutar([sys.executable, '-V'], 5, 'prueba', 'falta').returncode == 0

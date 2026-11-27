@@ -1,5 +1,5 @@
 """Herramienta: combinar varios PDF en uno solo, en el orden recibido."""
-import fitz  # PyMuPDF
+import pikepdf
 from flask import Blueprint, jsonify
 
 from api import current_session, params, progreso
@@ -26,37 +26,48 @@ def unir_pdf():
         rutas.append((record.name, storage.path_of(session_id, file_id)))
 
     destino, record = storage.reserve_output(session_id, SALIDA)
-    salida = fitz.open()
-    try:
-        # El índice hay que rehacerlo a mano: `insert_pdf` copia páginas, enlaces
-        # y campos, pero el índice es del documento, no de sus páginas, así que
-        # se va acumulando con las páginas desplazadas.
-        indice = []
-        for nombre, ruta in progreso.contando(rutas, len(rutas), 'Uniendo documentos'):
-            with _abrir(nombre, ruta) as origen:
-                desplazamiento = salida.page_count
-                # `widgets=True` conserva los campos de formulario, y es el
-                # motivo por el que PyMuPDF tiene que ser 1.25.3 o posterior:
-                # antes no existía el parámetro y los campos se perdían.
-                salida.insert_pdf(origen, links=True, annots=True, widgets=True)
-                for nivel, titulo, pagina in origen.get_toc():
-                    indice.append([nivel, titulo, pagina + desplazamiento])
-        if indice:
-            salida.set_toc(indice)
-        salida.save(destino, deflate=True, garbage=3)
-    finally:
-        salida.close()
+    with pikepdf.Pdf.new() as salida:
+        with salida.open_outline(max_depth=256) as indice:
+            for nombre, ruta in progreso.contando(rutas, len(rutas), 'Uniendo documentos'):
+                with _abrir(nombre, ruta) as origen:
+                    inicio = len(salida.pages)
+                    salida.add_pages_from(origen, forms='preserve')
+                    if '/Outlines' in origen.Root:
+                        paginas = {p.objgen: salida.pages[inicio + n].obj
+                                   for n, p in enumerate(origen.pages)}
+                        for nodo in origen.open_outline(max_depth=256).root:
+                            indice.root.append(_copiar_marcador(nodo, origen, salida, paginas))
+        salida.save(destino)
 
     return jsonify({'files': [storage.commit_output(session_id, record).to_json()]}), 201
 
 
-def _abrir(nombre: str, ruta: str) -> fitz.Document:
-    """Abre un PDF diciendo qué archivo falla, que con varios importa."""
+def _copiar_marcador(nodo, origen, salida, paginas):
+    copia = pikepdf.OutlineItem(nodo.title, color=nodo.color, flags=nodo.flags)
+    copia.is_closed = nodo.is_closed
+    accion = nodo.action
+    tipo = accion.get('/S') if accion is not None else None
+    if tipo == pikepdf.Name.GoTo:
+        # PDF admite el mismo destino como /Dest y como acción /GoTo.
+        destino = pikepdf.OutlineItem(nodo.title, accion.get('/D')).resolved_destination(origen)
+    else:
+        destino = nodo.resolved_destination(origen)
+    if destino is not None and getattr(destino.page, 'objgen', None) in paginas:
+        destino.page = paginas[destino.page.objgen]
+        copia.destination = destino.to_array()
+    elif tipo in (pikepdf.Name.URI, pikepdf.Name.GoToR, pikepdf.Name.Named):
+        # Copiar los atributos de navegación. Una referencia remota conserva
+        # intactos el archivo, el destino y su sistema de coordenadas.
+        navegacion = pikepdf.Dictionary({k: v for k, v in accion.items() if k != '/Next'})
+        copia.action = navegacion.with_same_owner_as(salida.Root)
+    copia.children = [_copiar_marcador(hijo, origen, salida, paginas) for hijo in nodo.children]
+    return copia
+
+
+def _abrir(nombre: str, ruta: str) -> pikepdf.Pdf:
     try:
-        documento = fitz.open(ruta)
-    except Exception as err:  # PyMuPDF lanza distintos tipos según el destrozo
+        return pikepdf.open(ruta)
+    except pikepdf.PasswordError as err:
+        raise ApiError(f'"{nombre}" está protegido con contraseña. Quítasela primero.', 422) from err
+    except pikepdf.PdfError as err:
         raise ApiError(f'No se ha podido abrir "{nombre}": puede estar dañado.', 422) from err
-    if documento.needs_pass:
-        documento.close()
-        raise ApiError(f'"{nombre}" está protegido con contraseña. Quítasela primero.', 422)
-    return documento

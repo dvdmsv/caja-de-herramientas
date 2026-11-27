@@ -136,12 +136,23 @@ jobs:
           CAJA_STORE_PASSWORD: ${{ secrets.CAJA_STORE_PASSWORD }}
           CAJA_KEY_ALIAS: ${{ secrets.CAJA_KEY_ALIAS }}
           CAJA_KEY_PASSWORD: ${{ secrets.CAJA_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon
+        run: |
+          keytool -exportcert -alias "$CAJA_KEY_ALIAS" -keystore "$CAJA_KEYSTORE" \
+            -storepass:env CAJA_STORE_PASSWORD -file "$RUNNER_TEMP/firma-esperada.der"
+          ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon
       - name: Comprobar la firma
         working-directory: frontend/android/app/build/outputs
         run: |
           apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
-          for apk in apk/release/*.apk; do "$apksigner" verify --print-certs "$apk" | grep -q 'Android Debug' && { echo "::error::$apk va con la clave de depuración"; exit 1; }; done
+          esperada=$(sha256sum "$RUNNER_TEMP/firma-esperada.der" | cut -d' ' -f1)
+          for apk in apk/release/*.apk; do
+            informe=$("$apksigner" verify --print-certs "$apk")
+            firma=$(sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p' <<< "$informe")
+            if [[ "$firma" != "$esperada" || "$informe" == *"CN=Android Debug"* ]]; then
+              echo "::error::Firma inesperada en $apk"
+              exit 1
+            fi
+          done
           mkdir -p "$RUNNER_TEMP/publicar"
           # Para teléfonos sólo arm64 y armv7: x86 y x86_64 son de emuladores,
           # y van en el AAB por si acaso.

@@ -127,7 +127,9 @@ export class VistaPreviaComponent implements OnChanges, OnDestroy {
     if (!this.archivo || !this.contenido) {
       return;
     }
-    this.traspaso.dejar([new File([this.contenido], this.archivo.name, { type: 'application/pdf' })]);
+    this.traspaso.dejarEntradas([{ ...this.archivo,
+      file: new File([this.contenido], this.archivo.name, { type: 'application/pdf' }),
+    }]);
     this.cerrado.emit();
     this.router.navigateByUrl('/visor');
   }

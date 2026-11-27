@@ -12,6 +12,7 @@ export class LocalService {
   private activo?: { id: string; worker: Worker; cancelar: () => void; hechos: number; total: number; desde: number };
 
   private readonly turno = new Turno();
+  private sesion = new AbortController();
 
   /**
    * Lo que pone a trabajar un motor espera su turno (`turno.ts`). El progreso,
@@ -20,7 +21,13 @@ export class LocalService {
    */
   atender(req: HttpRequest<unknown>, signal: AbortSignal): Promise<unknown> {
     const ruta = req.url.split('?')[0];
-    const usaMotor = (ruta.startsWith('/api/tools/') && !ruta.endsWith('/formatos'))
+    if (ruta === '/api/session' && req.method === 'DELETE') {
+      this.sesion.abort();
+      this.sesion = new AbortController();
+      return this.almacen.eliminar().then(() => ({}));
+    }
+    signal = AbortSignal.any([signal, this.sesion.signal]);
+    const usaMotor = ruta === '/api/files/zip' || (ruta.startsWith('/api/tools/') && !ruta.endsWith('/formatos'))
       || /^\/api\/files\/[0-9a-f]{32}\/paginas$/.test(ruta);
     if (!usaMotor) return this.resolver(req, signal);
     return this.turno.ejecutar(signal, () => this.resolver(req, signal),
@@ -40,22 +47,13 @@ export class LocalService {
       return { estado: trabajo?.id === id ? { modo: 'pasos', etapa: 'Procesando en tu teléfono',
         desde: trabajo.desde, cancelable: true, hechos: trabajo.hechos, total: trabajo.total } : null };
     }
-    if (ruta === '/api/session/uso') return { usado: (await this.almacen.todos()).reduce((n, a) => n + a.size, 0),
+    if (ruta === '/api/session/uso') return { usado: await this.almacen.usado(),
       tope: CUOTA_LOCAL, caduca: null, plazo: 0, al_cerrar: false };
     if (ruta === '/api/session/keepalive') return {};
-    if (ruta === '/api/session' && req.method === 'DELETE') {
-      this.activo?.cancelar(); this.nativo?.cancelar();
-      await this.almacen.eliminar(); return {};
-    }
     if (ruta === '/api/files' && req.body instanceof FormData) {
-      let entradas = req.body.getAll('files').filter((a): a is File => a instanceof File);
+      const entradas = req.body.getAll('files').filter((a): a is File => a instanceof File);
       if (!entradas.length) throw new Error('Elige al menos un archivo.');
-      // El WebView no lee HEIC: se guarda ya como JPEG, y así le vale a cualquier herramienta.
-      if (entradas.some(a => /\.hei[cf]$/i.test(a.name))) {
-        const { ES_HEIC, heicAJpeg } = await import('./android');
-        entradas = await Promise.all(entradas.map(a => ES_HEIC.test(a.name) ? heicAJpeg(a) : a));
-      }
-      return { files: (await this.almacen.guardar(entradas.map(a => ({ name: a.name, blob: a })), false)).map(metadatos) };
+      return { files: (await this.almacen.guardar(entradas.map(a => ({ name: a.name, blob: a })), false, signal)).map(metadatos) };
     }
     const archivo = /^\/api\/files\/([0-9a-f]{32})(?:\/(download|paginas))?$/.exec(ruta);
     if (archivo) {
@@ -65,7 +63,7 @@ export class LocalService {
       const entrada = await this.almacen.leer(id);
       if (accion === 'download') return entrada.blob;
       if (accion === 'paginas') {
-        if (entrada.blob.type.startsWith('image/')) return { paginas: 1 };
+        if (entrada.blob.type.startsWith('image/') || esHeic(entrada)) return { paginas: 1 };
         const resultado = await this.procesar({ slug: 'paginas', archivos: [entrada], opciones: {} }, '', signal);
         return JSON.parse(await resultado.archivos[0].blob.text());
       }
@@ -107,7 +105,7 @@ export class LocalService {
           if(this.nativo)this.nativo.hechos=i+1;
         }
         if(controller.signal.aborted||signal.aborted)throw new Error('Operación cancelada.');
-        return {files:(await this.almacen.guardar(archivos,true)).map(metadatos)};
+        return {files:(await this.almacen.guardar(archivos,true,signal)).map(metadatos)};
       }finally{this.nativo=undefined;signal.removeEventListener('abort',cancelar);}
     }
     if(req.method==='POST'&&['/api/tools/limpiar-metadatos','/api/tools/limpiar-metadatos/inspeccionar'].includes(ruta)) {
@@ -132,18 +130,42 @@ export class LocalService {
           signal.addEventListener('abort',cancelar,{once:true});
           try {
             const {operarFirma}=await import('./firmas-digitales');
-            const result=await operarFirma(entrada,'metadatos',{inspeccionar,seleccion:selected,cambios:edited},controller.signal);
-            if(controller.signal.aborted||signal.aborted)throw new Error('Operación cancelada.');
-            if(inspeccionar)informes.push({id,archivo:entrada.name,...result.metadatos});
-            else if(result.archivo) {
-              result.archivo.name=entrada.name.replace(/(\.[^.]+)$/,selected===null||selected.length?'-sin-metadatos$1':'-metadatos$1');
-              archivos.push(result.archivo);
+            if (esHeic(entrada)) {
+              // Exiv2 puede leer el contenedor HEIF. La escritura de metadatos
+              // en ese formato no está disponible en el motor de Android.
+              const { metadatos } = await operarFirma(entrada, 'metadatos', { inspeccionar: true }, controller.signal)
+                .catch(causa => {
+                  controller.signal.throwIfAborted();
+                  throw new Error(`No se ha podido inspeccionar el HEIC original «${entrada.name}». Sus metadatos siguen sin verificar.`, { cause: causa });
+                });
+              if (!metadatos) throw new Error('No se han podido inspeccionar los metadatos del HEIC original.');
+              if (inspeccionar) {
+                informes.push({ id, archivo: entrada.name, ...metadatos });
+              } else if (Array.isArray(selected) && !selected.length && !Object.keys(edited).length) {
+                archivos.push(entrada);
+              } else {
+                const todas = selected === null || metadatos.campos.every(campo =>
+                  (selected as string[]).includes((campo as { clave: string }).clave));
+                if (!todas || Object.keys(edited).length) {
+                  throw new Error('En HEIC puedes borrar todos los metadatos en una copia JPG. Marca todos los campos y quita las ediciones.');
+                }
+                const jpeg = await decodificarHeic(entrada);
+                archivos.push({ name: jpeg.name.replace(/\.jpe?g$/i, '-sin-metadatos.jpg'), blob: jpeg.blob });
+              }
+            } else {
+              const result=await operarFirma(entrada,'metadatos',{inspeccionar,seleccion:selected,cambios:edited},controller.signal);
+              if(inspeccionar)informes.push({id,archivo:entrada.name,...result.metadatos});
+              else if(result.archivo) {
+                result.archivo.name=entrada.name.replace(/(\.[^.]+)$/,selected===null||selected.length?'-sin-metadatos$1':'-metadatos$1');
+                archivos.push(result.archivo);
+              }
             }
+            controller.signal.throwIfAborted();
           }finally{this.nativo=undefined;signal.removeEventListener('abort',cancelar);}
         }
       }
       if(signal.aborted)throw new Error('Operación cancelada.');
-      return inspeccionar?{metadatos:informes}:{files:(await this.almacen.guardar(archivos,true)).map(metadatos)};
+      return inspeccionar?{metadatos:informes}:{files:(await this.almacen.guardar(archivos,true,signal)).map(metadatos)};
     }
     if(req.method==='POST'&&['/api/tools/firmar-certificado/certificado','/api/tools/firmar-certificado/apariencia'].includes(ruta)) {
       if(this.activo||this.nativo)throw new Error('Espera a que termine la operación actual.');
@@ -181,7 +203,7 @@ export class LocalService {
           if(this.nativo)this.nativo.hechos=i+1;
         }
         if(controller.signal.aborted||signal.aborted)throw new Error('Operación cancelada.');
-        return modo==='inspeccionar'?{informes}:{files:(await this.almacen.guardar(archivos,true)).map(metadatos)};
+        return modo==='inspeccionar'?{informes}:{files:(await this.almacen.guardar(archivos,true,signal)).map(metadatos)};
       }finally{this.nativo=undefined;signal.removeEventListener('abort',cancelar);}
     }
     if (req.method === 'POST' && ruta === '/api/tools/pdf-a-pdfa') {
@@ -218,7 +240,7 @@ export class LocalService {
       }
       await this.procesar({slug:'pdf-a-pdfa/verificar',archivos,opciones:{perfil}},id,signal);
       if(signal.aborted)throw new Error('Operación cancelada.');
-      return {files:(await this.almacen.guardar(archivos,true)).map(metadatos)};
+      return {files:(await this.almacen.guardar(archivos,true,signal)).map(metadatos)};
     }
     if (req.method === 'POST' && ['/api/tools/crear-certificado','/api/tools/pdf-a-grises'].includes(ruta)) {
       if (this.activo || this.nativo) throw new Error('Espera a que termine la operación actual.');
@@ -242,7 +264,7 @@ export class LocalService {
           archivos = await crearCertificadoAndroid(o);
         }
         if (cancelado || signal.aborted) throw new Error('Operación cancelada.');
-        return { files: (await this.almacen.guardar(archivos, true)).map(metadatos) };
+        return { files: (await this.almacen.guardar(archivos, true, signal)).map(metadatos) };
       } finally { this.nativo = undefined; signal.removeEventListener('abort', cancelar); }
     }
     if (req.method === 'POST' && ruta === '/api/tools/firmar/preparar') {
@@ -278,7 +300,7 @@ export class LocalService {
       }
       if(signal.aborted)throw new Error('Operación cancelada.');
       if(minimo)return {minimo:mejor!.blob.size,original:entrada.blob.size};
-      return {files:(await this.almacen.guardar([mejor!],true)).map(metadatos),resumen:{antes:entrada.blob.size,despues:mejor!.blob.size},...(bytes?{objetivo:{bytes,logrado:mejor!.blob.size<=bytes}}:{})};
+      return {files:(await this.almacen.guardar([mejor!],true,signal)).map(metadatos),resumen:{antes:entrada.blob.size,despues:mejor!.blob.size},...(bytes?{objetivo:{bytes,logrado:mejor!.blob.size<=bytes}}:{})};
     }
     if (req.method === 'POST' && ruta === '/api/tools/comprimir-pdf/minimo') {
       if (!Array.isArray(o.file_ids) || !o.file_ids.length) throw new Error('Selecciona un PDF.');
@@ -293,7 +315,7 @@ export class LocalService {
       const archivos = await Promise.all(ids.map(id => this.almacen.leer(id)));
       const resultado = await this.procesar({ slug, archivos, opciones:o, recursos:await this.recursos(o) }, req.headers.get('X-Trabajo-Id') ?? '', signal);
       if (signal.aborted) throw new Error('Operación cancelada.');
-      const guardados = await this.almacen.guardar(resultado.archivos, true);
+      const guardados = await this.almacen.guardar(resultado.archivos, true, signal);
       return { ...resultado.datos, files: guardados.map(metadatos), resumen: resultado.resumen, objetivo: resultado.objetivo };
     }
     throw new Error('Esta función todavía no está disponible en Android.');
@@ -303,7 +325,10 @@ export class LocalService {
     const recursos: Record<string, EntradaMotor> = {};
     for (const clave of ['imagen_id', 'firma_id', 'trazo_id']) {
       const id = o[clave];
-      if (typeof id === 'string' && id) recursos[clave] = await this.almacen.leer(id);
+      if (typeof id === 'string' && id) {
+        const entrada = await this.almacen.leer(id);
+        recursos[clave] = esHeic(entrada) ? await decodificarHeic(entrada) : entrada;
+      }
     }
     return recursos;
   }
@@ -321,7 +346,17 @@ export class LocalService {
     }finally{this.nativo=undefined;signal.removeEventListener('abort',cancelar);}
   }
 
-  private procesar(peticion: PeticionMotor, id: string, signal: AbortSignal): Promise<ResultadoMotor> {
+  private async procesar(peticion: PeticionMotor, id: string, signal: AbortSignal): Promise<ResultadoMotor> {
+    // ZIP e inspección conservan los bytes originales. Los motores de píxeles
+    // necesitan una representación que WebView pueda decodificar.
+    if (HERRAMIENTAS_DE_IMAGEN.has(peticion.slug)) {
+      const preparadas: EntradaMotor[] = [];
+      for (const entrada of peticion.archivos) {
+        signal.throwIfAborted();
+        preparadas.push(esHeic(entrada) ? await decodificarHeic(entrada) : entrada);
+      }
+      peticion = { ...peticion, archivos: preparadas };
+    }
     if (signal.aborted) return Promise.reject(new Error('Operación cancelada.'));
     if (this.activo || this.nativo) return Promise.reject(new Error('Espera a que termine la operación actual.'));
     return new Promise((resolve, reject) => {
@@ -363,4 +398,19 @@ export class LocalService {
       worker.postMessage(peticion);
     });
   }
+}
+
+const HERRAMIENTAS_DE_IMAGEN = new Set([
+  'imagen-a-pdf', 'comprimir-imagen', 'editar-imagen', 'convertir-imagen', 'firmar',
+  'efecto-escaner', 'efecto-escaner/previsualizar', 'leer-codigo/inspeccionar',
+]);
+
+function esHeic(entrada: EntradaMotor): boolean {
+  return /\.hei[cf]$/i.test(entrada.name) || /^image\/hei[cf]$/i.test(entrada.blob.type);
+}
+
+async function decodificarHeic(entrada: EntradaMotor): Promise<EntradaMotor> {
+  const { heicAJpeg } = await import('./android');
+  const file = await heicAJpeg(new File([entrada.blob], entrada.name, { type: entrada.blob.type }));
+  return { name: file.name, blob: file };
 }

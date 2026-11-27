@@ -86,7 +86,7 @@ export class ComprimirPdfComponent extends PaginaHerramienta {
     for (const archivo of this.archivos) {
       const dato = archivo.id ? this.minimos.get(archivo.id) : undefined;
       if (dato && (!peor || dato.minimo > peor.dato.minimo)) {
-        peor = { dato, nombre: archivo.file.name };
+        peor = { dato, nombre: archivo.name };
       }
     }
     return peor;
