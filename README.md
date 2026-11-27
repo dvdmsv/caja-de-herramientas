@@ -415,8 +415,8 @@ Dos cosas que este uso destapó y que están resueltas:
   así el archivo ya no está al guardar, **se resube solo y reintenta**.
 - **Posición, zoom y marcas sin guardar se recuerdan** entre visitas, guardados
   en el navegador contra una huella del archivo. Un refresco accidental ya no
-  cuesta una hora de trabajo. La huella no usa `crypto.subtle`: no existe fuera
-  de contexto seguro, y esto se sirve por HTTP en la red local.
+  cuesta una hora de trabajo. La huella se calcula sobre todo el archivo,
+  también cuando se abre la web por HTTP en la red local.
 
 Al eliminar palabras se usa `apply_redactions` de PyMuPDF, que **borra el texto
 del archivo**: no queda debajo del rectángulo, no se puede copiar ni buscar. Los

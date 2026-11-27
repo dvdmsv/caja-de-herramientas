@@ -34,15 +34,24 @@ const MAXIMO_RECUERDOS = 20;
 
 @Injectable({ providedIn: 'root' })
 export class MemoriaDocumentoService {
-  /**
-   * Huella para reconocer un archivo entre visitas.
-   *
-   * No se usa `crypto.subtle` porque **no existe fuera de contexto seguro**, y
-   * esta aplicación se sirve por HTTP en la red local: ahí no estaría
-   * disponible. Con el nombre, el tamaño y una muestra del contenido basta;
-   * esto distingue documentos, no protege de nadie.
-   */
+  /** Identidad estable en HTTPS y HTTP local, con lecturas de tamaño acotado. */
   async huella(archivo: File): Promise<string> {
+    const sha256 = globalThis.crypto?.subtle
+      ? async (bytes: Uint8Array<ArrayBuffer>) =>
+          Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+            b => b.toString(16).padStart(2, '0')).join('')
+      : await import('hash.js').then(({ default: hash }) =>
+          async (bytes: Uint8Array<ArrayBuffer>) => hash.sha256().update(bytes).digest('hex'));
+    const bloques: string[] = [];
+    const paso = 1024 * 1024;
+    for (let i = 0; i < archivo.size; i += paso) {
+      bloques.push(await sha256(new Uint8Array(await archivo.slice(i, i + paso).arrayBuffer())));
+    }
+    return 'v2-' + await sha256(new TextEncoder().encode(bloques.join('')));
+  }
+
+  /** Solo para ofrecer la recuperación manual de borradores anteriores. */
+  async huellaAnterior(archivo: File): Promise<string> {
     const trozos: ArrayBuffer[] = [
       await archivo.slice(0, 65536).arrayBuffer(),
       await archivo.slice(Math.max(0, archivo.size - 65536)).arrayBuffer(),

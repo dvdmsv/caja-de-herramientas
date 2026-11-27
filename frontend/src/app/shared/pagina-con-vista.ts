@@ -1,5 +1,7 @@
 import { Directive, OnDestroy } from '@angular/core';
 
+import { Subscription } from 'rxjs';
+
 import { PaginaHerramienta } from './pagina-herramienta';
 import { avisoError, mensajeDeError } from './notify';
 
@@ -30,10 +32,11 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
    * llegan en orden: sin esto se quedaría pintada una intermedia.
    */
   private peticion = 0;
+  private conteo?: Subscription;
+  private imagen?: Subscription;
 
   ngOnDestroy(): void {
-    clearTimeout(this.temporizador);
-    this.olvidarVista();
+    this.invalidarVista();
   }
 
   /** El documento sobre el que se previsualiza: el primero de la cola. */
@@ -49,7 +52,7 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
     if (this.archivos.length < 2) {
       return null;
     }
-    return this.archivos.find(archivo => archivo.id === this.idDocumento)?.file.name ?? null;
+    return this.archivos.find(archivo => archivo.id === this.idDocumento)?.name ?? null;
   }
 
   /** De cuál son las páginas contadas: si se quita el primero, hay que volver a contar. */
@@ -66,8 +69,10 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
     if (!id) {
       return;
     }
+    if (this.documentoContado !== id) this.invalidarVista();
+    this.conteo?.unsubscribe();
     this.documentoContado = id;
-    this.api.paginasDe(id).subscribe({
+    this.conteo = this.api.paginasDe(id).subscribe({
       next: paginas => {
         this.paginas = paginas;
         this.paginaVista = Math.min(this.paginaVista, paginas);
@@ -99,8 +104,7 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
     if (!this.idDocumento) {
       this.paginas = 0;
       this.paginaVista = 1;
-      this.documentoContado = null;
-      this.olvidarVista();
+      this.invalidarVista();
     } else if (this.idDocumento !== this.documentoContado) {
       this.paginaVista = 1;
       this.alTerminarSubida();
@@ -111,20 +115,23 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
     super.alReiniciar();
     this.paginas = 0;
     this.paginaVista = 1;
-    this.documentoContado = null;
-    this.olvidarVista();
+    this.invalidarVista();
   }
 
   protected refrescar(): void {
     const id = this.idDocumento;
     if (!id || !this.puedePrevisualizar) {
+      this.peticion++;
+      this.imagen?.unsubscribe();
+      this.previsualizando = false;
       this.olvidarVista();
       return;
     }
 
     const mia = ++this.peticion;
+    this.imagen?.unsubscribe();
     this.previsualizando = true;
-    this.api
+    this.imagen = this.api
       .previsualizar(this.slug, { file_ids: [id], pagina: this.paginaVista, ...this.opciones() })
       .subscribe({
         next: url => {
@@ -146,6 +153,18 @@ export abstract class PaginaConVista extends PaginaHerramienta implements OnDest
           avisoError(mensajeDeError(err, 'No se ha podido preparar la vista previa.'));
         },
       });
+  }
+
+  private invalidarVista(): void {
+    clearTimeout(this.temporizador);
+    this.peticion++;
+    this.conteo?.unsubscribe();
+    this.imagen?.unsubscribe();
+    this.previsualizando = false;
+    this.documentoContado = null;
+    this.paginas = 0;
+    this.paginaVista = 1;
+    this.olvidarVista();
   }
 
   private olvidarVista(): void {

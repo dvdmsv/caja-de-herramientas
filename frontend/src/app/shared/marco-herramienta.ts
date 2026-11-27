@@ -1,10 +1,11 @@
 import { InjectionToken } from '@angular/core';
 
+import { EntradaArchivo } from '../core/traspaso.service';
 import { Herramienta } from '../core/tools';
 
 /** Lo que el marco de una herramienta necesita de su cola de subida. */
 export interface ColaReceptora {
-  recibir(archivos: File[]): void;
+  recibir(archivos: EntradaArchivo[]): void;
 }
 
 /**

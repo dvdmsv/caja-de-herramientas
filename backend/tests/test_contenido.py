@@ -197,3 +197,19 @@ def test_un_pdf_demasiado_adentro_no_cuenta(almacen):
     with pytest.raises(ApiError):
         almacen().save_upload(SESION, subida(b'<html>' + b' ' * 2000 + _pdf_de_verdad(),
                                              'descarga.pdf'))
+
+
+@pytest.mark.parametrize('primero,estado', [('invalido', 400), ('grande', 413), ('sin_espacio', 507)])
+def test_estado_del_primer_rechazo_del_lote(entorno, monkeypatch, primero, estado):
+    _, modulo = entorno(SESSION_QUOTA_MB=1)
+    import app
+
+    cliente = app.create_app('web').test_client()
+    grande = (io.BytesIO(b'x' * (1024 * 1024 + 1)), 'grande.txt')
+    invalido = (io.BytesIO(b'x'), 'invalido.zzz')
+    if primero == 'sin_espacio':
+        monkeypatch.setattr(modulo.storage, 'espacio_libre', lambda: 0)
+    lote = [invalido, grande] if primero == 'invalido' else [grande, invalido]
+    respuesta = cliente.post('/api/files', headers={'X-Session-Id': SESION},
+                             data={'files': lote})
+    assert respuesta.status_code == estado

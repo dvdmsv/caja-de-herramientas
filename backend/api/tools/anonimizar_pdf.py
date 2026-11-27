@@ -76,7 +76,7 @@ def inspeccionar():
     ejemplos: list[str] = []
     with fitz.open(ruta) as documento:
         _comprobar_abierto(documento)
-        zonas = _zonas(documento, tipos, propio, ejemplos if propio is not None else None)
+        zonas, sin_capa = _zonas(documento, tipos, propio, ejemplos if propio is not None else None)
         # Cada zona va con su tipo, no sólo con su rectángulo: el visor las
         # pinta como marcas suyas y en el panel lateral hay que poder leer
         # «DNI» en vez de un rectángulo sin nombre.
@@ -92,6 +92,7 @@ def inspeccionar():
             recuento[zona[4]] = recuento.get(zona[4], 0) + 1
 
     return jsonify({
+        'paginas_sin_capa': sin_capa,
         'total': sum(recuento.values()),
         'recuento': [{'tipo': tipo, 'cuantas': cuantas} for tipo, cuantas in recuento.items()],
         'paginas': paginas,
@@ -142,7 +143,7 @@ def anonimizar_pdf():
     ruta, record = _documento(session_id, file_ids[0])
     with fitz.open(ruta) as documento:
         _comprobar_abierto(documento)
-        zonas = _zonas(documento, tipos, propio)
+        zonas, sin_capa = _zonas(documento, tipos, propio)
         if not zonas:
             raise ApiError('No se ha encontrado ninguno de los datos que has marcado. '
                            'El documento se queda como estaba.', 422)
@@ -162,7 +163,7 @@ def anonimizar_pdf():
         documento.save(destino, deflate=True, garbage=3)
 
     return jsonify({'files': [storage.commit_output(session_id, salida).to_json()],
-                    'tachadas': sum(len(lista) for lista in zonas.values())}), 201
+                    'paginas_sin_capa': sin_capa, 'tachadas': sum(len(lista) for lista in zonas.values())}), 201
 
 
 def _leer_ajustes(datos: dict) -> tuple[set, object]:
@@ -214,7 +215,7 @@ def _comprobar_abierto(documento) -> None:
         raise ApiError('El PDF no tiene páginas.', 422)
 
 
-def _zonas(documento, tipos: set, propio, ejemplos: list | None = None) -> dict:
+def _zonas(documento, tipos: set, propio, ejemplos: list | None = None) -> tuple[dict, list[int]]:
     """Qué hay que tachar en cada página, indexado por número de página (1..n).
 
     Con `ejemplos`, apunta además ahí los primeros textos distintos que casan con
@@ -226,6 +227,7 @@ def _zonas(documento, tipos: set, propio, ejemplos: list | None = None) -> dict:
     sentido contrario.
     """
     encontradas: dict = {}
+    sin_capa = []
     con_texto = False
     total = 0
 
@@ -233,6 +235,8 @@ def _zonas(documento, tipos: set, propio, ejemplos: list | None = None) -> dict:
         palabras = pagina.get_text('words')
         if palabras:
             con_texto = True
+        elif pagina.get_image_info():
+            sin_capa.append(numero)
         if ejemplos is not None and len(ejemplos) < MAXIMO_EJEMPLOS:
             for hallado in patrones.ejemplos_de_palabras(palabras, propio, MAXIMO_EJEMPLOS):
                 if hallado not in ejemplos and len(ejemplos) < MAXIMO_EJEMPLOS:
@@ -250,7 +254,7 @@ def _zonas(documento, tipos: set, propio, ejemplos: list | None = None) -> dict:
             'Este PDF no tiene texto: es un escaneado, y lo que parecen letras son '
             'una imagen. Pásalo antes por "PDF con OCR" y vuelve aquí.', 422)
 
-    return encontradas
+    return encontradas, sin_capa
 
 
 def _pasarse(total: int, propio) -> None:

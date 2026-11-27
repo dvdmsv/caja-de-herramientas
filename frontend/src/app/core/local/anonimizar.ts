@@ -28,16 +28,23 @@ export async function anonimizar(m:typeof MuPDF,p:PeticionMotor,avance:(hechos:n
   try {
     const zonas=new Map<number,Zona[]>(),recuento=new Map<string,number>(),ejemplos:string[]=[];
     const paginas:{pagina:number;marcas:{tipo:string;rect:number[]}[]}[]=[];
+    const sinCapa: number[] = [];
     let total=0,conTexto=false,caracteres=0;
     for(let n=0;n<doc.countPages();n++) {
-      const page=doc.loadPage(n),text=page.toStructuredText();
+      const page=doc.loadPage(n),text=page.toStructuredText('preserve-images');
       try {
         const anotaciones=page.getAnnotations();
         try {
           if(anotaciones.some(a=>a.getType()==='Redact'))throw new Error('El PDF contiene marcas de tachado pendientes. Aplícalas o elimínalas antes de buscar nuevos datos.');
         }finally{anotaciones.forEach(a=>a.destroy());}
         const encontradas:Zona[]=[];
-        for(const palabras of renglones(text)) {
+        const lineas = renglones(text);
+        if (!lineas.length) {
+          let tieneImagen = false;
+          text.walk({onImageBlock: (_caja, _matriz, imagen) => { tieneImagen = true; imagen.destroy(); }});
+          if (tieneImagen) sinCapa.push(n + 1);
+        }
+        for(const palabras of lineas) {
           conTexto=true;let s='';const mapa:(number|null)[]=[];
           palabras.forEach((palabra,i)=>{if(i){s+=' ';mapa.push(null);}s+=palabra.texto;for(let j=0;j<palabra.texto.length;j++)mapa.push(i);});
           caracteres+=s.length;if(caracteres>2_000_000)throw new Error('El texto supera dos millones de caracteres. Divide el PDF en tramos.');
@@ -62,7 +69,7 @@ export async function anonimizar(m:typeof MuPDF,p:PeticionMotor,avance:(hechos:n
       avance(n+1,doc.countPages());
     }
     if(!conTexto)throw new Error('Este PDF no tiene texto. Es un escaneado: necesita OCR antes de poder buscar datos.');
-    if(inspeccionar)return {archivos:[],datos:{total,recuento:[...recuento].map(([tipo,cuantas])=>({tipo,cuantas})),paginas,ejemplos}};
+    if(inspeccionar)return {archivos:[],datos:{total,recuento:[...recuento].map(([tipo,cuantas])=>({tipo,cuantas})),paginas,ejemplos,paginas_sin_capa:sinCapa}};
     if(!total)throw new Error('No se ha encontrado ninguno de los datos marcados. El documento se queda como estaba.');
     for(const [n,lista] of zonas) {
       const page=doc.loadPage(n);
@@ -81,6 +88,6 @@ export async function anonimizar(m:typeof MuPDF,p:PeticionMotor,avance:(hechos:n
     }
     const blob=guardarPdf(doc);
     if(blob.size>CUOTA_LOCAL)throw new Error('El resultado supera 250 MB.');
-    return {archivos:[{name:base(p.archivos[0].name)+'-anonimizado.pdf',blob}],datos:{tachadas:total}};
+    return {archivos:[{name:base(p.archivos[0].name)+'-anonimizado.pdf',blob}],datos:{tachadas:total,paginas_sin_capa:sinCapa}};
   }finally{doc.destroy();}
 }

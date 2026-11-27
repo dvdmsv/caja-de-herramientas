@@ -21,3 +21,33 @@ describe('almacenamiento de documentos', () => {
     expect(await almacen.todos()).toEqual([]);
   });
 });
+
+it('migra una base v1 y mantiene la cuota con altas concurrentes, rechazos, bajas y vaciado', async () => {
+  const anterior = indexedDB;
+  const { IDBFactory } = await import('fake-indexeddb');
+  globalThis.indexedDB = new IDBFactory();
+  try {
+    const solicitud = indexedDB.open('caja-android', 1);
+    solicitud.onupgradeneeded = () => {
+      const store = solicitud.result.createObjectStore('archivos', { keyPath: 'id' });
+      store.put({ id: 'heredado', name: 'A.pdf', generated: false, size: 3, blob: new Blob(['ABC']) });
+    };
+    await new Promise<void>((ok, mal) => {
+      solicitud.onsuccess = () => { solicitud.result.close(); ok(); };
+      solicitud.onerror = () => mal(solicitud.error);
+    });
+    const a = new AlmacenLocal(), b = new AlmacenLocal();
+    expect(await a.usado()).toBe(3);
+    expect(await (await b.leer('heredado')).blob.text()).toBe('ABC');
+    await Promise.all([a.guardar([{ name: 'B', blob: new Blob(['bb']) }], false),
+      b.guardar([{ name: 'C', blob: new Blob(['ccc']) }], true)]);
+    expect(await a.usado()).toBe(8);
+    await expect(b.guardar([{ name: 'grande', blob: new Blob([new Uint8Array(CUOTA_LOCAL)]) }], true)).rejects.toThrow('250 MB');
+    expect(await a.usado()).toBe(8);
+    await Promise.all([a.eliminar('heredado'), b.eliminar('heredado')]);
+    expect(await a.usado()).toBe(5);
+    expect(await a.usado()).toBe((await b.todos()).reduce((n, archivo) => n + archivo.size, 0));
+    await b.eliminar();
+    expect(await a.usado()).toBe(0);
+  } finally { globalThis.indexedDB = anterior; }
+});

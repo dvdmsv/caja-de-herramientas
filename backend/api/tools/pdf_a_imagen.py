@@ -61,7 +61,7 @@ def pdf_a_imagen():
     except Exception as err:
         raise ApiError(f'No se ha podido abrir el PDF: {err}', 422) from err
 
-    with documento:
+    with documento, storage.lote_salidas(session_id) as reservar:
         if documento.needs_pass:
             raise ApiError('El PDF está protegido con contraseña.', 422)
         if documento.page_count == 0:
@@ -73,7 +73,7 @@ def pdf_a_imagen():
         for numero, pagina in progreso.contando(enumerate(documento, start=1),
                                                 documento.page_count, 'Convirtiendo páginas'):
             nombre = f'{base}-pagina-{numero:0{ancho}d}{extension}'
-            destino, salida = storage.reserve_output(session_id, nombre)
+            destino, salida = reservar(nombre)
             _guardar_pagina(pagina, ppp, destino, formato, calidad)
             resultados.append(storage.commit_output(session_id, salida).to_json())
 

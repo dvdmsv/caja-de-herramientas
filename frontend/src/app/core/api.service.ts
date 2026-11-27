@@ -1,9 +1,10 @@
 import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, filter, from, map, switchMap } from 'rxjs';
+import { Observable, filter, from, map, switchMap, tap } from 'rxjs';
 
 import { EstadoTrabajo } from '../shared/progreso';
 import type { Plazo } from './ajustes-escritorio';
+import { origenNativo } from './escritorio';
 import { EscritorioService } from './escritorio.service';
 import { SIN_SERVIDOR } from './plataforma';
 
@@ -174,6 +175,7 @@ export interface MarcaAnonimizado {
 
 /** Lo que la inspección de "Anonimizar PDF" encuentra, sin tocar el archivo. */
 export interface ZonasAnonimizado {
+  paginas_sin_capa?: number[];
   total: number;
   recuento: RecuentoAnonimizado[];
   paginas: { pagina: number; marcas: MarcaAnonimizado[] }[];
@@ -212,6 +214,7 @@ export interface InformeFirmas {
 
 /** Respuesta de cualquier herramienta: siempre una lista de archivos. */
 export interface Resultado {
+  paginas_sin_capa?: number[];
   files: ArchivoServidor[];
   resumen?: ResumenTamano;
   /** Una por archivo de salida, en el orden de la lista. */
@@ -288,7 +291,21 @@ interface RespuestaSubida {
 export class ApiService {
   private readonly escritorio = inject(EscritorioService);
 
+  /** Ruta de entrada entregada por Windows, conservada por ID a través de las herramientas. */
+  private readonly origenes = new Map<string, string>();
+
   constructor(private http: HttpClient) {}
+
+  private asociarResultados(ids: unknown, resultados: ArchivoServidor[]): void {
+    if (!this.origenes.size || !Array.isArray(ids) || !ids.length) return;
+    const primero = this.origenes.get(ids[0]);
+    if (!primero) return;
+    // En una operación que mezcla carpetas el diálogo permite escoger el destino.
+    const carpeta = (ruta?: string) => ruta?.slice(0, Math.max(ruta.lastIndexOf('\\'), ruta.lastIndexOf('/')) + 1);
+    if (ids.every(id => carpeta(this.origenes.get(id)) === carpeta(primero))) {
+      for (const archivo of resultados) this.origenes.set(archivo.id, primero);
+    }
+  }
 
   /** Sube archivos y va emitiendo el progreso hasta terminar. */
   subir(archivos: File[]): Observable<ProgresoSubida> {
@@ -302,7 +319,18 @@ export class ApiService {
       })
       .pipe(
         map(evento => this.aProgreso(evento)),
-        filter((estado): estado is ProgresoSubida => estado !== null)
+        filter((estado): estado is ProgresoSubida => estado !== null),
+        tap(estado => {
+          if (estado.tipo !== 'hecho' || !this.escritorio.activo) return;
+          // En un lote parcialmente rechazado sólo es inequívoco un nombre único.
+          estado.archivos.forEach((subido, indice) => {
+            const candidatos = archivos.length === estado.archivos.length
+              ? [archivos[indice]] : archivos.filter(f => f.name === subido.name);
+            if (candidatos.length !== 1) return;
+            const ruta = origenNativo(candidatos[0]);
+            if (ruta) this.origenes.set(subido.id, ruta);
+          });
+        })
       );
   }
 
@@ -311,7 +339,9 @@ export class ApiService {
     // El identificador del trabajo va en una cabecera y no en el cuerpo: así
     // las veinticinco herramientas siguen recibiendo exactamente sus opciones.
     const opciones = trabajo ? { headers: { 'X-Trabajo-Id': trabajo } } : {};
-    return this.http.post<Resultado>(`/api/tools/${slug}`, cuerpo, opciones);
+    return this.http.post<Resultado>(`/api/tools/${slug}`, cuerpo, opciones).pipe(
+      tap(r => this.asociarResultados((cuerpo as { file_ids?: unknown } | null)?.file_ids, r?.files ?? []))
+    );
   }
 
   /**
@@ -337,7 +367,7 @@ export class ApiService {
   empaquetar(ids: string[], nombre: string): Observable<ArchivoServidor> {
     return this.http
       .post<Resultado>('/api/files/zip', { file_ids: ids, name: nombre })
-      .pipe(map(respuesta => respuesta.files[0]));
+      .pipe(tap(r => this.asociarResultados(ids, r.files)), map(respuesta => respuesta.files[0]));
   }
 
   /**
@@ -371,7 +401,7 @@ export class ApiService {
   descargar(archivo: ArchivoServidor): Observable<void> {
     return this.http
       .get(`/api/files/${archivo.id}/download`, { responseType: 'blob' })
-      .pipe(switchMap(blob => from(this.guardarArchivo(blob, archivo.name))));
+      .pipe(switchMap(blob => from(this.guardarArchivo(blob, archivo.name, this.origenes.get(archivo.id)))));
   }
 
   /**
@@ -380,13 +410,13 @@ export class ApiService {
    * Sirve también para lo que se crea en el propio navegador, como el `.md`
    * del «Visor de Markdown».
    */
-  async guardarArchivo(blob: Blob, nombre: string): Promise<void> {
+  async guardarArchivo(blob: Blob, nombre: string, origen?: string): Promise<void> {
     if (SIN_SERVIDOR) {
       const { guardarEnAndroid } = await import('./local/android');
       await guardarEnAndroid(blob, nombre);
       return;
     }
-    if (!(await this.escritorio.guardar(blob, nombre))) {
+    if (!(await this.escritorio.guardar(blob, nombre, origen))) {
       guardarComo(blob, nombre);
     }
   }
@@ -573,7 +603,7 @@ export class ApiService {
 
   /** Elimina un archivo concreto del servidor. */
   eliminar(id: string): Observable<void> {
-    return this.http.delete<void>(`/api/files/${id}`);
+    return this.http.delete<void>(`/api/files/${id}`).pipe(tap(() => this.origenes.delete(id)));
   }
 
   /**
@@ -593,7 +623,7 @@ export class ApiService {
   }
 
   limpiarSesion(): Observable<void> {
-    return this.http.delete<void>('/api/session');
+    return this.http.delete<void>('/api/session').pipe(tap(() => this.origenes.clear()));
   }
 
   private aProgreso(evento: HttpEvent<RespuestaSubida>): ProgresoSubida | null {

@@ -102,14 +102,12 @@ function tipoPorNombre(nombre: string): string {
   return tipos[nombre.split('.').pop()!.toLowerCase()] ?? 'application/octet-stream';
 }
 
-export const ES_HEIC = /\.hei[cf]$/i;
-
 /** HEIC/HEIF a JPEG con el decodificador de Android: el WebView no los lee. */
 export async function heicAJpeg(archivo: File): Promise<File> {
   if (Capacitor.getPlatform() !== 'android') throw new Error('Las fotos HEIC sólo se abren en la aplicación de Android.');
   return enCache(archivo, async ruta => {
     const convertida = await Imagenes.heicAJpeg({ ruta });
-    try { return await leerNativo(convertida.ruta, archivo.name.replace(ES_HEIC, '.jpg'), 'image/jpeg'); }
+    try { return await leerNativo(convertida.ruta, archivo.name.replace(/(?:\.hei[cf])?$/i, '.jpg'), 'image/jpeg'); }
     finally { await Filesystem.deleteFile({ path: convertida.ruta }).catch(() => undefined); }
   });
 }
@@ -145,18 +143,25 @@ async function atras(router: Router): Promise<void> {
 }
 
 /** Lo que llega de otras apps («Abrir con», «Compartir»), ya copiado por LlegadasPlugin. */
-async function recogerLlegadas(entregar: (archivos: File[]) => Promise<void>): Promise<void> {
+export async function recogerLlegadas(entregar: (archivos: File[]) => Promise<void>): Promise<void> {
   const { archivos } = await Llegadas.tomar();
   if (!archivos.length) return;
-  const legibles = archivos.filter(a => a.ruta);
-  try {
-    const leidos = await Promise.all(legibles.map(a => leerNativo(a.ruta!, a.nombre, a.tipo)));
-    if (leidos.length) await entregar(leidos);
-  } finally {
-    await Llegadas.soltar({ rutas: legibles.map(a => a.ruta!) }).catch(() => undefined);
+  const leidos: File[] = [];
+  const fallidos: string[] = [];
+  const grandes: string[] = [];
+  for (const archivo of archivos) {
+    if (archivo.ruta) {
+      try {
+        leidos.push(await leerNativo(archivo.ruta, archivo.nombre, archivo.tipo));
+      } catch {
+        fallidos.push(archivo.nombre);
+      } finally {
+        await Llegadas.soltar({ rutas: [archivo.ruta] }).catch(() => undefined);
+      }
+    } else if (archivo.grande) grandes.push(archivo.nombre);
+    else fallidos.push(archivo.nombre);
   }
-  const grandes = archivos.filter(a => a.grande).map(a => a.nombre);
-  const fallidos = archivos.filter(a => a.error).map(a => a.nombre);
+  if (leidos.length) await entregar(leidos);
   if (grandes.length) avisoError(`En Android puedes abrir archivos de hasta 50 MB. No se ha abierto: ${grandes.join(', ')}.`);
   if (fallidos.length) avisoError(`La otra aplicación no ha dejado leer: ${fallidos.join(', ')}.`);
 }

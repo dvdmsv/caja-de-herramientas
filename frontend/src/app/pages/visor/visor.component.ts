@@ -4,14 +4,14 @@ import {
   NgZone, OnDestroy, ViewChild, inject,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { filter, firstValueFrom } from 'rxjs';
 import { RouterLink } from '@angular/router';
 
 import { COMPACTA, cumple } from '../../core/pantalla';
 import { SIN_SERVIDOR } from '../../core/plataforma';
 import { TraspasoService } from '../../core/traspaso.service';
 import { ApiService, ArchivoServidor, ZonasAnonimizado } from '../../core/api.service';
-import { MemoriaDocumentoService } from '../../core/memoria-documento.service';
+import { MemoriaDocumentoService, Recuerdo } from '../../core/memoria-documento.service';
 import {
   AdjuntoPdf, AperturaCancelada, CapaPdf, DocumentoPdf, PdfService,
 } from '../../core/pdf.service';
@@ -207,6 +207,8 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   readonly tamanoMinimo = TAMANO_MINIMO;
   readonly tamanoMaximo = TAMANO_MAXIMO;
   guardando = false;
+  private sePidioCopia = false;
+  descargaOriginal = false;
   resultado: ArchivoServidor | null = null;
   /** Mientras se preparan las páginas para imprimir: cuántas van. */
   imprimiendo: { hechas: number; total: number; preparando: boolean } | null = null;
@@ -236,6 +238,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
 
   private readonly buscador = new IndiceTexto();
   private huella = '';
+  private apertura = 0;
+  private revision = 0;
+  private subida?: Promise<string>;
   private fileId: string | null = null;
   private temporizadorMemoria?: ReturnType<typeof setTimeout>;
   private temporizadorKeepalive?: ReturnType<typeof setInterval>;
@@ -268,8 +273,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     document.documentElement.dataset['categoria'] = 'pdf';
     // Un PDF que llega de otra herramienta ("Usar en…" o soltado en el inicio).
     const [llegado] = this.traspaso.tomar();
-    if (llegado) {
-      setTimeout(() => this.abrir(llegado));
+    if (llegado?.file) {
+      const archivo = llegado.file;
+      setTimeout(() => this.abrir(archivo, llegado.id));
     }
     // El desplazamiento no pasa por Angular: se dispara decenas de veces por
     // segundo y sólo interesa cuando cambia lo que hay que enseñar.
@@ -316,8 +322,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.gesto?.destruir();
     clearInterval(this.temporizadorKeepalive);
     clearTimeout(this.temporizadorMemoria);
-    this.guardarEnMemoria();
-    this.documento?.cerrar();
+    this.cerrar();
   }
 
   @HostListener('window:beforeunload', ['$event'])
@@ -442,7 +447,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     mostrarAtajos();
   }
 
-  async abrir(archivo: File): Promise<void> {
+  async abrir(archivo: File, idExistente?: string): Promise<void> {
     // Por la extensión o por el tipo: lo que llega de otro programa al
     // arrastrar a veces no trae «.pdf» en el nombre.
     if (!archivo.name.toLowerCase().endsWith('.pdf') && archivo.type !== 'application/pdf') {
@@ -451,18 +456,40 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     }
 
     this.cerrar();
+    const apertura = this.apertura;
     this.archivo = archivo;
+    this.fileId = idExistente ?? null;
     this.cargando = true;
     this.cd.markForCheck();
 
     try {
-      this.documento = await this.pdf.abrir(archivo,
+      const abierto = await this.pdf.abrir(archivo,
         incorrecta => pedirContrasena(archivo.name, incorrecta));
-      this.medidas = await this.documento.medidas();
-      this.indice = await this.documento.indice();
-      this.etiquetas = etiquetasUtiles(await this.documento.etiquetas());
+      if (apertura !== this.apertura) {
+        abierto.cerrar();
+        return;
+      }
+      this.documento = abierto;
+      const [medidas, indice, etiquetas, huella] = await Promise.all([
+        abierto.medidas(), abierto.indice(), abierto.etiquetas(), this.memoria.huella(archivo),
+      ]);
+      if (apertura !== this.apertura) return;
+      let recuerdo = this.memoria.recordar(huella);
+      if (!recuerdo) {
+        const anterior = this.memoria.recordar(await this.memoria.huellaAnterior(archivo));
+        if (apertura !== this.apertura) return;
+        if (anterior?.borrador && await confirmar('Recuperar un borrador antiguo',
+          'Podría pertenecer a otro PDF parecido. ¿Quieres revisar sus cambios en este documento?',
+          'Recuperar borrador')) {
+          recuerdo = anterior;
+        }
+      }
+      if (apertura !== this.apertura) return;
+      this.medidas = medidas;
+      this.indice = indice;
+      this.etiquetas = etiquetasUtiles(etiquetas);
+      this.huella = huella;
       // No hace esperar: sólo se ve en una pestaña del panel.
-      const abierto = this.documento;
       abierto.datos(archivo.size).then(datos => {
         if (abierto === this.documento) {
           this.propiedades = propiedades(datos);
@@ -470,10 +497,9 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
         }
       }, err => console.warn('No se han podido leer las propiedades del documento:', err));
       this.cargarCapasYAdjuntos(abierto);
-      this.huella = await this.memoria.huella(archivo);
       // La página recordada se guarda aparte: al recolocar, el visor recalcula
       // cuál se está mirando a partir del desplazamiento, que todavía es cero.
-      const recordada = this.recuperar();
+      const recordada = this.recuperar(recuerdo);
       this.refrescarMarcas();
       this.recalcular();
       this.cargando = false;
@@ -481,9 +507,12 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
 
       // Lo demás no hace esperar a la lectura: el documento ya está en pantalla.
       this.irAPagina(recordada, false);
-      this.subirAlServidor();
+      if (!this.soloLectura) {
+        void this.subirAlServidor().catch(() => { /* Se reintenta al guardar. */ });
+      }
       this.indexarEnSegundoPlano();
     } catch (err) {
+      if (apertura !== this.apertura) return;
       this.cargando = false;
       if (!(err instanceof AperturaCancelada)) {
         console.error('No se ha podido abrir el PDF:', err);
@@ -506,6 +535,11 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   }
 
   cerrar(): void {
+    this.apertura++;
+    this.subida = undefined;
+    this.sePidioCopia = false;
+    this.guardando = false;
+    this.cancelarImpresion?.abort();
     this.guardarEnMemoria();
     this.render.cancelar('');
     this.documento?.cerrar();
@@ -533,7 +567,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     this.paginaActual = 1;
     this.fileId = null;
     this.huella = '';
-    this.resultado = null;
+    this.invalidarResultado();
   }
 
   // --- disposición y desplazamiento -------------------------------------
@@ -898,7 +932,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       rects: seleccion.rects,
       texto: seleccion.texto,
     }, sustituye);
-    this.resultado = null;
+    this.invalidarResultado();
     this.refrescarMarcas();
   }
 
@@ -925,9 +959,11 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
         + 'o quítale antes la contraseña con «Proteger PDF».');
       return;
     }
+    const apertura = this.apertura;
     this.buscandoDatos = true;
     try {
       const zonas = await this.buscarDatosPersonales();
+      if (apertura !== this.apertura) return;
       if (zonas.total === 0) {
         aviso('No se ha encontrado ningún DNI, NIE, teléfono, correo ni cuenta bancaria.');
         return;
@@ -952,6 +988,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
         return;
       }
 
+      if (apertura !== this.apertura) return;
       const nuevas = zonas.paginas.flatMap(pagina => pagina.marcas.map(marca => ({
         tipo: 'tachado' as const,
         pagina: pagina.pagina,
@@ -960,7 +997,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
         texto: nombreDeDato(marca.tipo),
       })));
       this.cambios.marcarVarias(nuevas);
-      this.resultado = null;
+      this.invalidarResultado();
       this.elegirHerramienta('tachar');
       this.refrescarMarcas();
     } catch (err) {
@@ -973,22 +1010,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
 
   /** Como `enviarCambios`: si el archivo ya no está en el servidor, se resube. */
   private async buscarDatosPersonales(): Promise<ZonasAnonimizado> {
-    const peticion = () =>
-      this.api.inspeccionarAnonimizado(this.fileId!, IDS_DE_DATO, '').toPromise() as
-        Promise<ZonasAnonimizado>;
-
-    if (!this.fileId) {
-      await this.subirAlServidor(true);
-    }
-    try {
-      return await peticion();
-    } catch (err) {
-      if ((err as { status?: number })?.status !== 404) {
-        throw err;
-      }
-      await this.subirAlServidor(true);
-      return peticion();
-    }
+    return this.conArchivoServidor(id => firstValueFrom(this.api.inspeccionarAnonimizado(id, IDS_DE_DATO, '')));
   }
 
   elegirHerramienta(herramienta: Herramienta): void {
@@ -1100,7 +1122,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   private refrescarAnotaciones(): void {
     this.cambios.anotaciones = [...this.cambios.anotaciones];
     this.cambios.borradas = new Map(this.cambios.borradas);
-    this.resultado = null;
+    this.invalidarResultado();
     this.recordarMasTarde();
     this.cd.markForCheck();
   }
@@ -1148,7 +1170,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     }
     // Copia nueva para que las páginas, que van en OnPush, se enteren.
     this.cambios.campos = new Map(this.cambios.campos);
-    this.resultado = null;
+    this.invalidarResultado();
     this.recordarMasTarde();
     this.cd.markForCheck();
   }
@@ -1226,26 +1248,26 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   /** Un cambio en los textos: copia nueva para las páginas, que van en OnPush. */
   private tocado(): void {
     this.cambios.textos = [...this.cambios.textos];
-    this.resultado = null;
+    this.invalidarResultado();
     this.recordarMasTarde();
     this.cd.markForCheck();
   }
 
   cambiarColorMarca({ id, color }: CambioDeColor): void {
     this.cambios.cambiarColor(id, color);
-    this.resultado = null;
+    this.invalidarResultado();
     this.refrescarMarcas();
   }
 
   quitarMarca(id: string): void {
     this.cambios.quitarMarca(id);
-    this.resultado = null;
+    this.invalidarResultado();
     this.refrescarMarcas();
   }
 
   girarPagina(numero: number): void {
     this.cambios.girar(numero);
-    this.resultado = null;
+    this.invalidarResultado();
     this.recalcular();
     this.recordarMasTarde();
     this.cd.markForCheck();
@@ -1253,13 +1275,20 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
 
   eliminarPagina(numero: number): void {
     this.cambios.eliminar(numero);
-    this.resultado = null;
+    this.invalidarResultado();
     this.recalcular();
     this.recordarMasTarde();
     this.cd.markForCheck();
   }
 
+  private invalidarResultado(): void {
+    this.revision++;
+    this.descargaOriginal = false;
+    this.resultado = null;
+  }
+
   restaurarPagina(numero: number): void {
+    this.invalidarResultado();
     this.cambios.restaurar(numero);
     this.recalcular();
     this.recordarMasTarde();
@@ -1334,23 +1363,40 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     return this.cambios.hayAlgo;
   }
 
+  get puedeGuardar(): boolean {
+    return this.hayCambios || this.sePidioCopia;
+  }
+
   async guardar(): Promise<void> {
-    if (!this.documento || !this.hayCambios || this.guardando) {
+    if (!this.documento || !this.puedeGuardar || this.guardando) {
       return;
     }
+    if (!this.hayCambios) {
+      this.descargaOriginal = true;
+      this.memoria.guardar(this.huella, this.recuerdoActual(false));
+      this.cd.markForCheck();
+      return;
+    }
+    const apertura = this.apertura;
+    const revision = this.revision;
+    this.sePidioCopia = true;
     this.guardando = true;
     this.cd.markForCheck();
 
     try {
       const respuesta = await this.enviarCambios();
+      if (revision !== this.revision || apertura !== this.apertura) {
+        this.api.eliminar(respuesta.files[0].id).subscribe({ error: () => undefined });
+        return;
+      }
       this.resultado = respuesta.files[0];
       // Lo guardado ya no es un borrador que haya que recuperar.
       this.memoria.guardar(this.huella, this.recuerdoActual(false));
       avisoExito('Documento guardado');
     } catch (err) {
-      avisoError(mensajeDeError(err, 'No se han podido guardar los cambios.'));
+      if (apertura === this.apertura) avisoError(mensajeDeError(err, 'No se han podido guardar los cambios.'));
     } finally {
-      this.guardando = false;
+      if (apertura === this.apertura) this.guardando = false;
       this.cd.markForCheck();
     }
   }
@@ -1363,28 +1409,12 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
    * sin este reintento, tres horas de trabajo se perderían al guardar.
    */
   private async enviarCambios(): Promise<{ files: ArchivoServidor[] }> {
-    const peticion = () => {
-      const cuerpo = {
-        file_ids: [this.fileId],
-        ...this.cambios.aPeticion(this.medidas.length),
-        // Si el PDF la pedía: el servidor tiene que abrirlo también.
-        contrasena: this.documento?.contrasena ?? undefined,
-      };
-      return this.api.ejecutar('visor/guardar', cuerpo).toPromise() as Promise<{ files: ArchivoServidor[] }>;
+    const cuerpo = {
+      ...this.cambios.aPeticion(this.medidas.length),
+      contrasena: this.documento?.contrasena ?? undefined,
     };
-
-    if (!this.fileId) {
-      await this.subirAlServidor(true);
-    }
-    try {
-      return await peticion();
-    } catch (err) {
-      if ((err as { status?: number })?.status !== 404) {
-        throw err;
-      }
-      await this.subirAlServidor(true);
-      return peticion();
-    }
+    return this.conArchivoServidor(id =>
+      firstValueFrom(this.api.ejecutar('visor/guardar', { ...cuerpo, file_ids: [id] })));
   }
 
   /**
@@ -1444,6 +1474,10 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   }
 
   descargar(): void {
+    if (this.descargaOriginal) {
+      void this.guardarCopia();
+      return;
+    }
     if (this.resultado) {
       this.api.descargar(this.resultado).subscribe({
         error: err => avisoError(mensajeDeError(err, 'No se ha podido descargar el archivo.')),
@@ -1463,26 +1497,37 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private async subirAlServidor(obligatorio = false): Promise<void> {
-    // Sin nada que guardar, no hace falta dejar otra copia en el almacén.
-    if (this.soloLectura || !this.archivo || (this.fileId && !obligatorio)) {
-      return;
-    }
+  private async conArchivoServidor<T>(operacion: (id: string) => Promise<T>): Promise<T> {
+    const apertura = this.apertura;
+    const id = await this.subirAlServidor();
+    if (apertura !== this.apertura) throw new AperturaCancelada();
     try {
-      const estado = await new Promise<{ tipo: string; archivos?: ArchivoServidor[] }>((ok, mal) => {
-        this.api.subir([this.archivo!]).subscribe({
-          next: e => e.tipo === 'hecho' && ok(e as never),
-          error: mal,
-        });
-      });
-      this.fileId = estado.archivos?.[0]?.id ?? null;
+      return await operacion(id);
     } catch (err) {
-      if (obligatorio) {
-        throw err;
-      }
-      // Si falla al abrir no se molesta al usuario: se reintenta al guardar.
-      console.warn('No se ha podido preparar el documento en el servidor:', err);
+      if (apertura !== this.apertura || (err as { status?: number })?.status !== 404) throw err;
+      if (this.fileId === id) this.fileId = null;
+      const nuevo = await this.subirAlServidor();
+      if (apertura !== this.apertura) throw new AperturaCancelada();
+      return operacion(nuevo);
     }
+  }
+
+  private async subirAlServidor(): Promise<string> {
+    if (this.fileId) return this.fileId;
+    if (this.subida) return this.subida;
+    if (!this.archivo) throw new AperturaCancelada();
+    const apertura = this.apertura;
+    this.subida = firstValueFrom(this.api.subir([this.archivo]).pipe(filter(e => e.tipo === 'hecho')))
+      .then(estado => {
+        if (apertura !== this.apertura) throw new AperturaCancelada();
+        const id = estado.archivos[0]?.id;
+        if (!id) throw new Error(estado.rechazados[0]?.error ?? 'No se ha podido subir el documento.');
+        this.fileId = id;
+        return id;
+      }).finally(() => {
+        if (apertura === this.apertura) this.subida = undefined;
+      });
+    return this.subida;
   }
 
   private mantenerSesion(): void {
@@ -1590,8 +1635,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
   // --- memoria entre visitas --------------------------------------------
 
   /** Devuelve la página por la que se iba, que es lo único que no se aplica solo. */
-  private recuperar(): number {
-    const recuerdo = this.memoria.recordar(this.huella);
+  private recuperar(recuerdo: Recuerdo | null): number {
     if (!recuerdo) {
       return 1;
     }
@@ -1631,7 +1675,7 @@ export class VisorComponent implements AfterViewInit, OnDestroy {
       capas: this.capas.length
         ? Object.fromEntries(this.capas.map(capa => [capa.id, capa.visible]))
         : this.capasRecordadas,
-      borrador: conBorrador && this.cambios.hayAlgo ? this.cambios.aBorrador() : undefined,
+      borrador: conBorrador && !this.resultado && this.cambios.hayAlgo ? this.cambios.aBorrador() : undefined,
     };
   }
 

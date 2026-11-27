@@ -22,10 +22,34 @@ export class AlmacenLocal {
 
   private abrir(): Promise<IDBDatabase> {
     return this.apertura ??= new Promise((resolve, reject) => {
-      const peticion = indexedDB.open('caja-android', 1);
-      peticion.onupgradeneeded = () => peticion.result.createObjectStore('archivos', { keyPath: 'id' });
+      const peticion = indexedDB.open('caja-android', 2);
+      peticion.onupgradeneeded = evento => {
+        const db = peticion.result;
+        const archivos = evento.oldVersion === 0
+          ? db.createObjectStore('archivos', { keyPath: 'id' })
+          : peticion.transaction!.objectStore('archivos');
+        const cuota = db.createObjectStore('cuota');
+        const cursor = archivos.openCursor();
+        let usado = 0;
+        cursor.onsuccess = () => {
+          const actual = cursor.result;
+          if (actual) {
+            usado += actual.value.size;
+            actual.continue();
+          } else cuota.put(usado, 'usado');
+        };
+      };
       peticion.onsuccess = () => resolve(peticion.result);
       peticion.onerror = () => reject(new Error('No se puede abrir el almacenamiento del teléfono.'));
+    });
+  }
+
+  async usado(): Promise<number> {
+    const db = await this.abrir();
+    return new Promise((resolve, reject) => {
+      const r = db.transaction('cuota').objectStore('cuota').get('usado');
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
     });
   }
 
@@ -48,7 +72,7 @@ export class AlmacenLocal {
     });
   }
 
-  async guardar(entradas: { name: string; blob: Blob }[], generated: boolean): Promise<ArchivoLocal[]> {
+  async guardar(entradas: { name: string; blob: Blob }[], generated: boolean, signal?: AbortSignal): Promise<ArchivoLocal[]> {
     const nuevos = entradas.map(({ name, blob }) => ({
       id: crypto.randomUUID().replaceAll('-', ''), name: nombreSeguro(name),
       size: blob.size, generated, blob,
@@ -59,16 +83,21 @@ export class AlmacenLocal {
     }
     const db = await this.abrir();
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction('archivos', 'readwrite');
+      signal?.throwIfAborted();
+      const tx = db.transaction(['archivos', 'cuota'], 'readwrite');
       const store = tx.objectStore('archivos');
-      const r = store.getAll();
+      const cuota = tx.objectStore('cuota');
+      const r = cuota.get('usado');
       let error: Error | null = null;
       r.onsuccess = () => {
-        const peso = [...r.result, ...nuevos].reduce((n, a) => n + a.size, 0);
+        const peso = nuevos.reduce((n, a) => n + a.size, r.result as number);
         if (peso > CUOTA_LOCAL) {
           error = new Error('El espacio de trabajo supera 250 MB. Guarda tus resultados y pulsa «Empezar de cero».');
           tx.abort();
-        } else nuevos.forEach(a => store.put(a));
+        } else {
+          nuevos.forEach(a => store.add(a));
+          cuota.put(peso, 'usado');
+        }
       };
       tx.oncomplete = () => resolve();
       tx.onabort = tx.onerror = () => reject(error ?? new Error('No queda espacio para guardar los archivos en el teléfono.'));
@@ -79,9 +108,21 @@ export class AlmacenLocal {
   async eliminar(id?: string): Promise<void> {
     const db = await this.abrir();
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction('archivos', 'readwrite');
+      const tx = db.transaction(['archivos', 'cuota'], 'readwrite');
       const store = tx.objectStore('archivos');
-      if (id) store.delete(id); else store.clear();
+      const cuota = tx.objectStore('cuota');
+      if (id) {
+        const archivo = store.get(id);
+        archivo.onsuccess = () => {
+          if (!archivo.result) return;
+          const total = cuota.get('usado');
+          total.onsuccess = () => cuota.put(total.result - archivo.result.size, 'usado');
+          store.delete(id);
+        };
+      } else {
+        store.clear();
+        cuota.put(0, 'usado');
+      }
       tx.oncomplete = () => resolve();
       tx.onabort = tx.onerror = () => reject(tx.error);
     });

@@ -1,8 +1,10 @@
-import { Component, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnDestroy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 
+import { TraspasoService } from '../../../core/traspaso.service';
 import { SIN_SERVIDOR } from '../../../core/plataforma';
-import { RecuentoAnonimizado } from '../../../core/api.service';
+import { RecuentoAnonimizado, Resultado } from '../../../core/api.service';
 import { MARCADOS_DE_SERIE, TIPOS_DE_DATO, nombreDeDato } from '../../../shared/datos-personales';
 import { ConstructorRegexComponent } from '../../../shared/constructor-regex/constructor-regex.component';
 import { FileQueueComponent } from '../../../shared/file-queue/file-queue.component';
@@ -44,6 +46,9 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
   recuento: RecuentoAnonimizado[] | null = null;
   total = 0;
   contando = false;
+  paginasSinCapa: number[] = [];
+  private readonly traspaso = inject(TraspasoService);
+  private readonly router = inject(Router);
   /** Por qué no se ha podido contar; se enseña aquí y no como aviso que pasa. */
   problema = '';
 
@@ -73,14 +78,17 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
   }
 
   override get listo(): boolean {
-    return super.listo && !this.nadaQueBuscar;
+    return super.listo && !this.nadaQueBuscar && this.recuento !== null && this.total > 0 && !this.contando;
   }
 
   override get motivoBloqueo(): string | null {
     if (super.motivoBloqueo || this.archivos.length === 0) {
       return super.motivoBloqueo;
     }
-    return this.nadaQueBuscar ? 'Marca algún tipo de dato o escribe una expresión.' : null;
+    if (this.nadaQueBuscar) return 'Marca algún tipo de dato o escribe una expresión.';
+    if (this.problema) return this.problema;
+    if (this.contando || this.recuento === null) return 'Espera a que termine la inspección.';
+    return this.total ? null : 'No hay coincidencias que tachar.';
   }
 
   // --- constructor de expresiones ---------------------------------------
@@ -125,10 +133,22 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
     this.alCambiarLista();
   }
 
+  abrirOcr(): void {
+    const archivo = this.archivos.find(item => item.id === this.documento);
+    if (archivo) {
+      this.traspaso.dejarEntradas([archivo]);
+      void this.router.navigateByUrl('/herramientas/ocr-pdf');
+    }
+  }
+
+  protected override alTerminar(resultado: Resultado): void {
+    this.paginasSinCapa = resultado.paginas_sin_capa ?? [];
+  }
+
   /** Cambiar qué se busca invalida el resultado y obliga a volver a contar. */
   alCambiarAjuste(): void {
     this.alCambiarLista();
-    clearTimeout(this.temporizador);
+    this.olvidarRecuento();
     this.temporizador = setTimeout(() => this.contar(), ESPERA);
   }
 
@@ -139,9 +159,7 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
 
   alQuitarDocumento(): void {
     this.alCambiarLista();
-    if (!this.documento) {
-      this.olvidarRecuento();
-    }
+    this.contar();
   }
 
   private get documento(): string | null {
@@ -162,6 +180,7 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
     }
 
     const mia = ++this.peticion;
+    this.paginasSinCapa = [];
     this.contando = true;
     this.api.inspeccionarAnonimizado(id, this.elegidos, this.patron.trim()).subscribe({
       next: zonas => {
@@ -171,6 +190,7 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
         this.contando = false;
         this.problema = '';
         this.total = zonas.total;
+        this.paginasSinCapa = zonas.paginas_sin_capa ?? [];
         this.recuento = zonas.recuento;
         this.ejemplos = zonas.ejemplos ?? [];
       },
@@ -192,6 +212,7 @@ export class AnonimizarPdfComponent extends PaginaHerramienta implements OnDestr
     this.peticion++;
     this.contando = false;
     this.recuento = null;
+    this.paginasSinCapa = [];
     this.ejemplos = null;
     this.total = 0;
     this.problema = '';

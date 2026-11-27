@@ -163,12 +163,12 @@ export class EscritorioService {
    * Guarda con el diálogo de Windows. Devuelve `false` si no hay aplicación o
    * si la ventana no tiene permiso: entonces quien llama hace lo del navegador.
    */
-  async guardar(blob: Blob, nombre: string): Promise<boolean> {
+  async guardar(blob: Blob, nombre: string, origen?: string): Promise<boolean> {
     if (!this.tauri) {
       return false;
     }
     try {
-      const ruta = await guardarConDialogo(this.tauri, blob, nombre);
+      const ruta = await guardarConDialogo(this.tauri, blob, nombre, origen);
       if (ruta) {
         this.avisarGuardado(ruta);
       }
@@ -193,10 +193,10 @@ export class EscritorioService {
    */
   private avisarGuardado(ruta: string): void {
     const { archivo, carpeta } = describirGuardado(ruta);
-    this.avisarConCarpeta(`Guardado: ${archivo}`, carpeta ? `En ${carpeta}` : undefined);
+    this.avisarConCarpeta(ruta, `Guardado: ${archivo}`, carpeta ? `En ${carpeta}` : undefined);
   }
 
-  private avisarConCarpeta(titulo: string, texto?: string): void {
+  private avisarConCarpeta(ruta: string, titulo: string, texto?: string): void {
     Swal.fire({
       toast: true,
       position: 'top-end',
@@ -213,7 +213,7 @@ export class EscritorioService {
       },
     }).then(respuesta => {
       if (respuesta.isConfirmed && this.tauri) {
-        mostrarGuardado(this.tauri).catch(error => console.warn('No se ha podido abrir la carpeta.', error));
+        mostrarGuardado(this.tauri, ruta).catch(error => console.warn('No se ha podido abrir la carpeta.', error));
       }
     });
   }
@@ -273,7 +273,7 @@ export class EscritorioService {
   }
 
   private avisarGuardadoEn(cuantos: number, carpeta: string): void {
-    this.avisarConCarpeta(`Guardados ${cuantos} archivos`, `En ${acortarCarpeta(carpeta)}`);
+    this.avisarConCarpeta(carpeta, `Guardados ${cuantos} archivos`, `En ${acortarCarpeta(carpeta)}`);
   }
 
   private ultimoProgreso = 0;

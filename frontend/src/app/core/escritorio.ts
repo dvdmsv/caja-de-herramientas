@@ -39,6 +39,12 @@ export function puente(ventana: unknown = globalThis): PuenteTauri | null {
   return typeof internos?.invoke === 'function' ? (internos as PuenteTauri) : null;
 }
 
+const origenesNativos = new WeakMap<Blob, string>();
+
+export function origenNativo(archivo: Blob): string | undefined {
+  return origenesNativos.get(archivo);
+}
+
 /**
  * Guarda con «Guardar como». Devuelve dónde se ha guardado, `null` si la
  * persona ha cerrado el diálogo, y lanza si no se ha podido escribir.
@@ -46,17 +52,17 @@ export function puente(ventana: unknown = globalThis): PuenteTauri | null {
  * El contenido va en bruto y el nombre en una cabecera codificada como en una
  * URL: las cabeceras sólo admiten ASCII y los nombres llevan tildes.
  */
-export async function guardarConDialogo(tauri: PuenteTauri, blob: Blob, nombre: string): Promise<string | null> {
+export async function guardarConDialogo(tauri: PuenteTauri, blob: Blob, nombre: string, origen = origenNativo(blob)): Promise<string | null> {
   const datos = new Uint8Array(await blob.arrayBuffer());
   const ruta = await tauri.invoke('guardar_como', datos, {
-    headers: { 'x-nombre': encodeURIComponent(nombre) },
+    headers: { 'x-nombre': encodeURIComponent(nombre), ...(origen ? { 'x-origen': encodeURIComponent(origen) } : {}) },
   });
   return typeof ruta === 'string' ? ruta : null;
 }
 
-/** Abre el Explorador con lo último que se ha guardado, seleccionado. */
-export async function mostrarGuardado(tauri: PuenteTauri): Promise<void> {
-  await tauri.invoke('mostrar_guardado');
+/** Abre en el Explorador el destino del aviso que se ha pulsado. */
+export async function mostrarGuardado(tauri: PuenteTauri, ruta: string): Promise<void> {
+  await tauri.invoke('mostrar_guardado', { ruta });
 }
 
 /**
@@ -117,7 +123,9 @@ async function leerRutas(tauri: PuenteTauri, rutas: string[]): Promise<File[]> {
   const archivos: File[] = [];
   for (const ruta of rutas) {
     const contenido = (await tauri.invoke('leer_archivo', { ruta })) as ArrayBuffer;
-    archivos.push(new File([contenido], nombreDeRuta(ruta)));
+    const archivo = new File([contenido], nombreDeRuta(ruta));
+    origenesNativos.set(archivo, ruta);
+    archivos.push(archivo);
   }
   return archivos;
 }
@@ -220,12 +228,12 @@ export async function leerBoveda(tauri: PuenteTauri): Promise<string | null> {
 }
 
 /** La sustituye entera, de una vez (ver `boveda_disco::guardar`). */
-export async function guardarBoveda(tauri: PuenteTauri, contenido: string): Promise<void> {
-  await tauri.invoke('guardar_boveda', { contenido });
+export async function guardarBoveda(tauri: PuenteTauri, contenido: string, anterior: string | null): Promise<boolean> {
+  return (await tauri.invoke('guardar_boveda', { contenido, anterior })) === true;
 }
 
-export async function borrarBoveda(tauri: PuenteTauri): Promise<void> {
-  await tauri.invoke('borrar_boveda');
+export async function borrarBoveda(tauri: PuenteTauri, anterior: string | null): Promise<boolean> {
+  return (await tauri.invoke('borrar_boveda', { anterior })) === true;
 }
 
 /** Fuera del historial de Windows y de la nube, y se borra solo (`portapapeles.rs`). */

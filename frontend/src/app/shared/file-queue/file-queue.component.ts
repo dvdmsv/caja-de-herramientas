@@ -1,10 +1,11 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
-import { Component, EventEmitter, Input, OnInit, Output, ViewChild, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectorRef, EventEmitter, Input, OnInit, Output, ViewChild, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
 
 import { AsyncPipe } from '@angular/common';
 
 import { UsoSesion } from '../../core/api.service';
+import { EntradaArchivo } from '../../core/traspaso.service';
 import { UsoService } from '../../core/uso.service';
 import { EscritorioService } from '../../core/escritorio.service';
 import { PesoPipe } from '../peso.pipe';
@@ -18,15 +19,12 @@ import { ayudaTactil } from '../tactil';
 export type EstadoArchivo = 'local' | 'subiendo' | 'subido' | 'error';
 
 /** Un archivo elegido por el usuario y su estado respecto al servidor. */
-export interface ArchivoEnCola {
-  file: File;
+export interface ArchivoEnCola extends EntradaArchivo {
   estado: EstadoArchivo;
-  /** Id que devuelve el servidor una vez subido. */
-  id?: string;
 }
 
 export function aCola(archivos: File[]): ArchivoEnCola[] {
-  return archivos.map(file => ({ file, estado: 'local' as const }));
+  return archivos.map(file => ({ file, name: file.name, size: file.size, estado: 'local' as const }));
 }
 
 /**
@@ -118,10 +116,18 @@ export class FileQueueComponent implements OnInit, ColaReceptora {
   }
 
   /** Archivos que llegan de otra herramienta: como si se hubieran soltado aquí. */
-  recibir(archivos: File[]): void {
-    if (!this.deshabilitado) {
-      this.incorporar(archivos);
+  recibir(entradas: EntradaArchivo[]): void {
+    if (this.deshabilitado) return;
+    if (entradas.every(entrada => entrada.id)) {
+      const admitidas = this.multiple ? entradas : entradas.slice(0, 1);
+      const nuevos = admitidas.map(entrada => ({ ...entrada, estado: 'subido' as const }));
+      if (!this.multiple) this.items.length = 0;
+      this.items.push(...nuevos);
+      this.itemsChange.emit(this.items);
+      this.agregados.emit(nuevos);
+      return;
     }
+    this.incorporar(entradas.flatMap(entrada => entrada.file ? [entrada.file] : []));
   }
 
   /**
@@ -173,6 +179,17 @@ export class FileQueueComponent implements OnInit, ColaReceptora {
     }
   }
 
+  private readonly cd = inject(ChangeDetectorRef);
+
+  mover(indice: number, paso: number, boton: HTMLButtonElement): void {
+    const destino = indice + paso;
+    if (this.deshabilitado || destino < 0 || destino >= this.items.length) return;
+    moveItemInArray(this.items, indice, destino);
+    this.itemsChange.emit(this.items);
+    this.cd.detectChanges();
+    boton.focus();
+  }
+
   quitar(indice: number): void {
     this.items.splice(indice, 1);
     this.itemsChange.emit(this.items);
@@ -220,6 +237,6 @@ export class FileQueueComponent implements OnInit, ColaReceptora {
   }
 
   private yaEsta(file: File): boolean {
-    return this.items.some(item => item.file.name === file.name && item.file.size === file.size);
+    return this.items.some(item => item.name === file.name && item.size === file.size);
   }
 }

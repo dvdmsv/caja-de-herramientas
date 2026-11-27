@@ -23,6 +23,7 @@ para un trabajo pesado por worker, y esto es lo que hace que esa cuenta se
 cumpla.
 """
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -215,6 +216,7 @@ def _esperar(orden: list[str], tiempo_limite: int, programa: str, no_disponible:
         proceso = subprocess.Popen(resolver(orden), stdin=subprocess.DEVNULL,
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8',
                                    errors='replace', env=entorno_de_programas(),
+                                   start_new_session=os.name == 'posix',
                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     except FileNotFoundError as err:  # falta el programa en la imagen
         current_app.logger.error('%s no está instalado: %s', programa, err)
@@ -253,7 +255,12 @@ def _matar(proceso: subprocess.Popen, programa: str) -> None:
         subprocess.run(['taskkill', '/T', '/F', '/PID', str(proceso.pid)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-    proceso.kill()
+        proceso.kill()
+    else:
+        try:
+            os.killpg(proceso.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass  # Ya terminaron el conversor y sus hijos.
     try:
         proceso.communicate(timeout=LATIDO)
     except subprocess.TimeoutExpired:

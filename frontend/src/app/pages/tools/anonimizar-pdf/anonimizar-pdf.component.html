@@ -74,7 +74,12 @@
       Mirando el documento…
     </p>
   } @else if (problema) {
-    <div class="alert alert-warning mt-4 mb-0" role="status">{{ problema }}</div>
+    <div class="alert alert-warning mt-4 mb-0" role="status">
+      {{ problema }}
+      @if (problema.includes('OCR')) {
+        <button type="button" class="btn btn-link" (click)="abrirOcr()">Abrir el original en PDF con OCR</button>
+      }
+    </div>
   } @else if (recuento) {
     <div class="alert mt-4 mb-0" role="status" aria-live="polite"
       [class.alert-info]="total > 0" [class.alert-secondary]="total === 0">
@@ -88,6 +93,14 @@
       } @else {
         No se ha encontrado ninguno de los datos que has marcado.
       }
+    </div>
+  }
+
+  @if (paginasSinCapa.length && !resultados.length) {
+    <div class="alert alert-warning mt-4" role="status">
+      Las páginas {{ paginasSinCapa.join(', ') }} contienen imágenes sin texto reconocible.
+      Revisa esas páginas visualmente antes de compartir el resultado.
+      <button type="button" class="btn btn-link" [disabled]="ocupado" (click)="abrirOcr()">Abrir el original en PDF con OCR</button>
     </div>
   }
 
@@ -115,6 +128,10 @@
   <app-tool-controls [pagina]="pagina" accion="Tachar los datos" icono="bi-eye-slash">
   </app-tool-controls>
 
+  @if (resultados.length && paginasSinCapa.length) {
+    <p class="alert alert-warning" role="status">El archivo generado conserva las imágenes de las páginas
+      {{ paginasSinCapa.join(', ') }}. Abre la vista previa del resultado para revisarlas.</p>
+  }
   <app-result-list [archivos]="resultados"></app-result-list>
 
 </app-tool-page>

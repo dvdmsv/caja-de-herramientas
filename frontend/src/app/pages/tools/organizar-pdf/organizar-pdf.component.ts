@@ -74,7 +74,7 @@ export class OrganizarPdfComponent extends PaginaHerramienta implements OnDestro
 
   alAgregarDocumento(nuevos: ArchivoEnCola[]): void {
     this.alAgregar(nuevos);
-    if (nuevos[0]) {
+    if (nuevos[0]?.file) {
       this.abrir(nuevos[0].file);
     }
   }

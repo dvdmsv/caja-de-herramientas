@@ -46,7 +46,7 @@ def proteger_pdf():
         # Un PDF ya cifrado hay que abrirlo antes de poder hacer nada con él.
         if documento.needs_pass:
             actual = _contraseña(datos, 'password_actual',
-                                 'Escribe la contraseña que tiene ahora el PDF.')
+                                 'Escribe la contraseña que tiene ahora el PDF.', nueva=False)
             if not documento.authenticate(actual):
                 raise ApiError('La contraseña no es correcta.', 403)
         elif accion == 'quitar':
@@ -55,7 +55,7 @@ def proteger_pdf():
         base = os.path.splitext(nombre_seguro(record.name))[0]
 
         if accion == 'proteger':
-            nueva = _contraseña(datos, 'password', 'Escribe la contraseña que quieres ponerle.')
+            nueva = _contraseña(datos, 'password', 'Escribe la contraseña que quieres ponerle.', nueva=True)
             destino, salida = storage.reserve_output(session_id, f'{base}-protegido.pdf')
             documento.save(destino, encryption=fitz.PDF_ENCRYPT_AES_256, owner_pw=nueva,
                            user_pw=nueva, permissions=PERMISOS, deflate=True)
@@ -67,11 +67,11 @@ def proteger_pdf():
     return jsonify({'files': [storage.commit_output(session_id, salida).to_json()]}), 201
 
 
-def _contraseña(datos: dict, clave: str, falta: str) -> str:
+def _contraseña(datos: dict, clave: str, falta: str, *, nueva: bool) -> str:
     valor = datos.get(clave)
     if not isinstance(valor, str) or not valor:
         raise ApiError(falta, 400)
-    if not LONGITUD_MINIMA <= len(valor) <= LONGITUD_MAXIMA:
+    if nueva and not LONGITUD_MINIMA <= len(valor) <= LONGITUD_MAXIMA:
         raise ApiError(
             f'La contraseña debe tener entre {LONGITUD_MINIMA} y {LONGITUD_MAXIMA} caracteres.', 400)
     return valor

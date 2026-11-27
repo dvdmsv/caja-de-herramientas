@@ -35,11 +35,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod ajustes;
+mod archivos_ventana;
 mod bandeja;
 mod boveda_disco;
+mod guardado;
 mod menu;
 mod parche;
 mod parche_plan;
+mod transaccion_parche;
 #[cfg(windows)]
 mod portapapeles;
 mod soporte;
@@ -49,10 +52,10 @@ mod ventanas;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -62,6 +65,7 @@ use tauri::{AppHandle, Manager, RunEvent, Url, WebviewWindow, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 
 use ventanas::{Servidor, PRINCIPAL};
+use archivos_ventana::{Abiertos, Guardados, AVISO_TRAS};
 
 /// Lo que tiene que vivir mientras viva la aplicación.
 struct Backend {
@@ -71,54 +75,12 @@ struct Backend {
     _trabajo: Option<trabajo::Trabajo>,
 }
 
-/// Lo que llega de una vez por «Abrir con…» o por el menú del Explorador.
-struct Llegada {
-    /// La herramienta elegida en el menú; `None` es «Abrir con…» (la portada).
-    herramienta: Option<String>,
-    rutas: Vec<PathBuf>,
-    cuando: Instant,
-}
-
 /// Lo que se le devuelve al frontend por cada llegada.
 #[derive(serde::Serialize)]
 struct LlegadaParaLaPagina {
     herramienta: Option<String>,
     rutas: Vec<String>,
 }
-
-/// Los archivos que llegan con «Abrir con…» o el menú del Explorador,
-/// esperando a que el frontend los recoja, **cada uno para su ventana**.
-/// `permitidos` es la lista de lo único que `leer_archivo` puede leer: sin ella,
-/// la página podría pedir cualquier archivo del disco.
-#[derive(Default)]
-struct Abiertos {
-    /// Por etiqueta de ventana. La ventana puede no existir aún: se crea en otro
-    /// hilo (ver `ventanas.rs`) y recoge lo suyo en cuanto arranca su página.
-    pendientes: Mutex<HashMap<String, Vec<Llegada>>>,
-    permitidos: Mutex<HashSet<PathBuf>>,
-    /// La carpeta de lo último que ha llegado: «Guardar como» la propone, que
-    /// es donde suele querer dejarse el resultado. Lo que se elige con el
-    /// selector de la página no trae ruta (el navegador no la da).
-    carpeta: Mutex<Option<PathBuf>>,
-    /// A qué ventana fue lo último, con qué herramienta y cuándo: lo que llegue
-    /// igual y enseguida es de la misma selección y va a la misma ventana.
-    ultima: Mutex<Option<(String, Option<String>, Instant)>>,
-    /// Sube con cada llegada: sirve para avisar a la página sólo cuando han
-    /// dejado de llegar (ver `avisar_cuando_paren`).
-    generacion: AtomicU64,
-}
-
-/// Cuánto se espera a que lleguen los demás archivos de una misma selección.
-/// Con varios archivos seleccionados, el Explorador lanza un proceso por cada
-/// uno, y llegan uno detrás de otro por `single-instance`: «Unir PDF» con tres
-/// archivos tiene que abrirse una vez, en una ventana, con los tres; no en tres
-/// ventanas con uno.
-const JUNTOS: Duration = Duration::from_millis(1500);
-/// Cuánto tiene que llevar quieta una llegada para entregarla. Con ventanas que
-/// se abren con el backend ya listo, la página puede pedir lo suyo antes de que
-/// llegue el resto de la selección, y el resto llegaría como otra llegada que
-/// sustituiría a la primera.
-const AVISO_TRAS: Duration = Duration::from_millis(700);
 
 /// Los archivos y la herramienta (`--herramienta`, del menú del Explorador) que
 /// traen unos argumentos. El primero es el propio ejecutable.
@@ -137,41 +99,6 @@ fn leer_argumentos<I: IntoIterator<Item = String>>(argumentos: I) -> (Option<Str
         }
     }
     (herramienta, rutas)
-}
-
-impl Abiertos {
-    /// Si lo que llega con esta herramienta es de la misma selección que lo
-    /// anterior, la ventana a la que fue aquello.
-    fn ventana_de_la_seleccion(&self, herramienta: &Option<String>) -> Option<String> {
-        match &*self.ultima.lock().unwrap() {
-            Some((etiqueta, anterior, cuando)) if anterior == herramienta && cuando.elapsed() < JUNTOS => {
-                Some(etiqueta.clone())
-            }
-            _ => None,
-        }
-    }
-
-    /// Deja los archivos para la ventana `etiqueta`, sumándolos a su última
-    /// llegada si son de la misma selección.
-    fn anotar(&self, etiqueta: &str, herramienta: Option<String>, rutas: Vec<PathBuf>) {
-        if rutas.is_empty() {
-            return;
-        }
-        *self.carpeta.lock().unwrap() = rutas[0].parent().map(PathBuf::from);
-        self.permitidos.lock().unwrap().extend(rutas.iter().cloned());
-
-        let mut pendientes = self.pendientes.lock().unwrap();
-        let de_la_ventana = pendientes.entry(etiqueta.to_string()).or_default();
-        match de_la_ventana.last_mut() {
-            Some(ultima) if ultima.herramienta == herramienta && ultima.cuando.elapsed() < JUNTOS => {
-                ultima.rutas.extend(rutas);
-                ultima.cuando = Instant::now();
-            }
-            _ => de_la_ventana.push(Llegada { herramienta: herramienta.clone(), rutas, cuando: Instant::now() }),
-        }
-        *self.ultima.lock().unwrap() = Some((etiqueta.to_string(), herramienta, Instant::now()));
-        self.generacion.fetch_add(1, Ordering::SeqCst);
-    }
 }
 
 /// Otro arranque de la aplicación con ella ya abierta (el menú Inicio, «Abrir
@@ -205,11 +132,11 @@ fn otro_arranque(app: &AppHandle, argumentos: Vec<String>) {
 /// selección de varios se recoja entera y no a trozos. Si la ventana aún no
 /// existe no hace falta: su página los pide al arrancar.
 fn avisar_cuando_paren(app: &AppHandle, etiqueta: String) {
-    let generacion = app.state::<Abiertos>().generacion.load(Ordering::SeqCst);
+    let generacion = app.state::<Abiertos>().generacion(&etiqueta);
     let app = app.clone();
     thread::spawn(move || {
         thread::sleep(AVISO_TRAS);
-        if app.state::<Abiertos>().generacion.load(Ordering::SeqCst) == generacion {
+        if app.state::<Abiertos>().generacion(&etiqueta) == generacion {
             if let Some(ventana) = app.get_webview_window(&etiqueta) {
                 avisar_de_abiertos(&ventana);
             }
@@ -239,7 +166,7 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Abiertos::default())
-        .manage(UltimoGuardado::default())
+        .manage(Guardados::default())
         .manage(Destinos::default())
         .manage(Actualizacion::default())
         .manage(Servidor::default())
@@ -284,9 +211,24 @@ fn main() {
             // en cuanto arranque. Y los demás de la selección llegarán por
             // `otro_arranque` y se sumarán a ésta.
             let (herramienta, rutas) = leer_argumentos(std::env::args());
-            app.state::<Abiertos>().anotar(PRINCIPAL, herramienta, rutas);
+            if !rutas.is_empty() {
+                app.state::<Abiertos>().anotar(PRINCIPAL, herramienta, rutas);
+                avisar_cuando_paren(app.handle(), PRINCIPAL.to_owned());
+            }
 
-            ventanas::crear(app.handle(), PRINCIPAL, None)?;
+            let principal = ventanas::crear(app.handle(), PRINCIPAL, None)?;
+            match parche::reanudar_si_pendiente(app.handle()) {
+                Ok(true) => {
+                    // El aplicador espera nuestra salida antes de restaurar el ejecutable.
+                    app.handle().exit(0);
+                    return Ok(());
+                }
+                Ok(false) => {}
+                Err(error) => {
+                    ventanas::mostrar_fallo(&principal, &error, "");
+                    return Ok(());
+                }
+            }
             // Antes que el backend, y sin esperar a nada: lo que haya dejado
             // una actualización no sirve de un arranque a otro.
             let fallo = parche::limpiar_restos(app.handle());
@@ -314,7 +256,8 @@ fn main() {
         // olvida. Al cerrar la última, Tauri sale; con «seguir junto al reloj»
         // la última no se cierra, se esconde (`bandeja.rs`).
         RunEvent::WindowEvent { label, event: WindowEvent::Destroyed, .. } => {
-            app.state::<Abiertos>().pendientes.lock().unwrap().remove(&label);
+            app.state::<Abiertos>().cerrar(&label);
+            app.state::<Guardados>().cerrar(&label);
             app.state::<Destinos>().0.lock().unwrap().remove(&label);
         }
         RunEvent::Exit => {
@@ -582,13 +525,6 @@ fn pintar(app: &AppHandle, estado: serde_json::Value, barra: ProgressBarState) {
 
 // --- Comandos del frontend ----------------------------------------------------
 
-/// Lo último que se ha guardado con «Guardar como» —o la carpeta de «Guardar
-/// todo en una carpeta»—, para «Mostrar en la carpeta». Se guarda aquí y no se
-/// recibe de la página: así ese comando sólo puede enseñar lo que la persona
-/// acaba de guardar, no cualquier ruta.
-#[derive(Default)]
-struct UltimoGuardado(Mutex<Option<PathBuf>>);
-
 /// Guarda un resultado donde diga «Guardado» en Ajustes. Devuelve dónde ha
 /// quedado, o nada si se ha cerrado el diálogo, que no es un error.
 ///
@@ -623,19 +559,24 @@ async fn guardar_como(
     let guardado = ajustes::leer(&app).guardado;
     let sin_preguntar = match guardado.modo {
         ajustes::ModoGuardado::Preguntar => None,
-        ajustes::ModoGuardado::Junto => app.state::<Abiertos>().carpeta.lock().unwrap().clone(),
+        ajustes::ModoGuardado::Junto => {
+            let origen = request.headers().get("x-origen").and_then(|v| v.to_str().ok())
+                .and_then(|v| percent_encoding::percent_decode_str(v).decode_utf8().ok())
+                .map(|v| PathBuf::from(v.as_ref()));
+            origen.and_then(|ruta| app.state::<Abiertos>().carpeta_del_original(ventana.label(), &ruta))
+        }
         ajustes::ModoGuardado::Carpeta => guardado.carpeta.map(PathBuf::from),
     }
     .filter(|carpeta| carpeta.is_dir());
     if let Some(carpeta) = sin_preguntar {
         let ruta = escribir_sin_pisar(&carpeta, &nombre, datos)?;
         let texto = ruta.display().to_string();
-        *app.state::<UltimoGuardado>().0.lock().unwrap() = Some(ruta);
+        app.state::<Guardados>().anotar(ventana.label(), ruta);
         return Ok(Some(texto));
     }
 
     let mut dialogo = app.dialog().file().set_file_name(&nombre);
-    if let Some(carpeta) = app.state::<Abiertos>().carpeta.lock().unwrap().clone() {
+    if let Some(carpeta) = app.state::<Abiertos>().carpetas.lock().unwrap().get(ventana.label()).cloned() {
         dialogo = dialogo.set_directory(carpeta);
     }
     // Hijo de la ventana que guarda, no de otra.
@@ -649,17 +590,18 @@ async fn guardar_como(
         return Ok(None);
     };
     let ruta = elegida.into_path().map_err(|error| error.to_string())?;
-    fs::write(&ruta, datos).map_err(|error| format!("No se ha podido guardar en {}: {error}", ruta.display()))?;
+    guardado::reemplazar(&ruta, |salida| salida.write_all(datos)).map_err(|error| format!("No se ha podido guardar en {}: {error}", ruta.display()))?;
     let texto = ruta.display().to_string();
-    *app.state::<UltimoGuardado>().0.lock().unwrap() = Some(ruta);
+    app.state::<Guardados>().anotar(ventana.label(), ruta);
     Ok(Some(texto))
 }
 
-/// Abre el Explorador con lo último que se ha guardado, seleccionado; si fue
-/// una carpeta entera, dentro de ella.
+/// Abre el destino del aviso que se pulsó en esta ventana.
 #[tauri::command]
-fn mostrar_guardado(guardado: tauri::State<'_, UltimoGuardado>) -> Result<(), String> {
-    let ruta = guardado.0.lock().unwrap().clone().ok_or("No se ha guardado nada todavía.")?;
+fn mostrar_guardado(ventana: WebviewWindow, guardado: tauri::State<'_, Guardados>, ruta: PathBuf) -> Result<(), String> {
+    if !guardado.contiene(ventana.label(), &ruta) {
+        return Err("Ese archivo no se ha guardado desde esta ventana.".into());
+    }
     if ruta.is_dir() {
         tauri_plugin_opener::open_path(ruta, None::<&str>).map_err(|error| error.to_string())
     } else {
@@ -698,7 +640,7 @@ async fn elegir_carpeta(
 ) -> Result<Option<Carpeta>, String> {
     let abiertos = app.state::<Abiertos>();
     let mut dialogo = app.dialog().file().set_parent(&ventana).set_title("Elige la carpeta con los archivos");
-    if let Some(carpeta) = abiertos.carpeta.lock().unwrap().clone() {
+    if let Some(carpeta) = abiertos.carpetas.lock().unwrap().get(ventana.label()).cloned() {
         dialogo = dialogo.set_directory(carpeta);
     }
     let Some(elegida) = dialogo.blocking_pick_folder() else {
@@ -722,8 +664,8 @@ async fn elegir_carpeta(
     let sobran = rutas.len().saturating_sub(MAXIMO_CARPETA);
     rutas.truncate(MAXIMO_CARPETA);
 
-    abiertos.permitidos.lock().unwrap().extend(rutas.iter().cloned());
-    *abiertos.carpeta.lock().unwrap() = Some(carpeta.clone());
+    abiertos.permitidos.lock().unwrap().entry(ventana.label().to_owned()).or_default().extend(rutas.iter().cloned());
+    abiertos.carpetas.lock().unwrap().insert(ventana.label().to_owned(), carpeta.clone());
     Ok(Some(Carpeta {
         carpeta: carpeta.display().to_string(),
         rutas: rutas.iter().map(|ruta| ruta.to_string_lossy().into_owned()).collect(),
@@ -741,7 +683,7 @@ struct Destinos(Mutex<HashMap<String, PathBuf>>);
 #[tauri::command]
 async fn elegir_destino(app: AppHandle, ventana: WebviewWindow) -> Result<Option<String>, String> {
     let mut dialogo = app.dialog().file().set_parent(&ventana).set_title("Elige dónde guardar los archivos");
-    if let Some(carpeta) = app.state::<Abiertos>().carpeta.lock().unwrap().clone() {
+    if let Some(carpeta) = app.state::<Abiertos>().carpetas.lock().unwrap().get(ventana.label()).cloned() {
         dialogo = dialogo.set_directory(carpeta);
     }
     let Some(elegida) = dialogo.blocking_pick_folder() else {
@@ -749,7 +691,7 @@ async fn elegir_destino(app: AppHandle, ventana: WebviewWindow) -> Result<Option
     };
     let carpeta = elegida.into_path().map_err(|error| error.to_string())?;
     let texto = carpeta.display().to_string();
-    *app.state::<UltimoGuardado>().0.lock().unwrap() = Some(carpeta.clone());
+    app.state::<Guardados>().anotar(ventana.label(), carpeta.clone());
     app.state::<Destinos>().0.lock().unwrap().insert(ventana.label().to_string(), carpeta);
     Ok(Some(texto))
 }
@@ -788,23 +730,8 @@ async fn guardar_en_destino(
 /// **sin sobrescribir nada**: si ya hay uno, `nombre (1).pdf`, `(2)`…
 fn escribir_sin_pisar(carpeta: &std::path::Path, nombre: &str, datos: &[u8]) -> Result<PathBuf, String> {
     let nombre = nombre_de_archivo(nombre);
-    // `create_new` y no mirar antes si existe: entre mirar y escribir podría
-    // aparecer uno, y se sobrescribiría.
-    for intento in 0..1000 {
-        let ruta = carpeta.join(con_numero(&nombre, intento));
-        match fs::OpenOptions::new().write(true).create_new(true).open(&ruta) {
-            Ok(mut archivo) => {
-                use std::io::Write;
-                archivo
-                    .write_all(datos)
-                    .map_err(|error| format!("No se ha podido guardar en {}: {error}", ruta.display()))?;
-                return Ok(ruta);
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(error) => return Err(format!("No se ha podido guardar en {}: {error}", ruta.display())),
-        }
-    }
-    Err(format!("Ya hay demasiados archivos llamados {nombre} en {}.", carpeta.display()))
+    guardado::sin_pisar(carpeta, &nombre, datos)
+        .map_err(|error| format!("No se ha podido guardar {nombre} en {}: {error}", carpeta.display()))
 }
 
 /// Lo que llega de la página, reducido a un nombre de archivo de Windows: sin
@@ -820,31 +747,13 @@ fn nombre_de_archivo(nombre: &str) -> String {
     if limpio.is_empty() || limpio == ".." { "resultado".into() } else { limpio }
 }
 
-/// `informe.pdf`, `informe (1).pdf`, `informe (2).pdf`…
-fn con_numero(nombre: &str, numero: u32) -> String {
-    if numero == 0 {
-        return nombre.to_string();
-    }
-    match nombre.rsplit_once('.') {
-        Some((base, extension)) if !base.is_empty() => format!("{base} ({numero}).{extension}"),
-        _ => format!("{nombre} ({numero})"),
-    }
-}
-
 /// Lo que ha llegado para esta ventana con «Abrir con…» o el menú del
 /// Explorador y aún no se ha recogido, cada llegada con su herramienta. Sólo lo
 /// que lleva un momento quieto: lo demás aún puede crecer, y
 /// `avisar_cuando_paren` avisará cuando pare.
 #[tauri::command]
 fn archivos_pendientes(ventana: WebviewWindow, abiertos: tauri::State<'_, Abiertos>) -> Vec<LlegadaParaLaPagina> {
-    let mut pendientes = abiertos.pendientes.lock().unwrap();
-    let Some(de_la_ventana) = pendientes.get_mut(ventana.label()) else { return Vec::new() };
-    let (quietas, creciendo): (Vec<_>, Vec<_>) = std::mem::take(de_la_ventana)
-        .into_iter()
-        .partition(|llegada| llegada.cuando.elapsed() >= AVISO_TRAS);
-    *de_la_ventana = creciendo;
-    quietas
-        .into_iter()
+    abiertos.recoger(ventana.label(), Instant::now()).into_iter()
         .map(|llegada| LlegadaParaLaPagina {
             herramienta: llegada.herramienta,
             rutas: llegada.rutas.iter().map(|ruta| ruta.to_string_lossy().into_owned()).collect(),
@@ -914,14 +823,28 @@ fn leer_boveda(app: AppHandle) -> Result<Option<String>, String> {
     boveda_disco::leer(&ruta_de_la_boveda(&app)?)
 }
 
+static CAMBIO_BOVEDA: Mutex<()> = Mutex::new(());
+
 #[tauri::command]
-fn guardar_boveda(app: AppHandle, contenido: String) -> Result<(), String> {
-    boveda_disco::guardar(&ruta_de_la_boveda(&app)?, &contenido)
+fn guardar_boveda(app: AppHandle, contenido: String, anterior: Option<String>) -> Result<bool, String> {
+    let _turno = CAMBIO_BOVEDA.lock().unwrap();
+    let ruta = ruta_de_la_boveda(&app)?;
+    if boveda_disco::leer(&ruta)? != anterior {
+        return Ok(false);
+    }
+    boveda_disco::guardar(&ruta, &contenido)?;
+    Ok(true)
 }
 
 #[tauri::command]
-fn borrar_boveda(app: AppHandle) -> Result<(), String> {
-    boveda_disco::borrar(&ruta_de_la_boveda(&app)?)
+fn borrar_boveda(app: AppHandle, anterior: Option<String>) -> Result<bool, String> {
+    let _turno = CAMBIO_BOVEDA.lock().unwrap();
+    let ruta = ruta_de_la_boveda(&app)?;
+    if boveda_disco::leer(&ruta)? != anterior {
+        return Ok(false);
+    }
+    boveda_disco::borrar(&ruta)?;
+    Ok(true)
 }
 
 /// Lo único de la bóveda que pasa por aquí ya descifrado (ver `portapapeles.rs`).
@@ -983,14 +906,14 @@ fn reiniciar(app: AppHandle) {
 /// El contenido de uno de esos archivos, en bruto. Sólo de los que han llegado
 /// así, y una vez: la página no puede leer cualquier cosa del disco.
 #[tauri::command]
-fn leer_archivo(ruta: String, abiertos: tauri::State<'_, Abiertos>) -> Result<tauri::ipc::Response, String> {
+fn leer_archivo(ventana: WebviewWindow, ruta: String, abiertos: tauri::State<'_, Abiertos>) -> Result<tauri::ipc::Response, String> {
     let ruta = PathBuf::from(ruta);
-    if !abiertos.permitidos.lock().unwrap().remove(&ruta) {
+    if !abiertos.permitidos.lock().unwrap().get_mut(ventana.label()).is_some_and(|rutas| rutas.remove(&ruta)) {
         return Err("Ese archivo no se ha abierto con la aplicación.".into());
     }
-    fs::read(&ruta)
-        .map(tauri::ipc::Response::new)
-        .map_err(|error| format!("No se ha podido leer {}: {error}", ruta.display()))
+    let datos = fs::read(&ruta).map_err(|error| format!("No se ha podido leer {}: {error}", ruta.display()))?;
+    abiertos.origenes.lock().unwrap().entry(ventana.label().to_owned()).or_default().insert(ruta);
+    Ok(tauri::ipc::Response::new(datos))
 }
 
 // --- Trabajos largos ------------------------------------------------------------

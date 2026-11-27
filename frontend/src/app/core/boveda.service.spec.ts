@@ -20,10 +20,13 @@ describe('la bóveda', () => {
   beforeEach(() => {
     disco = null;
     (globalThis as Record<string, unknown>)['__TAURI_INTERNALS__'] = {
-      invoke: async (comando: string, argumentos?: { contenido?: string }) => {
+      invoke: async (comando: string, argumentos?: { contenido?: string; anterior?: string | null }) => {
         if (comando === 'leer_boveda') return disco;
-        if (comando === 'guardar_boveda') disco = argumentos!.contenido!;
-        if (comando === 'borrar_boveda') disco = null;
+        if (comando === 'guardar_boveda' || comando === 'borrar_boveda') {
+          if (argumentos!.anterior !== disco) return false;
+          disco = comando === 'guardar_boveda' ? argumentos!.contenido! : null;
+          return true;
+        }
         if (comando === 'guardar_como') return 'C:\\copias\\boveda.json';
         return null;
       },
@@ -83,9 +86,8 @@ describe('la bóveda', () => {
     await otra.comprobar();
     await otra.abrir('contraseña maestra');
 
-    await una.guardarCertificado(certificado);
-    // La otra no lo ha visto aún, pero al guardar relee y lo conserva.
-    await otra.guardarFirma(firma(), 'Firma');
+    await Promise.all([una.guardarCertificado(certificado), otra.guardarFirma(firma(), 'Firma')]);
+    await otra.abrir('contraseña maestra');
 
     expect(otra.contenido.certificados).toHaveLength(1);
     expect(otra.contenido.firmas).toHaveLength(1);
@@ -103,6 +105,19 @@ describe('la bóveda', () => {
 
     await otra.abrir('otra contraseña nueva');
     expect(otra.abierta).toBe(true);
+  });
+
+  it('una escritura iniciada antes de borrar la bóveda no la vuelve a crear', async () => {
+    const una = ventana();
+    const otra = ventana();
+    await una.crear('contraseña maestra');
+    await otra.abrir('contraseña maestra');
+    const guardar = otra.guardarCertificado(certificado);
+    // borrar sólo requiere la comparación en disco. Mientras tanto la otra
+    // ventana todavía está descifrando y cifrando su cambio.
+    await una.borrar();
+    await expect(guardar).rejects.toThrow(/borrado/);
+    expect(disco).toBeNull();
   });
 
   it('no se crea dos veces ni con una contraseña corta', async () => {
@@ -171,10 +186,14 @@ describe('la bóveda', () => {
       await una.crear('contraseña maestra');
       await otra.abrir('contraseña maestra');
 
-      await una.guardarSecreto(ficha);
-      await otra.guardarFirma(firma(), 'Firma');
+      await Promise.all([
+        una.guardarSecreto(ficha),
+        otra.guardarSecreto({ ...ficha, nombre: 'Correo' }),
+      ]);
 
-      expect(otra.contenido.secretos.map(s => s.nombre)).toEqual(['GitHub']);
+      const reabierta = ventana();
+      await reabierta.abrir('contraseña maestra');
+      expect(reabierta.contenido.secretos.map(s => s.nombre).sort()).toEqual(['Correo', 'GitHub']);
     });
 
     it('ver una ficha aplaza el cierre', async () => {
